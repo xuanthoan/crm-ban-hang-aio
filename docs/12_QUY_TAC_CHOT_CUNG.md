@@ -1,6 +1,7 @@
 # CRM_Ban_Hang — Quy tắc đã chốt cứng (không thay đổi nếu không có quyết định mới của chủ dự án)
 
 Ngày chốt: 2026-10-28
+Bổ sung ngày 2026-10-28: mục 4.1 được thay bằng quy tắc nhiều số điện thoại, không giới hạn cứng 2 số.
 Trạng thái: **ĐÃ CHỐT CỨNG**
 Phạm vi áp dụng: toàn bộ MVP và mọi sprint sau này, cho cả AI Agent và người code tay.
 
@@ -84,13 +85,18 @@ Kiểm chứng bắt buộc: đơn 1.000.000, cọc 300.000 → còn nợ 700.00
 
 ## 4. Chống trùng: số điện thoại khách hàng và mã SKU
 
-### 4.1. Số điện thoại
+### 4.1. Số điện thoại — không giới hạn cứng 2 số, kiểm tra trùng tất cả các số
 
-- Trước khi so sánh, chuẩn hóa số điện thoại: bỏ khoảng trắng, dấu chấm, dấu gạch ngang; chuyển đầu `+84` về `0`; lưu vào `phone_normalized_1`, `phone_normalized_2` để kiểm tra.
-- Kiểm tra trùng cả 4 chiều: `phone_1` mới với `phone_1` cũ, `phone_1` mới với `phone_2` cũ, `phone_2` mới với `phone_1` cũ, `phone_2` mới với `phone_2` cũ.
-- Áp dụng cả khi tạo mới và khi sửa. Khi sửa, loại trừ chính khách đang sửa khỏi kết quả kiểm tra.
-- Số điện thoại trùng chính xác thì chặn tạo/sửa, không tạo hồ sơ trùng. Thông báo phải chỉ rõ khách đã tồn tại để người dùng mở hồ sơ cũ thay vì tạo mới.
-- Trong một khách, `phone_1` và `phone_2` giống nhau thì phải cảnh báo.
+- **Không chốt cứng mỗi khách hàng chỉ có tối đa 2 số điện thoại.** Một khách hàng có thể có nhiều số điện thoại, không giới hạn số lượng ở database và ở giao diện (giao diện dùng nút “+ Thêm số điện thoại”, mỗi lần thêm một số).
+- Mô hình dữ liệu phải dùng bảng riêng cho số điện thoại, ví dụ `customer_phones`, thay vì chỉ có 2 cột cố định trên bảng khách hàng. Mỗi dòng gồm ít nhất: `customer_id`, `phone`, `phone_normalized`, `is_primary`, `label` (ví dụ: chính, phụ, Zalo, người thân), `status`, `created_at`. Một khách có đúng 1 số chính (`is_primary = true`) dùng để hiển thị mặc định, tìm kiếm và điền nhanh khi tạo đơn; các số còn lại là số phụ.
+- Dữ liệu cũ `phone_1` / `phone_2` (nếu có) phải được chuyển sang bảng `customer_phones` khi migrate, giữ đúng thứ tự, trong đó `phone_1` thành số chính, `phone_2` thành số phụ. Sau khi chuyển, không được dùng 2 cột cũ làm giới hạn cho tính năng mới.
+- Trước khi so sánh, chuẩn hóa mọi số điện thoại giống nhau: bỏ khoảng trắng, dấu chấm, dấu gạch ngang; chuyển đầu `+84` về `0`; lưu vào `phone_normalized` để kiểm tra.
+- **Kiểm tra trùng trên tất cả các số, không chỉ 2 số đầu:** bất kỳ số nào trong danh sách mới cũng phải được so với tất cả các số đang hoạt động của tất cả khách hàng khác, và so với chính các số còn lại trong cùng danh sách đó. Không còn khái niệm chỉ kiểm tra 4 chiều `phone_1`/`phone_2` nữa, vì với N số thì số chiều kiểm tra là N × tổng số điện thoại của các khách khác.
+- Áp dụng cả khi tạo mới, khi sửa, khi thêm/bớt số, và khi import khách hàng. Khi sửa, loại trừ chính khách đang sửa khỏi kết quả kiểm tra trùng với khách khác, nhưng vẫn phải chặn trùng ngay trong chính danh sách số của khách đó.
+- Số điện thoại trùng chính xác với khách khác thì chặn tạo/sửa/thêm số đó, không tạo hồ sơ trùng. Thông báo phải chỉ rõ số nào trùng và khách nào đã có số đó để người dùng mở hồ sơ cũ thay vì tạo mới.
+- Trong cùng một khách, 2 số sau khi chuẩn hóa mà giống nhau thì phải chặn, không chỉ cảnh báo.
+- Xóa số điện thoại: số phụ có thể xóa mềm/ngừng sử dụng; số chính chỉ được xóa khi khách còn ít nhất 1 số khác và số đó được chuyển thành số chính, hoặc khi khách không còn số nào thì phải xác nhận rõ. Số đã từng dùng trong đơn hàng/lịch sử chăm sóc thì không được xóa mất dấu vết.
+- Tìm kiếm, tạo đơn và hiển thị khách phải tìm được khách qua bất kỳ số nào trong danh sách, không chỉ số chính.
 
 ### 4.2. Mã SKU
 
@@ -135,6 +141,6 @@ Nếu vi phạm bất kỳ mục nào dưới đây, sprint đó chưa được 
 5. Hủy đơn đã trừ kho nhưng không hoàn kho.
 6. `paid_total` / `debt_total` / `payment_status` lệch nhau hoặc lệch với tổng payment active.
 7. Hủy payment nhưng công nợ không tính lại.
-8. Tạo hoặc sửa thành khách trùng số điện thoại, hoặc SKU trùng.
+8. Tạo hoặc sửa thành khách trùng số điện thoại (kể cả trùng ở bất kỳ số phụ nào trong danh sách nhiều số), hoặc SKU trùng; hoặc khách bị giới hạn cứng ở tối đa 2 số điện thoại.
 9. Xóa cứng khách/SKU/đơn/payment đã có giao dịch.
 10. User không có quyền vẫn gọi API thành công, hoặc vẫn thấy giá nhập/lãi gộp/công nợ toàn hệ thống ở API/export.
