@@ -1,0 +1,61 @@
+# CRM_Ban_Hang — Sprint Auth.
+# One code base, one env, two ways to run (see README.md):
+#   - Daily use / deployment: docker compose up -d --build
+#   - Development / debugging: npm run dev in backend/ and frontend/
+# Both use PostgreSQL and the same env names. JWT_SECRET has NO default:
+# Compose will refuse to start if it is not set in a .env file next to
+# this file (see .env.example at the repo root). Never commit a real .env.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: crm_ban_hang
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d crm_ban_hang"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/crm_ban_hang?schema=public
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required — copy .env.example to .env and set it}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      OTP_DEV_LOG: ${OTP_DEV_LOG:-false}
+      # Only used by `npm run seed:admin` inside the container. Empty by
+      # default so no admin is created accidentally.
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
