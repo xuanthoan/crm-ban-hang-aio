@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ORDER_STATUS_LABELS, PAYMENT_RECORD_LABELS, PAYMENT_STATUS_LABELS, isoToVnDate, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -78,13 +79,6 @@ interface FormLine {
   unitPrice: string;
   discountAmount: string;
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Nháp (đang giữ tồn)",
-  confirmed: "Đã xác nhận (đã trừ kho)",
-  completed: "Hoàn thành",
-  cancelled: "Đã hủy",
-};
 
 async function api(path: string, token: string, method = "GET", body?: unknown) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -444,7 +438,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
             <tr key={o.id} className="cursor-pointer border-b hover:bg-gray-50" onClick={() => openDetail(o.id)}>
               <td className="p-2 font-medium">{o.orderCode}</td>
               <td className="p-2">{o.customerName ?? o.customerId}</td>
-              <td className="p-2">{STATUS_LABELS[o.status] ?? o.status}</td>
+              <td className="p-2">{labelFor(ORDER_STATUS_LABELS, o.status)}</td>
               <td className="p-2">{o.grandTotal.toLocaleString("vi-VN")}</td>
               <td className="p-2">{o.debtTotal.toLocaleString("vi-VN")}</td>
               <td className="p-2">{o.itemsCount ?? o.items?.length ?? 0}</td>
@@ -463,7 +457,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
 
       {detail && (
         <div className="rounded border p-4">
-          <h3 className="text-base font-semibold">Đơn {detail.orderCode} — {STATUS_LABELS[detail.status] ?? detail.status}</h3>
+          <h3 className="text-base font-semibold">Đơn {detail.orderCode} — {labelFor(ORDER_STATUS_LABELS, detail.status)}</h3>
           <p className="text-sm text-gray-600">
             Khách: {detail.customerName} · Tổng: {detail.grandTotal.toLocaleString("vi-VN")} (hàng {detail.subtotal.toLocaleString("vi-VN")}
             {detail.discountTotal > 0 && ` − giảm ${detail.discountTotal.toLocaleString("vi-VN")}`}
@@ -545,14 +539,14 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
             <div className="mt-4 rounded border p-3">
               <h4 className="font-semibold">Thanh toán</h4>
               <p className="text-sm text-gray-600">
-                Đã thu: {detail.paidTotal.toLocaleString("vi-VN")} · Còn nợ: {detail.debtTotal.toLocaleString("vi-VN")} · Trạng thái: {detail.paymentStatus}
+                Đã thu: {detail.paidTotal.toLocaleString("vi-VN")} · Còn nợ: {detail.debtTotal.toLocaleString("vi-VN")} · Trạng thái: {labelFor(PAYMENT_STATUS_LABELS, detail.paymentStatus)}
                 {detail.debtTotal < 0 && ` · Đơn đang thừa tiền ${Math.abs(detail.debtTotal).toLocaleString("vi-VN")} (tiền thừa cần hoàn — hoàn tiền chưa làm ở sprint này, không tạo thêm payment).`}
               </p>
               <ul className="mt-2 space-y-2 text-sm">
                 {payments.map((p) => (
                   <li key={p.id} className="flex flex-wrap items-center gap-2 border-b pb-2">
                     <span>
-                      <strong>{p.amount.toLocaleString("vi-VN")}</strong> · {p.paymentMethodLabel} · {p.paidAt?.slice(0, 10)} · {p.status === "active" ? "Đang hoạt động" : "Đã hủy"}
+                      <strong>{p.amount.toLocaleString("vi-VN")}</strong> · {p.paymentMethodLabel} · {isoToVnDate(p.paidAt)} · {labelFor(PAYMENT_RECORD_LABELS, p.status)}
                       {p.note && ` · ${p.note}`}
                       {p.status === "cancelled" && ` · Lý do hủy: ${p.cancelReason ?? ""}${p.cancelledByName ? ` (bởi ${p.cancelledByName})` : ""}`}
                     </span>

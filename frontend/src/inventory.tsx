@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { INVENTORY_TX_LABELS, isoToVnDateTime, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -242,8 +243,8 @@ export default function InventoryPage({ token, permissions }: { token: string; p
             <tbody>
               {history.map((t) => (
                 <tr key={t.id}>
-                  <td className="border p-2">{new Date(t.createdAt).toLocaleString()}</td>
-                  <td className="border p-2">{t.transactionType}</td>
+                  <td className="border p-2">{isoToVnDateTime(t.createdAt)}</td>
+                  <td className="border p-2">{labelFor(INVENTORY_TX_LABELS, t.transactionType)}</td>
                   <td className="border p-2 text-right">{t.quantityBefore}</td>
                   <td className="border p-2 text-right">{t.quantityChanged >= 0 ? "+" : ""}{t.quantityChanged}</td>
                   <td className="border p-2 text-right font-semibold">{t.quantityAfter}</td>

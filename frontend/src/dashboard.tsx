@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { SCOPE_LABELS, isoToVnDate, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -100,7 +101,7 @@ export function DashboardPage({ token }: { token: string }) {
       {summary && (
         <>
           <p className="text-sm text-gray-500">
-            Phạm vi: {summary.scope} — {summary.scopeNote}
+            Phạm vi: {labelFor(SCOPE_LABELS, summary.scope)} — {summary.scopeNote}
             {summary.omittedNote ? ` ${summary.omittedNote}` : ""}
           </p>
           <div className="grid gap-3 md:grid-cols-3">
@@ -125,7 +126,7 @@ export function DashboardPage({ token }: { token: string }) {
               <div className="mt-3 space-y-2">
                 {days.map((d) => (
                   <div key={d.date} className="flex items-center gap-2 text-sm">
-                    <span className="w-24 shrink-0">{d.date}</span>
+                    <span className="w-24 shrink-0">{isoToVnDate(d.date)}</span>
                     <div className="h-4 rounded bg-blue-500" style={{ width: `${maxDay > 0 ? Math.max(2, (d.salesTotal / maxDay) * 100) : 0}%` }} />
                     <span>{fmt(d.salesTotal)} · {d.ordersCount} đơn</span>
                   </div>

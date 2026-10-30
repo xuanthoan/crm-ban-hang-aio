@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { CustomerCareTab } from "./care";
-import { VnDateInput, isoToVnDate } from "./VnDateInput";
+import { isoToVnDate, labelFor, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "./labels";
 import { EntityAuditTimeline } from "./audit";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -255,7 +255,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
     e.preventDefault();
     setError("");
     setInfo("");
-    // Ngày sinh trong form đã là ISO do VnDateInput chọn/gõ và kiểm tra
+    // Ngày sinh trong form là chuỗi ISO do ô <input type="date"> trả về
     // (ngày thật, không tương lai); ở đây chỉ gửi thẳng, không kiểm tra
     // lại bằng chuỗi dd/mm/yyyy nữa để tránh lỗi với năm < 100.
     // Tag đã gõ tên nhưng chưa bấm "+ Tạo tag" thì tạo luôn ở đây,
@@ -517,13 +517,13 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             {canViewDebt && customerDebt ? (
               <>
                 <p className="text-sm">
-                  Tổng công nợ (ròng, theo đơn confirmed/completed): <strong>{customerDebt.totalDebt.toLocaleString("vi-VN")}</strong>
+                  Tổng công nợ (ròng, theo đơn đã xác nhận/hoàn thành): <strong>{customerDebt.totalDebt.toLocaleString("vi-VN")}</strong>
                   {customerDebt.totalCredit > 0 && ` · Tiền thừa cần hoàn: ${customerDebt.totalCredit.toLocaleString("vi-VN")}`}
                 </p>
                 <ul className="mt-2 space-y-1 text-sm">
                   {customerDebt.orders.map((o) => (
                     <li key={o.orderCode}>
-                      {o.orderCode} · Còn nợ {o.debtTotal.toLocaleString("vi-VN")} · {o.paymentStatus} · {o.status}
+                      {o.orderCode} · Còn nợ {o.debtTotal.toLocaleString("vi-VN")} · {labelFor(PAYMENT_STATUS_LABELS, o.paymentStatus)} · {labelFor(ORDER_STATUS_LABELS, o.status)}
                     </li>
                   ))}
                   {customerDebt.orders.length === 0 && <li className="text-gray-500">Khách này hiện không có đơn nào còn nợ.</li>}
@@ -552,7 +552,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
           <label className="block">Họ tên<input className="mt-1 w-full rounded border p-2" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block">Giới tính<input className="mt-1 w-full rounded border p-2" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} /></label>
-            <label className="block">Ngày sinh (dd/mm/yyyy)<VnDateInput value={form.dateOfBirth} onChange={(iso) => setForm({ ...form, dateOfBirth: iso })} /></label>
+            <label className="block">Ngày sinh<input type="date" className="mt-1 w-full rounded border p-2" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
             <label className="block">Email<input className="mt-1 w-full rounded border p-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
             <label className="block">Nguồn<input className="mt-1 w-full rounded border p-2" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
           </div>
@@ -604,7 +604,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             {form.children.map((ch, i) => (
               <div key={i} className="mt-2 grid grid-cols-2 gap-2 rounded border p-2">
                 <label className="block col-span-2">Họ tên con<input className="mt-1 w-full rounded border p-2" value={ch.fullName} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, fullName: e.target.value } : x)) }))} /></label>
-                <label className="block">Ngày sinh (dd/mm/yyyy)<VnDateInput value={ch.dateOfBirth} onChange={(iso) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: iso } : x)) }))} /></label>
+                <label className="block">Ngày sinh<input type="date" className="mt-1 w-full rounded border p-2" value={ch.dateOfBirth} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: e.target.value } : x)) }))} /></label>
                 <label className="block">Giới tính<input className="mt-1 w-full rounded border p-2" value={ch.gender} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)) }))} /></label>
                 <label className="block col-span-2">Ghi chú<input className="mt-1 w-full rounded border p-2" value={ch.note} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)) }))} /></label>
                 <button type="button" onClick={() => setForm((f) => ({ ...f, children: f.children.filter((_, j) => j !== i) }))} className="rounded border px-2 py-1">Xóa thông tin con</button>

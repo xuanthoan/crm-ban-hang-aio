@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { PAYMENT_RECORD_LABELS, PAYMENT_STATUS_LABELS, isoToVnDate, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -135,7 +136,7 @@ export default function DebtsPage({ token, permissions }: { token: string; permi
               <td className="p-2">{d.grandTotal.toLocaleString("vi-VN")}</td>
               <td className="p-2">{d.paidTotal.toLocaleString("vi-VN")}</td>
               <td className="p-2">{d.debtTotal.toLocaleString("vi-VN")}</td>
-              <td className="p-2">{d.paymentStatus}</td>
+              <td className="p-2">{labelFor(PAYMENT_STATUS_LABELS, d.paymentStatus)}</td>
               <td className="p-2">
                 {canViewPayments && (
                   <button onClick={() => openPayments(d.id)} className="rounded border px-2 py-1">Xem payment</button>
@@ -161,7 +162,7 @@ export default function DebtsPage({ token, permissions }: { token: string; permi
           <ul className="mt-2 space-y-2 text-sm">
             {detailPayments.map((p) => (
               <li key={p.id} className="border-b pb-2">
-                <strong>{p.amount.toLocaleString("vi-VN")}</strong> · {p.paymentMethodLabel} · {p.paidAt?.slice(0, 10)} · {p.status === "active" ? "Đang hoạt động" : "Đã hủy"}
+                <strong>{p.amount.toLocaleString("vi-VN")}</strong> · {p.paymentMethodLabel} · {isoToVnDate(p.paidAt)} · {labelFor(PAYMENT_RECORD_LABELS, p.status)}
                 {p.note && ` · ${p.note}`}
                 {p.status === "cancelled" && ` · Lý do hủy: ${p.cancelReason ?? ""}`}
               </li>

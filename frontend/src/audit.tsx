@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AUDIT_ACTION_LABELS, ENTITY_TYPE_LABELS, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -64,7 +65,7 @@ function RowDetail({ row }: { row: AuditRow }) {
         {row.ipAddress ? ` · IP: ${row.ipAddress}` : ""}
       </p>
       <p>
-        <strong>Hành động:</strong> {row.action} · <strong>Thực thể:</strong> {row.entityType} / {row.entityId}
+        <strong>Hành động:</strong> {labelFor(AUDIT_ACTION_LABELS, row.action)} · <strong>Thực thể:</strong> {labelFor(ENTITY_TYPE_LABELS, row.entityType)} / {row.entityId}
       </p>
       <div>
         <p className="font-semibold">Giá trị cũ</p>
@@ -113,7 +114,7 @@ export function EntityAuditTimeline({ token, entityType, entityId }: { token: st
           {rows.map((r) => (
             <div key={r.id} className="rounded border p-2 text-sm">
               <button type="button" onClick={() => setSelectedId(selectedId === r.id ? null : r.id)} className="font-semibold text-left">
-                {new Date(r.createdAt).toLocaleString("vi-VN")} — {r.action} — {r.actorName ?? r.actorUsername ?? "(hệ thống)"}
+                {new Date(r.createdAt).toLocaleString("vi-VN")} — {labelFor(AUDIT_ACTION_LABELS, r.action)} — {r.actorName ?? r.actorUsername ?? "(hệ thống)"}
               </button>
               {selectedId === r.id && <RowDetail row={r} />}
             </div>
@@ -203,7 +204,7 @@ export default function AuditPage({ token }: { token: string }) {
         {rows.map((r) => (
           <li key={r.id} className="rounded border p-3 text-sm">
             <button type="button" onClick={() => setSelectedId(selectedId === r.id ? null : r.id)} className="text-left">
-              <strong>{new Date(r.createdAt).toLocaleString("vi-VN")}</strong> — {r.action} — {r.entityType}/{r.entityId} —{" "}
+              <strong>{new Date(r.createdAt).toLocaleString("vi-VN")}</strong> — {labelFor(AUDIT_ACTION_LABELS, r.action)} — {labelFor(ENTITY_TYPE_LABELS, r.entityType)}/{r.entityId} —{" "}
               {r.actorName ?? r.actorUsername ?? "(hệ thống)"}
             </button>
             {selectedId === r.id && <RowDetail row={r} />}

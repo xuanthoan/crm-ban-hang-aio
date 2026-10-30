@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { VnDateInput, isoToVnDate } from "./VnDateInput";
+import {
+  ACTIVITY_RESULT_LABELS,
+  ACTIVITY_TYPE_LABELS,
+  REMINDER_GROUP_LABELS,
+  REMINDER_STATUS_LABELS,
+  REMINDER_TYPE_LABELS,
+  TIME_GROUP_LABELS,
+  isoToVnDate,
+  labelFor,
+} from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -122,17 +131,17 @@ export function CustomerCareTab({ token, permissions, customerId }: { token: str
           <div className="grid grid-cols-3 gap-2">
             <label className="block text-sm">Loại
               <select className="mt-1 w-full rounded border p-2" value={type} onChange={(e) => setType(e.target.value)}>
-                {ACTIVITY_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}
+                {ACTIVITY_TYPES.map((t) => (<option key={t} value={t}>{labelFor(ACTIVITY_TYPE_LABELS, t)}</option>))}
               </select>
             </label>
             <label className="block text-sm">Kết quả (không bắt buộc)
               <select className="mt-1 w-full rounded border p-2" value={result} onChange={(e) => setResult(e.target.value)}>
                 <option value="">—</option>
-                {ACTIVITY_RESULTS.map((r) => (<option key={r} value={r}>{r}</option>))}
+                {ACTIVITY_RESULTS.map((r) => (<option key={r} value={r}>{labelFor(ACTIVITY_RESULT_LABELS, r)}</option>))}
               </select>
             </label>
-            <label className="block text-sm">Ngày thực hiện (dd/mm/yyyy, mặc định hôm nay)
-              <VnDateInput value={performedAt} onChange={setPerformedAt} />
+            <label className="block text-sm">Ngày thực hiện (mặc định hôm nay)
+              <input type="date" className="mt-1 w-full rounded border p-2" value={performedAt} onChange={(e) => setPerformedAt(e.target.value)} />
             </label>
           </div>
           <label className="block text-sm">Nội dung (bắt buộc)
@@ -144,8 +153,8 @@ export function CustomerCareTab({ token, permissions, customerId }: { token: str
       <ul className="space-y-2">
         {activities.map((a) => (
           <li key={a.id} className="rounded border p-3 text-sm">
-            <strong>{a.type}</strong> — {isoToVnDate(a.performedAt)}
-            {a.result && <span> · Kết quả: {a.result}</span>}
+            <strong>{labelFor(ACTIVITY_TYPE_LABELS, a.type)}</strong> — {isoToVnDate(a.performedAt)}
+            {a.result && <span> · Kết quả: {labelFor(ACTIVITY_RESULT_LABELS, a.result)}</span>}
             {a.createdByName && <span> · {a.createdByName}</span>}
             <p className="mt-1">{a.content}</p>
           </li>
@@ -233,18 +242,18 @@ export default function RemindersPage({ token, permissions }: { token: string; p
       {info && <p className="text-sm text-green-700">{info}</p>}
       <div className="flex flex-wrap gap-2">
         {["all", "overdue", "due_today", "upcoming", "done", "cancelled"].map((g) => (
-          <button key={g} onClick={() => setGroup(g)} className={`rounded border px-3 py-1 ${group === g ? "bg-blue-600 text-white" : ""}`}>{g}</button>
+          <button key={g} onClick={() => setGroup(g)} className={`rounded border px-3 py-1 ${group === g ? "bg-blue-600 text-white" : ""}`}>{labelFor(REMINDER_GROUP_LABELS, g)}</button>
         ))}
       </div>
       {canCreate && (
         <form onSubmit={handleCreate} className="space-y-2 rounded border p-3">
           <div className="grid grid-cols-2 gap-2">
             <label className="block text-sm">Tiêu đề (bắt buộc)<input className="mt-1 w-full rounded border p-2" value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
-            <label className="block text-sm">Hạn (dd/mm/yyyy, bắt buộc)<VnDateInput value={dueAt} onChange={setDueAt} required /></label>
+            <label className="block text-sm">Hạn (bắt buộc)<input type="date" className="mt-1 w-full rounded border p-2" value={dueAt} onChange={(e) => setDueAt(e.target.value)} required /></label>
             <label className="block text-sm">Loại
               <select className="mt-1 w-full rounded border p-2" value={type} onChange={(e) => setType(e.target.value)}>
                 <option value="">—</option>
-                {REMINDER_TYPES.map((t) => (<option key={t} value={t}>{t}</option>))}
+                {REMINDER_TYPES.map((t) => (<option key={t} value={t}>{labelFor(REMINDER_TYPE_LABELS, t)}</option>))}
               </select>
             </label>
             <label className="block text-sm">ID khách (không bắt buộc)<input className="mt-1 w-full rounded border p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)} placeholder="Để trống nếu là việc chung" /></label>
@@ -259,7 +268,7 @@ export default function RemindersPage({ token, permissions }: { token: string; p
           <li key={r.id} className="flex flex-wrap items-center gap-2 rounded border p-3 text-sm">
             <strong>{r.title}</strong>
             <span>· Hạn {isoToVnDate(r.dueAt)}</span>
-            <span>· {r.timeGroup} · {r.status}</span>
+            <span>· {labelFor(TIME_GROUP_LABELS, r.timeGroup)} · {labelFor(REMINDER_STATUS_LABELS, r.status)}</span>
             {r.customerName && <span>· Khách: {r.customerName}</span>}
             {r.assignedToName && <span>· Giao: {r.assignedToName}</span>}
             {r.status === "pending" && canComplete && <button onClick={() => handleAction(r.id, "complete")} className="rounded border px-2 py-1">Hoàn thành</button>}
@@ -339,7 +348,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
           <li key={i} className="rounded border p-3 text-sm">
             <strong>{String(it.childName ?? it.fullName ?? "")}</strong>
             {Boolean(it.customerName) && Boolean(it.childName) && <span> · Khách: {String(it.customerName)}</span>}
-            {Boolean(it.nextBirthday) && <span> · Sinh nhật sắp tới: {String(it.nextBirthday)} ({String(it.upcomingAge)} tuổi)</span>}
+            {Boolean(it.nextBirthday) && <span> · Sinh nhật sắp tới: {isoToVnDate(String(it.nextBirthday))} ({String(it.upcomingAge)} tuổi)</span>}
             {Boolean(it.reason) && <span> · {String(it.reason)}</span>}
             {Boolean(it.phone) && <span> · {String(it.phone)}</span>}
           </li>
