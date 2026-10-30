@@ -53,6 +53,10 @@ async function api(path: string, token: string, method = "GET", body?: unknown) 
 
 export default function InventoryPage({ token, permissions }: { token: string; permissions: string[] }) {
   const [items, setItems] = useState<StockItem[]>([]);
+  // Full SKU list for the operation form's dropdown. The table's `items` are
+  // only the current page, so building the dropdown from them made SKUs on
+  // other pages unselectable. This list ignores table filters/pagination.
+  const [allItems, setAllItems] = useState<StockItem[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
@@ -95,6 +99,28 @@ export default function InventoryPage({ token, permissions }: { token: string; p
   useEffect(() => {
     load();
   }, [load]);
+
+  const loadAllItems = useCallback(async () => {
+    try {
+      const collected: StockItem[] = [];
+      let pageNo = 1;
+      let totalNo = Infinity;
+      while (collected.length < totalNo) {
+        const data = await api(`/api/inventory?page=${pageNo}&pageSize=100`, token);
+        collected.push(...((data.items ?? []) as StockItem[]));
+        totalNo = Number(data.total ?? 0);
+        if (!data.items || (data.items as unknown[]).length === 0) break;
+        pageNo += 1;
+      }
+      setAllItems(collected);
+    } catch {
+      // Dropdown falls back to the current page's items below.
+    }
+  }, [token]);
+
+  useEffect(() => {
+    loadAllItems();
+  }, [loadAllItems]);
 
   async function loadHistory(item: StockItem) {
     setError("");
@@ -152,6 +178,7 @@ export default function InventoryPage({ token, permissions }: { token: string; p
       setLines([{ variantId: "", quantity: "", setTo: "" }]);
       setReason("");
       load();
+      loadAllItems();
     } catch (err) {
       // A failed bulk request applies NOTHING server-side (all-or-nothing).
       setError(err instanceof Error ? err.message : "Thao tác kho thất bại.");
@@ -294,7 +321,7 @@ export default function InventoryPage({ token, permissions }: { token: string; p
                   const next = [...lines]; next[idx] = { ...next[idx], variantId: e.target.value }; setLines(next);
                 }}>
                   <option value="">— Chọn SKU trong danh sách —</option>
-                  {items.map((it) => (
+                  {(allItems.length > 0 ? allItems : items).map((it) => (
                     <option key={it.variantId} value={it.variantId}>{it.sku} — {it.productName} / {it.variantName} (tồn {it.quantity})</option>
                   ))}
                 </select>
