@@ -116,6 +116,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
   const [lines, setLines] = useState<FormLine[]>([{ productVariantId: "", sku: "", quantity: "1", unitPrice: "", discountAmount: "" }]);
   const [variantQuery, setVariantQuery] = useState("");
   const [variantOptions, setVariantOptions] = useState<VariantOption[]>([]);
+  const [variantSearched, setVariantSearched] = useState(false);
 
   const [returnQty, setReturnQty] = useState<Record<string, string>>({});
   const [returnReason, setReturnReason] = useState("");
@@ -229,7 +230,11 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
   const searchVariants = async () => {
     try {
       const data = await api(`/api/variants?q=${encodeURIComponent(variantQuery)}&pageSize=20`, token);
-      setVariantOptions((data.data as VariantOption[]) ?? []);
+      // The variants endpoint returns { variants: [...] }, NOT the { data: ... }
+      // shape the orders endpoints use. Reading data.data always yielded []
+      // here, so the results box never rendered and no SKU could be picked.
+      setVariantOptions((data.variants as VariantOption[]) ?? []);
+      setVariantSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tìm SKU thất bại.");
     }
@@ -616,6 +621,9 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
             <input className="flex-1 rounded border p-2" placeholder="Tìm SKU (mã / tên biến thể)" value={variantQuery} onChange={(e) => setVariantQuery(e.target.value)} />
             <button type="button" onClick={searchVariants} className="rounded border px-4 py-2">Tìm SKU</button>
           </div>
+          {variantSearched && variantOptions.length === 0 && (
+            <p className="text-sm text-gray-500">Không tìm thấy SKU nào khớp từ khóa.</p>
+          )}
           {variantOptions.length > 0 && (
             <div className="rounded border p-2 text-sm">
               {variantOptions.map((v) => (
@@ -626,6 +634,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
                   onClick={() => {
                     setLines([...lines, { productVariantId: v.id, sku: v.sku, quantity: "1", unitPrice: String(v.sellingPrice), discountAmount: "" }]);
                     setVariantOptions([]);
+                    setVariantSearched(false);
                     setVariantQuery("");
                   }}
                 >
