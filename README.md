@@ -47,8 +47,11 @@ Khởi tạo database lần đầu (sau khi postgres đã healthy):
 
 ```bash
 docker compose exec backend npx prisma migrate dev
-docker compose exec backend npm run seed        # 5 vai trò + quyền, otp_mode=off
-docker compose exec backend npm run seed:admin  # cần ADMIN_* trong .env của backend (xem dưới)
+docker compose exec backend node dist/seed.js       # 5 vai trò + quyền, otp_mode=off
+docker compose exec backend node dist/seedAdmin.js  # cần ADMIN_* trong .env của backend (xem dưới)
+# Lưu ý: image production chỉ chứa dist/, không chứa src/, nên KHÔNG dùng
+# `npm run seed` / `npm run seed:admin` (chúng chạy ts-node src/...) trong
+# container. Hai lệnh đó chỉ dùng khi chạy bằng npm ở ngoài Docker.
 ```
 
 > Lưu ý: `seed:admin` đọc `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`
