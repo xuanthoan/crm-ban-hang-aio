@@ -74,6 +74,37 @@ async function api(path: string, token: string, method = "GET", body?: unknown) 
   return data as Record<string, unknown>;
 }
 
+// Ngày sinh luôn hiển thị và nhập theo dạng dd/mm/yyyy (Việt Nam).
+// Không dùng <input type="date"> nữa: trình duyệt hiển thị ô đó theo
+// locale của nó (mm/dd/yyyy), người dùng nhập theo thói quen dd/mm/yyyy
+// nên đã lưu sai (năm 0001, 0007, hoặc ngày con bị rớt thành rỗng).
+// Trong form, dateOfBirth giữ chuỗi dd/mm/yyyy; chỉ khi lưu mới đổi
+// sang ISO (yyyy-mm-dd) để backend nhận, backend không cần sửa.
+function isoToVnDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const parts = iso.slice(0, 10).split("-");
+  if (parts.length !== 3 || !parts[0] || !parts[1] || !parts[2]) return "";
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+function vnDateToIso(text: string): { iso: string | null; error?: string } {
+  const v = text.trim();
+  if (!v) return { iso: null };
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(v);
+  if (!match) return { iso: null, error: `Ngày "${v}" phải nhập dạng dd/mm/yyyy, ví dụ 20/02/2001.` };
+  const d = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const y = parseInt(match[3], 10);
+  const date = new Date(y, m - 1, d);
+  if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
+    return { iso: null, error: `Ngày "${v}" không tồn tại trên lịch.` };
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (date > today) return { iso: null, error: `Ngày sinh "${v}" không được là ngày tương lai.` };
+  return { iso: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
+}
+
 function emptyForm(): {
   fullName: string;
   gender: string;
@@ -216,7 +247,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
     setForm({
       fullName: c.fullName,
       gender: c.gender ?? "",
-      dateOfBirth: c.dateOfBirth ? c.dateOfBirth.slice(0, 10) : "",
+      dateOfBirth: isoToVnDate(c.dateOfBirth),
       address: c.address ?? "",
       email: c.email ?? "",
       note: c.note ?? "",
@@ -227,7 +258,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
       children: c.children.map((ch) => ({
         id: ch.id,
         fullName: ch.fullName,
-        dateOfBirth: ch.dateOfBirth ? ch.dateOfBirth.slice(0, 10) : "",
+        dateOfBirth: isoToVnDate(ch.dateOfBirth),
         gender: ch.gender ?? "",
         note: ch.note ?? "",
       })),
@@ -254,10 +285,41 @@ export default function CustomersPage({ token, permissions }: { token: string; p
     e.preventDefault();
     setError("");
     setInfo("");
+    // Ngày sinh phải đúng dd/mm/yyyy, là ngày thật trên lịch và không
+    // phải tương lai; sai thì dừng lại, không lưu ngày sai vào DB.
+    const dob = vnDateToIso(form.dateOfBirth);
+    if (dob.error) {
+      setError(dob.error);
+      return;
+    }
+    const childDobs: (string | null)[] = [];
+    for (const ch of form.children) {
+      const parsed = vnDateToIso(ch.dateOfBirth);
+      if (parsed.error) {
+        setError(`Con "${ch.fullName.trim() || "(chưa có tên)"}": ${parsed.error}`);
+        return;
+      }
+      childDobs.push(parsed.iso);
+    }
+    // Tag đã gõ tên nhưng chưa bấm "+ Tạo tag" thì tạo luôn ở đây,
+    // tránh mất lặng: trước đây trường hợp này lưu xong hồ sơ không có tag.
+    let tagIds = [...form.tagIds];
+    if (newTagName.trim()) {
+      try {
+        const data = await api("/api/tags", token, "POST", { name: newTagName.trim() });
+        const tag = data.tag as Tag;
+        await loadTags();
+        if (!tagIds.includes(tag.id)) tagIds.push(tag.id);
+        setNewTagName("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Tạo tag thất bại.");
+        return;
+      }
+    }
     const body = {
       fullName: form.fullName.trim(),
       gender: form.gender.trim() || null,
-      dateOfBirth: form.dateOfBirth || null,
+      dateOfBirth: dob.iso,
       address: form.address.trim() || null,
       email: form.email.trim() || null,
       note: form.note.trim() || null,
@@ -266,11 +328,11 @@ export default function CustomersPage({ token, permissions }: { token: string; p
       phones: form.phones
         .filter((p) => p.phone.trim())
         .map((p) => ({ phone: p.phone.trim(), label: p.label.trim() || null, isPrimary: p.isPrimary })),
-      tagIds: form.tagIds,
-      children: form.children.map((ch) => ({
+      tagIds,
+      children: form.children.map((ch, i) => ({
         ...(ch.id ? { id: ch.id } : {}),
         fullName: ch.fullName.trim(),
-        dateOfBirth: ch.dateOfBirth || null,
+        dateOfBirth: childDobs[i] ?? null,
         gender: ch.gender.trim() || null,
         note: ch.note.trim() || null,
       })),
@@ -439,7 +501,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             <h3 className="text-lg font-semibold">{detail.fullName || "(chưa có tên)"}</h3>
             <p className="text-sm text-gray-600">
               {detail.gender ? `Giới tính: ${detail.gender} · ` : ""}
-              {detail.dateOfBirth ? `Ngày sinh: ${detail.dateOfBirth.slice(0, 10)} · ` : ""}
+              {detail.dateOfBirth ? `Ngày sinh: ${isoToVnDate(detail.dateOfBirth)} · ` : ""}
               {detail.email ? `Email: ${detail.email} · ` : ""}
               {detail.address ? `Địa chỉ: ${detail.address} · ` : ""}
               {detail.source ? `Nguồn: ${detail.source} · ` : ""}
@@ -484,7 +546,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
               {detail.children.map((ch) => (
                 <li key={ch.id}>
                   <strong>{ch.fullName}</strong>
-                  {ch.dateOfBirth && <span> — sinh {ch.dateOfBirth.slice(0, 10)}{ch.ageYears !== null ? ` (${ch.ageYears} tuổi)` : ""}</span>}
+                  {ch.dateOfBirth && <span> — sinh {isoToVnDate(ch.dateOfBirth)}{ch.ageYears !== null ? ` (${ch.ageYears} tuổi)` : ""}</span>}
                   {ch.gender && <span> · {ch.gender}</span>}
                   {ch.note && <span className="text-gray-500"> · {ch.note}</span>}
                 </li>
@@ -533,7 +595,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
           <label className="block">Họ tên<input className="mt-1 w-full rounded border p-2" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block">Giới tính<input className="mt-1 w-full rounded border p-2" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} /></label>
-            <label className="block">Ngày sinh<input type="date" className="mt-1 w-full rounded border p-2" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
+            <label className="block">Ngày sinh (dd/mm/yyyy)<input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" className="mt-1 w-full rounded border p-2" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
             <label className="block">Email<input className="mt-1 w-full rounded border p-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
             <label className="block">Nguồn<input className="mt-1 w-full rounded border p-2" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
           </div>
@@ -585,10 +647,10 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             {form.children.map((ch, i) => (
               <div key={i} className="mt-2 grid grid-cols-2 gap-2 rounded border p-2">
                 <label className="block col-span-2">Họ tên con<input className="mt-1 w-full rounded border p-2" value={ch.fullName} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, fullName: e.target.value } : x)) }))} /></label>
-                <label className="block">Ngày sinh<input type="date" className="mt-1 w-full rounded border p-2" value={ch.dateOfBirth} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: e.target.value } : x)) }))} /></label>
+                <label className="block">Ngày sinh (dd/mm/yyyy)<input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" className="mt-1 w-full rounded border p-2" value={ch.dateOfBirth} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: e.target.value } : x)) }))} /></label>
                 <label className="block">Giới tính<input className="mt-1 w-full rounded border p-2" value={ch.gender} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)) }))} /></label>
                 <label className="block col-span-2">Ghi chú<input className="mt-1 w-full rounded border p-2" value={ch.note} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)) }))} /></label>
-                <button type="button" onClick={() => setForm((f) => ({ ...f, children: f.children.filter((_, j) => j !== i) }))} className="rounded border px-2 py-1">Xóa con này</button>
+                <button type="button" onClick={() => setForm((f) => ({ ...f, children: f.children.filter((_, j) => j !== i) }))} className="rounded border px-2 py-1">Xóa thông tin con</button>
               </div>
             ))}
             <button type="button" onClick={() => setForm((f) => ({ ...f, children: [...f.children, { fullName: "", dateOfBirth: "", gender: "", note: "" }] }))} className="mt-2 rounded border px-3 py-1">+ Thêm con</button>
