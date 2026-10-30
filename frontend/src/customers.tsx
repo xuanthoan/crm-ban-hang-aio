@@ -74,12 +74,15 @@ async function api(path: string, token: string, method = "GET", body?: unknown) 
   return data as Record<string, unknown>;
 }
 
-// Ngày sinh luôn hiển thị và nhập theo dạng dd/mm/yyyy (Việt Nam).
-// Không dùng <input type="date"> nữa: trình duyệt hiển thị ô đó theo
-// locale của nó (mm/dd/yyyy), người dùng nhập theo thói quen dd/mm/yyyy
-// nên đã lưu sai (năm 0001, 0007, hoặc ngày con bị rớt thành rỗng).
-// Trong form, dateOfBirth giữ chuỗi dd/mm/yyyy; chỉ khi lưu mới đổi
-// sang ISO (yyyy-mm-dd) để backend nhận, backend không cần sửa.
+// Ngày sinh luôn hiển thị dạng dd/mm/yyyy (Việt Nam).
+// Không dùng <input type="date"> của trình duyệt: nó hiển thị theo vùng
+// của Windows/trình duyệt (mm/dd/yyyy trên máy đang để vùng Mỹ), dù
+// trang đã đặt lang="vi", nên người dùng nhập dd/mm/yyyy đã lưu sai
+// (năm 0001, 0007, hoặc ngày con bị rớt thành rỗng).
+// VnDateInput dưới đây là ô lịch riêng của ứng dụng: luôn hiện
+// dd/mm/yyyy, có nút lịch để chọn ngày/tháng/năm, và vẫn gõ tay được.
+// Trong form, dateOfBirth giữ chuỗi ISO (yyyy-mm-dd) như backend nhận;
+// chỉ phần hiển thị mới đổi sang dd/mm/yyyy.
 function isoToVnDate(iso: string | null | undefined): string {
   if (!iso) return "";
   const parts = iso.slice(0, 10).split("-");
@@ -87,22 +90,180 @@ function isoToVnDate(iso: string | null | undefined): string {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-function vnDateToIso(text: string): { iso: string | null; error?: string } {
+// Gõ tay cũng được: chấp nhận dd/mm/yyyy, d/m/yyyy, hoặc 8 chữ số
+// liền nhau như 25022021. Dùng setFullYear để năm < 100 (ví dụ 0001
+// từ dữ liệu cũ) không bị JavaScript cộng thêm 1900 như new Date(y,…).
+function parseVnDateInput(text: string): { iso: string | null; error?: string } {
   const v = text.trim();
   if (!v) return { iso: null };
-  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(v);
-  if (!match) return { iso: null, error: `Ngày "${v}" phải nhập dạng dd/mm/yyyy, ví dụ 20/02/2001.` };
-  const d = parseInt(match[1], 10);
-  const m = parseInt(match[2], 10);
-  const y = parseInt(match[3], 10);
-  const date = new Date(y, m - 1, d);
+  const digits = v.replace(/\D/g, "");
+  let d: number;
+  let m: number;
+  let y: number;
+  if (/^\d{8}$/.test(digits)) {
+    d = parseInt(digits.slice(0, 2), 10);
+    m = parseInt(digits.slice(2, 4), 10);
+    y = parseInt(digits.slice(4, 8), 10);
+  } else {
+    const match = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/.exec(v);
+    if (!match) return { iso: null, error: `Ngày "${v}" chưa đúng dạng dd/mm/yyyy.` };
+    d = parseInt(match[1], 10);
+    m = parseInt(match[2], 10);
+    y = parseInt(match[3], 10);
+  }
+  const date = new Date(0);
+  date.setFullYear(y, m - 1, d);
+  date.setHours(0, 0, 0, 0);
   if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
     return { iso: null, error: `Ngày "${v}" không tồn tại trên lịch.` };
   }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (date > today) return { iso: null, error: `Ngày sinh "${v}" không được là ngày tương lai.` };
-  return { iso: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
+  return { iso: `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}` };
+}
+
+function VnDateInput({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
+  const [text, setText] = useState(isoToVnDate(value));
+  const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
+  const initial = value ? new Date(`${value.slice(0, 10)}T00:00:00`) : new Date();
+  const initialYear = initial.getFullYear();
+  const clampedYear = initialYear >= 1900 && initialYear <= new Date().getFullYear() ? initialYear : new Date().getFullYear();
+  const [viewYear, setViewYear] = useState(clampedYear);
+  const [viewMonth, setViewMonth] = useState(initial.getMonth());
+
+  // Khi mở lại form với khách khác, đồng bộ ô hiển thị theo giá trị mới.
+  useEffect(() => {
+    setText(isoToVnDate(value));
+    setError("");
+    setOpen(false);
+  }, [value]);
+
+  function openCalendar() {
+    const base = value ? new Date(`${value.slice(0, 10)}T00:00:00`) : new Date();
+    const y = base.getFullYear();
+    setViewYear(y >= 1900 && y <= new Date().getFullYear() ? y : new Date().getFullYear());
+    setViewMonth(base.getMonth());
+    setOpen((o) => !o);
+  }
+
+  function handleBlur() {
+    const parsed = parseVnDateInput(text);
+    if (parsed.error) {
+      setError(`${parsed.error} Hãy chọn trên lịch hoặc nhập lại.`);
+      setText(isoToVnDate(value));
+      return;
+    }
+    setError("");
+    onChange(parsed.iso ?? "");
+  }
+
+  const firstWeekday = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7; // thứ 2 đầu tuần
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const thisYear = new Date().getFullYear();
+  const years: number[] = [];
+  for (let y = thisYear; y >= 1900; y--) years.push(y);
+
+  return (
+    <span className="relative block">
+      <span className="flex gap-1">
+        <input
+          type="text"
+          inputMode="numeric"
+          placeholder="dd/mm/yyyy"
+          className="mt-1 w-full rounded border p-2"
+          value={text}
+          onChange={(e) => {
+            setText(e.target.value);
+            setError("");
+          }}
+          onBlur={handleBlur}
+        />
+        <button type="button" onClick={openCalendar} className="mt-1 rounded border px-2 py-1" title="Chọn ngày trên lịch">
+          📅
+        </button>
+      </span>
+      {error && <span className="block text-sm text-red-700">{error}</span>}
+      {open && (
+        <span className="absolute left-0 top-full z-10 mt-1 block w-72 rounded border bg-white p-2 shadow">
+          <span className="flex items-center gap-1">
+            <button
+              type="button"
+              className="rounded border px-2 py-1"
+              onClick={() => {
+                const d = new Date(viewYear, viewMonth - 1, 1);
+                setViewYear(d.getFullYear());
+                setViewMonth(d.getMonth());
+              }}
+            >
+              ‹
+            </button>
+            <select className="rounded border p-1" value={viewMonth} onChange={(e) => setViewMonth(parseInt(e.target.value, 10))}>
+              {["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"].map(
+                (label, i) => (
+                  <option key={i} value={i}>
+                    {label}
+                  </option>
+                ),
+              )}
+            </select>
+            <select className="rounded border p-1" value={viewYear} onChange={(e) => setViewYear(parseInt(e.target.value, 10))}>
+              {years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="rounded border px-2 py-1"
+              onClick={() => {
+                const d = new Date(viewYear, viewMonth + 1, 1);
+                setViewYear(d.getFullYear());
+                setViewMonth(d.getMonth());
+              }}
+            >
+              ›
+            </button>
+          </span>
+          <span className="mt-2 grid grid-cols-7 gap-1 text-center text-xs text-gray-500">
+            {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((d) => (
+              <span key={d}>{d}</span>
+            ))}
+          </span>
+          <span className="mt-1 grid grid-cols-7 gap-1">
+            {Array.from({ length: firstWeekday }).map((_, i) => (
+              <span key={`blank-${i}`} />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const iso = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+              const selected = value.slice(0, 10) === iso;
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  className={`rounded border px-1 py-1 text-sm ${selected ? "bg-blue-600 text-white" : ""}`}
+                  onClick={() => {
+                    onChange(iso);
+                    setText(isoToVnDate(iso));
+                    setError("");
+                    setOpen(false);
+                  }}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </span>
+          <button type="button" onClick={() => setOpen(false)} className="mt-2 rounded border px-3 py-1">
+            Đóng
+          </button>
+        </span>
+      )}
+    </span>
+  );
 }
 
 function emptyForm(): {
@@ -247,7 +408,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
     setForm({
       fullName: c.fullName,
       gender: c.gender ?? "",
-      dateOfBirth: isoToVnDate(c.dateOfBirth),
+      dateOfBirth: c.dateOfBirth ? c.dateOfBirth.slice(0, 10) : "",
       address: c.address ?? "",
       email: c.email ?? "",
       note: c.note ?? "",
@@ -258,7 +419,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
       children: c.children.map((ch) => ({
         id: ch.id,
         fullName: ch.fullName,
-        dateOfBirth: isoToVnDate(ch.dateOfBirth),
+        dateOfBirth: ch.dateOfBirth ? ch.dateOfBirth.slice(0, 10) : "",
         gender: ch.gender ?? "",
         note: ch.note ?? "",
       })),
@@ -285,22 +446,9 @@ export default function CustomersPage({ token, permissions }: { token: string; p
     e.preventDefault();
     setError("");
     setInfo("");
-    // Ngày sinh phải đúng dd/mm/yyyy, là ngày thật trên lịch và không
-    // phải tương lai; sai thì dừng lại, không lưu ngày sai vào DB.
-    const dob = vnDateToIso(form.dateOfBirth);
-    if (dob.error) {
-      setError(dob.error);
-      return;
-    }
-    const childDobs: (string | null)[] = [];
-    for (const ch of form.children) {
-      const parsed = vnDateToIso(ch.dateOfBirth);
-      if (parsed.error) {
-        setError(`Con "${ch.fullName.trim() || "(chưa có tên)"}": ${parsed.error}`);
-        return;
-      }
-      childDobs.push(parsed.iso);
-    }
+    // Ngày sinh trong form đã là ISO do VnDateInput chọn/gõ và kiểm tra
+    // (ngày thật, không tương lai); ở đây chỉ gửi thẳng, không kiểm tra
+    // lại bằng chuỗi dd/mm/yyyy nữa để tránh lỗi với năm < 100.
     // Tag đã gõ tên nhưng chưa bấm "+ Tạo tag" thì tạo luôn ở đây,
     // tránh mất lặng: trước đây trường hợp này lưu xong hồ sơ không có tag.
     let tagIds = [...form.tagIds];
@@ -319,7 +467,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
     const body = {
       fullName: form.fullName.trim(),
       gender: form.gender.trim() || null,
-      dateOfBirth: dob.iso,
+      dateOfBirth: form.dateOfBirth || null,
       address: form.address.trim() || null,
       email: form.email.trim() || null,
       note: form.note.trim() || null,
@@ -329,10 +477,10 @@ export default function CustomersPage({ token, permissions }: { token: string; p
         .filter((p) => p.phone.trim())
         .map((p) => ({ phone: p.phone.trim(), label: p.label.trim() || null, isPrimary: p.isPrimary })),
       tagIds,
-      children: form.children.map((ch, i) => ({
+      children: form.children.map((ch) => ({
         ...(ch.id ? { id: ch.id } : {}),
         fullName: ch.fullName.trim(),
-        dateOfBirth: childDobs[i] ?? null,
+        dateOfBirth: ch.dateOfBirth || null,
         gender: ch.gender.trim() || null,
         note: ch.note.trim() || null,
       })),
@@ -595,7 +743,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
           <label className="block">Họ tên<input className="mt-1 w-full rounded border p-2" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block">Giới tính<input className="mt-1 w-full rounded border p-2" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} /></label>
-            <label className="block">Ngày sinh (dd/mm/yyyy)<input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" className="mt-1 w-full rounded border p-2" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
+            <label className="block">Ngày sinh (dd/mm/yyyy)<VnDateInput value={form.dateOfBirth} onChange={(iso) => setForm({ ...form, dateOfBirth: iso })} /></label>
             <label className="block">Email<input className="mt-1 w-full rounded border p-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
             <label className="block">Nguồn<input className="mt-1 w-full rounded border p-2" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
           </div>
@@ -647,7 +795,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             {form.children.map((ch, i) => (
               <div key={i} className="mt-2 grid grid-cols-2 gap-2 rounded border p-2">
                 <label className="block col-span-2">Họ tên con<input className="mt-1 w-full rounded border p-2" value={ch.fullName} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, fullName: e.target.value } : x)) }))} /></label>
-                <label className="block">Ngày sinh (dd/mm/yyyy)<input type="text" inputMode="numeric" placeholder="dd/mm/yyyy" className="mt-1 w-full rounded border p-2" value={ch.dateOfBirth} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: e.target.value } : x)) }))} /></label>
+                <label className="block">Ngày sinh (dd/mm/yyyy)<VnDateInput value={ch.dateOfBirth} onChange={(iso) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: iso } : x)) }))} /></label>
                 <label className="block">Giới tính<input className="mt-1 w-full rounded border p-2" value={ch.gender} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)) }))} /></label>
                 <label className="block col-span-2">Ghi chú<input className="mt-1 w-full rounded border p-2" value={ch.note} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)) }))} /></label>
                 <button type="button" onClick={() => setForm((f) => ({ ...f, children: f.children.filter((_, j) => j !== i) }))} className="rounded border px-2 py-1">Xóa thông tin con</button>
