@@ -857,6 +857,24 @@ router.patch("/products/:id", authorize("product.update"), async (req, res) => {
 
       const generated: string[] = [];
       const skipped: string[] = [];
+      // Simple product edit: the frontend sends the single default variant as
+      // body.defaultVariant. Previously PATCH ignored it entirely, so editing
+      // a variantless product's price/barcode/status silently did nothing
+      // even though the screen reported success. Route it through the same
+      // variant update path (with its SKU-history and permission checks).
+      if (body.defaultVariant && typeof body.defaultVariant === "object") {
+        const dv = body.defaultVariant as Record<string, unknown>;
+        let targetId = typeof dv.id === "string" ? dv.id : "";
+        if (!targetId) {
+          const defaults = (existing.variants ?? []).filter((v: any) => v.isDefault);
+          if (defaults.length === 1) targetId = defaults[0].id;
+        }
+        if (targetId) {
+          await updateVariantRow(tx, req, existing, { ...dv, id: targetId });
+        } else if (Object.keys(dv).length > 0) {
+          throw new BadRequest("Không xác định được SKU mặc định cần sửa.");
+        }
+      }
       // Variant updates / additions (an empty array means "no variant change").
       if (Array.isArray(body.variants) && body.variants.length > 0) {
         const taken = new Set<string>();

@@ -57,6 +57,43 @@ async function api(path: string, token: string, method = "GET", body?: unknown) 
   return data as Record<string, unknown>;
 }
 
+/** Tiền hiển thị theo kiểu Việt Nam: 1000000 -> "1.000.000". */
+function formatMoney(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "";
+  return Math.trunc(value).toLocaleString("vi-VN");
+}
+
+/** Đọc số tiền người dùng gõ, chấp nhận "." "," khoảng trắng làm dấu phân cách nghìn. */
+function parseMoney(text: string): number | null {
+  const digits = text.replace(/\D/g, "");
+  if (!digits) return null;
+  const n = parseInt(digits, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Ô nhập tiền: hiển thị có dấu phân cách nghìn, giá trị lưu là số.
+ *  Ô số của trình duyệt không hiểu dấu phân cách (gõ "1,000" thành rỗng
+ *  rồi lưu thành 0), nên dùng ô chữ và tự định dạng khi gõ. */
+function PriceInput({ value, onChange, placeholder, className, disabled }: {
+  value: number | null;
+  onChange: (v: number | null) => void;
+  placeholder?: string;
+  className?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      placeholder={placeholder}
+      className={className ?? "mt-1 w-full rounded border p-2"}
+      value={formatMoney(value)}
+      onChange={(e) => onChange(parseMoney(e.target.value))}
+      disabled={disabled}
+    />
+  );
+}
+
 /** Local cartesian product (preview only — the backend re-generates authoritatively on save). */
 function cartesian(groups: { name: string; values: string[] }[]): { name: string; value: string }[][] {
   let combos: { name: string; value: string }[][] = [[]];
@@ -215,8 +252,8 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
   }
 
   function applyBulk() {
-    const selling = bulkSelling === "" ? null : Number(bulkSelling);
-    const importing = bulkImport === "" ? null : Number(bulkImport);
+    const selling = bulkSelling === "" ? null : parseMoney(bulkSelling);
+    const importing = bulkImport === "" ? null : parseMoney(bulkImport);
     if (selling !== null && (Number.isNaN(selling) || selling < 0)) { setError("Giá bán áp dụng hàng loạt không hợp lệ."); return; }
     if (importing !== null && (Number.isNaN(importing) || importing < 0)) { setError("Giá nhập áp dụng hàng loạt không hợp lệ."); return; }
     setManualVariants((rows) => rows.map((r) => ({
@@ -440,9 +477,9 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
               <p className="text-sm text-gray-500">Để trống mã SKU để hệ thống tự sinh từ tên sản phẩm. Mã bạn tự nhập mà trùng sẽ bị chặn, không tự đổi.</p>
               <label className="block">Mã SKU <input className="mt-1 w-full rounded border p-2" value={defaultVariant.sku} onChange={(e) => setDefaultVariant({ ...defaultVariant, sku: e.target.value })} /></label>
               <label className="block">Tên biến thể <input className="mt-1 w-full rounded border p-2" value={defaultVariant.variantName} onChange={(e) => setDefaultVariant({ ...defaultVariant, variantName: e.target.value })} placeholder="Mặc định" /></label>
-              <label className="block">Giá bán <input type="number" min="0" className="mt-1 w-full rounded border p-2" value={defaultVariant.sellingPrice} onChange={(e) => setDefaultVariant({ ...defaultVariant, sellingPrice: Number(e.target.value) })} disabled={!canUpdatePrice && !formId && false} /></label>
+              <label className="block">Giá bán <PriceInput value={defaultVariant.sellingPrice} onChange={(v) => setDefaultVariant({ ...defaultVariant, sellingPrice: v ?? 0 })} disabled={!canUpdatePrice && !formId && false} /></label>
               {canViewCost && (
-                <label className="block">Giá nhập <input type="number" min="0" className="mt-1 w-full rounded border p-2" value={defaultVariant.importPrice ?? ""} onChange={(e) => setDefaultVariant({ ...defaultVariant, importPrice: e.target.value === "" ? null : Number(e.target.value) })} /></label>
+                <label className="block">Giá nhập <PriceInput value={defaultVariant.importPrice} onChange={(v) => setDefaultVariant({ ...defaultVariant, importPrice: v })} /></label>
               )}
               <label className="block">Mã vạch <input className="mt-1 w-full rounded border p-2" value={defaultVariant.barcode} onChange={(e) => setDefaultVariant({ ...defaultVariant, barcode: e.target.value })} /></label>
             </fieldset>
@@ -469,16 +506,16 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                 <div className="space-y-2 rounded border p-3">
                   <h4 className="font-semibold">Bảng biến thể ({manualVariants.length} SKU, tối đa 200)</h4>
                   <div className="flex gap-2">
-                    <input type="number" min="0" className="rounded border p-2" placeholder="Giá bán áp dụng tất cả" value={bulkSelling} onChange={(e) => setBulkSelling(e.target.value)} />
-                    {canViewCost && <input type="number" min="0" className="rounded border p-2" placeholder="Giá nhập áp dụng tất cả" value={bulkImport} onChange={(e) => setBulkImport(e.target.value)} />}
+                    <input type="text" inputMode="numeric" className="rounded border p-2" placeholder="Giá bán áp dụng tất cả" value={bulkSelling} onChange={(e) => { const n = parseMoney(e.target.value); setBulkSelling(n === null ? "" : formatMoney(n)); }} />
+                    {canViewCost && <input type="text" inputMode="numeric" className="rounded border p-2" placeholder="Giá nhập áp dụng tất cả" value={bulkImport} onChange={(e) => { const n = parseMoney(e.target.value); setBulkImport(n === null ? "" : formatMoney(n)); }} />}
                     <button type="button" onClick={applyBulk} className="rounded border px-3 py-1">Áp dụng cho tất cả</button>
                   </div>
                   {manualVariants.map((v, i) => (
                     <div key={i} className="flex flex-wrap gap-2 rounded border p-2">
                       <span className="w-40 font-medium">{v.variantName}</span>
                       <input className="rounded border p-1" placeholder="SKU (để trống = tự sinh)" value={v.sku} onChange={(e) => setManualVariants(manualVariants.map((x, j) => j === i ? { ...x, sku: e.target.value } : x))} />
-                      <input type="number" min="0" className="w-28 rounded border p-1" placeholder="Giá bán" value={v.sellingPrice} onChange={(e) => setManualVariants(manualVariants.map((x, j) => j === i ? { ...x, sellingPrice: Number(e.target.value) } : x))} />
-                      {canViewCost && <input type="number" min="0" className="w-28 rounded border p-1" placeholder="Giá nhập" value={v.importPrice ?? ""} onChange={(e) => setManualVariants(manualVariants.map((x, j) => j === i ? { ...x, importPrice: e.target.value === "" ? null : Number(e.target.value) } : x))} />}
+                      <PriceInput className="w-28 rounded border p-1" placeholder="Giá bán" value={v.sellingPrice} onChange={(n) => setManualVariants(manualVariants.map((x, j) => j === i ? { ...x, sellingPrice: n ?? 0 } : x))} />
+                      {canViewCost && <PriceInput className="w-28 rounded border p-1" placeholder="Giá nhập" value={v.importPrice} onChange={(n) => setManualVariants(manualVariants.map((x, j) => j === i ? { ...x, importPrice: n } : x))} />}
                       <select className="rounded border p-1" value={v.status} onChange={(e) => setManualVariants(manualVariants.map((x, j) => j === i ? { ...x, status: e.target.value } : x))}>
                         <option value="active">Đang bán</option>
                         <option value="inactive">Ngừng bán</option>
