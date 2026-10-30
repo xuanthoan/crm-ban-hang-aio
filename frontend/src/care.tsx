@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { VnDateInput, isoToVnDate } from "./VnDateInput";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -130,8 +131,8 @@ export function CustomerCareTab({ token, permissions, customerId }: { token: str
                 {ACTIVITY_RESULTS.map((r) => (<option key={r} value={r}>{r}</option>))}
               </select>
             </label>
-            <label className="block text-sm">Ngày thực hiện (mặc định hôm nay)
-              <input type="date" className="mt-1 w-full rounded border p-2" value={performedAt} onChange={(e) => setPerformedAt(e.target.value)} />
+            <label className="block text-sm">Ngày thực hiện (dd/mm/yyyy, mặc định hôm nay)
+              <VnDateInput value={performedAt} onChange={setPerformedAt} />
             </label>
           </div>
           <label className="block text-sm">Nội dung (bắt buộc)
@@ -143,7 +144,7 @@ export function CustomerCareTab({ token, permissions, customerId }: { token: str
       <ul className="space-y-2">
         {activities.map((a) => (
           <li key={a.id} className="rounded border p-3 text-sm">
-            <strong>{a.type}</strong> — {a.performedAt.slice(0, 10)}
+            <strong>{a.type}</strong> — {isoToVnDate(a.performedAt)}
             {a.result && <span> · Kết quả: {a.result}</span>}
             {a.createdByName && <span> · {a.createdByName}</span>}
             <p className="mt-1">{a.content}</p>
@@ -239,7 +240,7 @@ export default function RemindersPage({ token, permissions }: { token: string; p
         <form onSubmit={handleCreate} className="space-y-2 rounded border p-3">
           <div className="grid grid-cols-2 gap-2">
             <label className="block text-sm">Tiêu đề (bắt buộc)<input className="mt-1 w-full rounded border p-2" value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
-            <label className="block text-sm">Hạn (bắt buộc)<input type="date" className="mt-1 w-full rounded border p-2" value={dueAt} onChange={(e) => setDueAt(e.target.value)} required /></label>
+            <label className="block text-sm">Hạn (dd/mm/yyyy, bắt buộc)<VnDateInput value={dueAt} onChange={setDueAt} required /></label>
             <label className="block text-sm">Loại
               <select className="mt-1 w-full rounded border p-2" value={type} onChange={(e) => setType(e.target.value)}>
                 <option value="">—</option>
@@ -257,7 +258,7 @@ export default function RemindersPage({ token, permissions }: { token: string; p
         {reminders.map((r) => (
           <li key={r.id} className="flex flex-wrap items-center gap-2 rounded border p-3 text-sm">
             <strong>{r.title}</strong>
-            <span>· Hạn {r.dueAt.slice(0, 10)}</span>
+            <span>· Hạn {isoToVnDate(r.dueAt)}</span>
             <span>· {r.timeGroup} · {r.status}</span>
             {r.customerName && <span>· Khách: {r.customerName}</span>}
             {r.assignedToName && <span>· Giao: {r.assignedToName}</span>}
