@@ -11,12 +11,14 @@
 
 generator client {
   provider = "prisma-client-js"
-  # Docker image is node:20-bookworm-slim (Debian 12, OpenSSL 3). The slim
-  # image has no `openssl` binary, so Prisma's engine detection fails and
-  # defaults to the openssl-1.1.x engine, whose libssl.so.1.1 does NOT exist
-  # on bookworm — migrate/seed then fail with "cannot open shared object
-  # file: libssl.so.1.1". Pin the Debian OpenSSL 3 engine explicitly.
-  # "native" keeps local npm dev (Windows/macOS/Linux) working as well.
+  // Docker image is node:20-bookworm-slim (Debian 12, OpenSSL 3). The slim
+  // image has no `openssl` binary, so Prisma's engine detection fails and
+  // defaults to the openssl-1.1.x engine, whose libssl.so.1.1 does NOT exist
+  // on bookworm — migrate/seed then fail with "cannot open shared object
+  // file: libssl.so.1.1". Pin the Debian OpenSSL 3 engine explicitly.
+  // "native" keeps local npm dev (Windows/macOS/Linux) working as well.
+  // NOTE: Prisma schema comments use //, never #. A # line inside a
+  // generator block fails validation with P1012.
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
