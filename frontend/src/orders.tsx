@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ORDER_STATUS_LABELS, PAYMENT_RECORD_LABELS, PAYMENT_STATUS_LABELS, isoToVnDate, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -117,6 +117,9 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
   const [variantQuery, setVariantQuery] = useState("");
   const [variantOptions, setVariantOptions] = useState<VariantOption[]>([]);
   const [variantSearched, setVariantSearched] = useState(false);
+  // Mirrors variantQuery so a slow search response for an older keystroke
+  // never overwrites suggestions for what the user has typed since.
+  const latestQuery = useRef("");
 
   const [returnQty, setReturnQty] = useState<Record<string, string>>({});
   const [returnReason, setReturnReason] = useState("");
@@ -202,6 +205,10 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
       setShippingFee("");
       setNote("");
       setLines([{ productVariantId: "", sku: "", quantity: "1", unitPrice: "", discountAmount: "" }]);
+      setVariantQuery("");
+      latestQuery.current = "";
+      setVariantOptions([]);
+      setVariantSearched(false);
       setShowForm(true);
       setError("");
     } catch (err) {
@@ -227,18 +234,36 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
     setShowForm(true);
   };
 
-  const searchVariants = async () => {
+  const searchVariants = async (q?: string) => {
+    const query = q ?? variantQuery;
     try {
-      const data = await api(`/api/variants?q=${encodeURIComponent(variantQuery)}&pageSize=20`, token);
+      const data = await api(`/api/variants?q=${encodeURIComponent(query)}&pageSize=20`, token);
       // The variants endpoint returns { variants: [...] }, NOT the { data: ... }
       // shape the orders endpoints use. Reading data.data always yielded []
       // here, so the results box never rendered and no SKU could be picked.
+      // Ignore stale responses: only the latest typed query may set options.
+      if (latestQuery.current.trim() !== query.trim()) return;
       setVariantOptions((data.variants as VariantOption[]) ?? []);
       setVariantSearched(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tìm SKU thất bại.");
     }
   };
+
+  // Live suggestions: typing suggests matching SKUs as you type (debounced
+  // 300ms) instead of waiting for a click on "Tìm SKU". The button stays as
+  // an immediate-search fallback. Clearing the query clears the suggestions.
+  useEffect(() => {
+    if (!showForm) return;
+    const query = variantQuery.trim();
+    if (!query) {
+      setVariantOptions([]);
+      setVariantSearched(false);
+      return;
+    }
+    const timer = setTimeout(() => { void searchVariants(query); }, 300);
+    return () => clearTimeout(timer);
+  }, [variantQuery, showForm]);
 
   const submitForm = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -618,8 +643,8 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
             </label>
           )}
           <div className="flex gap-2">
-            <input className="flex-1 rounded border p-2" placeholder="Tìm SKU (mã / tên biến thể)" value={variantQuery} onChange={(e) => setVariantQuery(e.target.value)} />
-            <button type="button" onClick={searchVariants} className="rounded border px-4 py-2">Tìm SKU</button>
+            <input className="flex-1 rounded border p-2" placeholder="Gõ để tìm SKU (mã / tên biến thể)" value={variantQuery} onChange={(e) => { setVariantQuery(e.target.value); latestQuery.current = e.target.value; }} />
+            <button type="button" onClick={() => void searchVariants()} className="rounded border px-4 py-2">Tìm SKU</button>
           </div>
           {variantSearched && variantOptions.length === 0 && (
             <p className="text-sm text-gray-500">Không tìm thấy SKU nào khớp từ khóa.</p>
@@ -636,6 +661,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
                     setVariantOptions([]);
                     setVariantSearched(false);
                     setVariantQuery("");
+                    latestQuery.current = "";
                   }}
                 >
                   + {v.sku} — {v.productName} / {v.variantName} ({v.sellingPrice.toLocaleString("vi-VN")})
