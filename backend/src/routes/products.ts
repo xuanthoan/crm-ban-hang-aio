@@ -927,6 +927,29 @@ router.patch("/products/:id", authorize("product.update"), async (req, res) => {
           generated.push(resolved.sku);
         }
       }
+      // Parent status flip moves all SKUs with it, except SKUs this request
+      // updated individually (body.variants rows keep their explicit status).
+      // Without this, changing the product status in the edit form left the
+      // SKUs at their old status, and flipping back to Đang bán left a
+      // DELETE-deactivated product's SKUs stuck at Ngừng bán.
+      const newStatus = (data.status as string | undefined) ?? existing.status;
+      if (body.status !== undefined && body.status !== existing.status) {
+        const explicitIds = new Set<string>();
+        if (Array.isArray(body.variants)) {
+          for (const item of body.variants as unknown[]) {
+            if (item && typeof item === "object" && typeof (item as Record<string, unknown>).id === "string") {
+              explicitIds.add((item as Record<string, unknown>).id as string);
+            }
+          }
+        }
+        await tx.productVariant.updateMany({
+          where: {
+            productId: existing.id, deletedAt: null,
+            ...(explicitIds.size > 0 ? { id: { notIn: [...explicitIds] } } : {}),
+          },
+          data: { status: newStatus as "active" | "inactive" },
+        });
+      }
       if (Object.keys(data).length > 0) {
         await writeAudit(tx, {
           actorId: req.user!.id, action: "product.update", entityType: "product", entityId: existing.id,
@@ -969,7 +992,9 @@ async function variantHistory(tx: AnyTx, variantId: string) {
   return { orderItems, transactions, stockQuantity: stock?.quantity ?? 0 };
 }
 
-/** DELETE /api/products/:id — soft-deactivate by default; hard delete only for Admin with no history. */
+/** DELETE /api/products/:id — deactivate by default (status inactive only, so the
+ *  product stays listable under the "Ngừng bán" filter and can be reactivated
+ *  from the edit form); hard delete only for Admin with no history. */
 router.delete("/products/:id", authorize("product.deactivate"), async (req, res) => {
   try {
     const prisma = getPrisma();
@@ -1015,15 +1040,19 @@ router.delete("/products/:id", authorize("product.deactivate"), async (req, res)
       res.json({ status: "ok", message: "Đã xóa cứng sản phẩm (không còn dữ liệu liên quan)." });
       return;
     }
+    // Deactivation is status-only on purpose: previously this also set
+    // deletedAt, which made the product vanish from the list even under the
+    // "Ngừng bán" filter and unrecoverable from the UI, while changing the
+    // status in the edit form kept it listable. Both paths now agree.
     await prisma.$transaction(async (tx: AnyTx) => {
-      await tx.product.update({ where: { id: product.id }, data: { status: "inactive", deletedAt: new Date() } });
-      await tx.productVariant.updateMany({ where: { productId: product.id, deletedAt: null }, data: { status: "inactive", deletedAt: new Date() } });
+      await tx.product.update({ where: { id: product.id }, data: { status: "inactive" } });
+      await tx.productVariant.updateMany({ where: { productId: product.id, deletedAt: null }, data: { status: "inactive" } });
     });
     await writeAudit(prisma, {
       actorId: req.user!.id, action: "product.deactivate", entityType: "product", entityId: product.id,
       oldValue: { status: product.status }, newValue: { status: "inactive" }, ipAddress: req.ip ?? null,
     });
-    res.json({ status: "ok", message: "Đã chuyển sản phẩm và toàn bộ SKU sang Ngừng bán (xóa mềm)." });
+    res.json({ status: "ok", message: "Đã chuyển sản phẩm và toàn bộ SKU sang Ngừng bán." });
   } catch (err) {
     dbUnavailable(res, err);
   }
