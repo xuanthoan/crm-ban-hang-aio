@@ -3,6 +3,31 @@ import { ORDER_STATUS_LABELS, PAYMENT_RECORD_LABELS, PAYMENT_STATUS_LABELS, isoT
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
+/** Tiền hiển thị theo kiểu Việt Nam: 1000000 -> "1.000.000" (đồng nguyên). */
+function formatMoney(value: number | null | undefined): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "";
+  return Math.trunc(value).toLocaleString("vi-VN");
+}
+
+/** Đọc số tiền người dùng gõ, chấp nhận "." "," khoảng trắng làm dấu phân cách nghìn. */
+function parseMoney(text: string): number | null {
+  const digits = text.replace(/\D/g, "");
+  if (!digits) return null;
+  const n = parseInt(digits, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Gõ tiền vào state chuỗi: hiển thị có dấu phân cách nghìn ngay khi gõ.
+ * Ô số của trình duyệt không hiểu dấu phân cách (gõ "1,000" thành rỗng
+ * rồi lưu thành 0), nên các ô tiền trong form đơn và form payment đều
+ * dùng ô chữ + tự định dạng, giống PriceInput bên trang Sản phẩm.
+ */
+function formatMoneyInput(text: string): string {
+  const n = parseMoney(text);
+  return n === null ? "" : formatMoney(n);
+}
+
 interface OrderItem {
   id: string;
   productVariantId: string;
@@ -231,8 +256,8 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
         productVariantId: i.productVariantId,
         sku: i.sku,
         quantity: String(i.quantity),
-        unitPrice: String(i.unitPrice),
-        discountAmount: String(i.discountAmount),
+        unitPrice: formatMoney(i.unitPrice),
+        discountAmount: formatMoney(i.discountAmount),
       })),
     );
     setShowForm(true);
@@ -280,8 +305,8 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
         .map((l) => ({
           productVariantId: l.productVariantId,
           quantity: parseInt(l.quantity, 10),
-          ...(l.unitPrice !== "" ? { unitPrice: parseFloat(l.unitPrice) } : {}),
-          ...(l.discountAmount !== "" ? { discountAmount: parseFloat(l.discountAmount) } : {}),
+          ...(l.unitPrice !== "" ? { unitPrice: parseMoney(l.unitPrice) ?? 0 } : {}),
+          ...(l.discountAmount !== "" ? { discountAmount: parseMoney(l.discountAmount) ?? 0 } : {}),
         }));
       if (items.length === 0) throw new Error("Đơn hàng phải có ít nhất một dòng SKU.");
       if (items.some((i) => !Number.isInteger(i.quantity) || i.quantity <= 0)) {
@@ -289,8 +314,8 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
       }
       const body: Record<string, unknown> = {
         items,
-        discountTotal: discountTotal === "" ? 0 : parseFloat(discountTotal),
-        shippingFee: shippingFee === "" ? 0 : parseFloat(shippingFee),
+        discountTotal: discountTotal === "" ? 0 : parseMoney(discountTotal) ?? 0,
+        shippingFee: shippingFee === "" ? 0 : parseMoney(shippingFee) ?? 0,
         note: note.trim() || null,
       };
       let saved: Order;
@@ -371,8 +396,8 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
 
   const createPayment = async () => {
     if (!detail) return;
-    const amount = parseInt(payAmount, 10);
-    if (!Number.isInteger(amount) || amount <= 0) {
+    const amount = parseMoney(payAmount);
+    if (amount === null || amount <= 0) {
       setError("Số tiền thanh toán phải là số nguyên (đồng) lớn hơn 0.");
       return;
     }
@@ -605,7 +630,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
                   <p className="text-sm text-gray-600">Chỉ thu cho đơn đã xác nhận hoặc đã hoàn thành. Số tiền không được vượt số còn nợ; backend kiểm tra lại trong cùng transaction.</p>
                   <label className="block text-sm">
                     Số tiền (đồng, số nguyên &gt; 0)
-                    <input type="number" min={1} step={1} className="mt-1 w-full rounded border p-2" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                    <input type="text" inputMode="numeric" className="mt-1 w-full rounded border p-2" value={payAmount} onChange={(e) => setPayAmount(formatMoneyInput(e.target.value))} />
                   </label>
                   <label className="block text-sm">
                     Phương thức
@@ -661,7 +686,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
                   type="button"
                   className="mr-2 mt-1 rounded border px-2 py-1"
                   onClick={() => {
-                    setLines([...lines, { productVariantId: v.id, sku: v.sku, quantity: "1", unitPrice: String(v.sellingPrice), discountAmount: "" }]);
+                    setLines([...lines, { productVariantId: v.id, sku: v.sku, quantity: "1", unitPrice: formatMoney(v.sellingPrice), discountAmount: "" }]);
                     setVariantOptions([]);
                     setVariantSearched(false);
                     setVariantQuery("");
@@ -682,13 +707,13 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
                 }} required />
               </label>
               <label className="text-sm">Đơn giá
-                <input type="number" min={0} step={0.01} className="ml-1 w-28 rounded border p-1" value={l.unitPrice} onChange={(e) => {
-                  const next = [...lines]; next[idx].unitPrice = e.target.value; setLines(next);
+                <input type="text" inputMode="numeric" className="ml-1 w-28 rounded border p-1" value={l.unitPrice} onChange={(e) => {
+                  const next = [...lines]; next[idx].unitPrice = formatMoneyInput(e.target.value); setLines(next);
                 }} />
               </label>
               <label className="text-sm">Giảm giá dòng
-                <input type="number" min={0} step={0.01} className="ml-1 w-24 rounded border p-1" value={l.discountAmount} onChange={(e) => {
-                  const next = [...lines]; next[idx].discountAmount = e.target.value; setLines(next);
+                <input type="text" inputMode="numeric" className="ml-1 w-24 rounded border p-1" value={l.discountAmount} onChange={(e) => {
+                  const next = [...lines]; next[idx].discountAmount = formatMoneyInput(e.target.value); setLines(next);
                 }} />
               </label>
               <button type="button" className="rounded border px-2 py-1 text-sm" onClick={() => setLines(lines.filter((_, i) => i !== idx))}>Xóa dòng</button>
@@ -696,10 +721,10 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
           ))}
           <div className="flex gap-2">
             <label className="text-sm">Chiết khấu đơn
-              <input type="number" min={0} step={0.01} className="ml-1 w-28 rounded border p-1" value={discountTotal} onChange={(e) => setDiscountTotal(e.target.value)} />
+              <input type="text" inputMode="numeric" className="ml-1 w-28 rounded border p-1" value={discountTotal} onChange={(e) => setDiscountTotal(formatMoneyInput(e.target.value))} />
             </label>
             <label className="text-sm">Phí ship
-              <input type="number" min={0} step={0.01} className="ml-1 w-28 rounded border p-1" value={shippingFee} onChange={(e) => setShippingFee(e.target.value)} />
+              <input type="text" inputMode="numeric" className="ml-1 w-28 rounded border p-1" value={shippingFee} onChange={(e) => setShippingFee(formatMoneyInput(e.target.value))} />
             </label>
           </div>
           <label className="block text-sm">Ghi chú
