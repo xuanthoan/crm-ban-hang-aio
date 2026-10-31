@@ -218,7 +218,7 @@ function validateLines(body: unknown): { raw: ValidatedLine[]; error?: string } 
     }
     const variantId = String(e.productVariantId).trim();
     if (seen.has(variantId)) {
-      return { raw: [], error: `SKU ${variantId} xuất hiện nhiều hơn một dòng trong cùng một đơn. Hãy gộp thành một dòng duy nhất.` };
+      return { raw: [], error: "Một SKU xuất hiện nhiều hơn một dòng trong cùng một đơn. Hãy gộp thành một dòng duy nhất." };
     }
     seen.add(variantId);
     if (!Number.isInteger(e.quantity) || (e.quantity as number) <= 0) {
@@ -868,7 +868,12 @@ router.post("/orders/:id/return", authorize("order.return"), async (req, res) =>
           if (!item) throw new OrderError(`Không tìm thấy dòng đơn với id ${e.orderItemId} trong đơn này.`, 404);
         } else if (typeof e.productVariantId === "string") {
           item = order.items.find((i: any) => i.productVariantId === e.productVariantId);
-          if (!item) throw new OrderError(`Đơn này không có dòng SKU ${e.productVariantId}.`, 404);
+          if (!item) {
+            // Same rule as elsewhere: show the SKU code, never a raw id.
+            const variant = await tx.productVariant.findUnique({ where: { id: e.productVariantId }, include: { product: true } });
+            const label = variant ? `${variant.sku} (${variant.product?.name ?? ""} / ${variant.variantName})` : "yêu cầu";
+            throw new OrderError(`Đơn này không có dòng SKU ${label}.`, 404);
+          }
         } else {
           throw new OrderError("Mỗi dòng trả hàng phải có orderItemId hoặc productVariantId.", 400);
         }

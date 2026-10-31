@@ -270,8 +270,14 @@ export async function reserveStock(tx: AnyTx, lines: ReservedLine[]): Promise<vo
     }
     const item = await getOrCreateItem(tx, line.variantId);
     if (line.quantity > availableQuantity(item)) {
+      // Never show a raw variant id in a user-facing message: resolve the
+      // human-readable SKU code + product/variant names for the error.
+      const variant = await tx.productVariant.findUnique({ where: { id: line.variantId }, include: { product: true } });
+      const label = variant
+        ? `${variant.sku} (${variant.product?.name ?? ""} / ${variant.variantName})`
+        : "SKU này";
       throw new OrderError(
-        `Không đủ tồn khả dụng để giữ cho đơn nháp (SKU ${line.variantId}: tồn ${item.quantity}, đang giữ ${item.reservedQuantity ?? 0}, khả dụng ${availableQuantity(item)}, cần ${line.quantity}). Toàn bộ đơn đã bị hủy, không tạo đơn nửa vời.`,
+        `Không đủ tồn khả dụng để giữ cho đơn nháp (${label}: tồn ${item.quantity}, đang giữ ${item.reservedQuantity ?? 0}, khả dụng ${availableQuantity(item)}, cần ${line.quantity}). Toàn bộ đơn đã bị hủy, không tạo đơn nửa vời.`,
         400,
       );
     }

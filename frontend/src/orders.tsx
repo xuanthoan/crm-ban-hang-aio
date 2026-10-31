@@ -113,7 +113,11 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
   const [discountTotal, setDiscountTotal] = useState("");
   const [shippingFee, setShippingFee] = useState("");
   const [note, setNote] = useState("");
-  const [lines, setLines] = useState<FormLine[]>([{ productVariantId: "", sku: "", quantity: "1", unitPrice: "", discountAmount: "" }]);
+  // Lines exist ONLY once a SKU is picked from the search suggestions.
+  // No placeholder "Dòng mới" line and no "+ Thêm dòng" button: an empty
+  // line with no SKU means nothing in the UI, and picking a suggestion
+  // already creates the line.
+  const [lines, setLines] = useState<FormLine[]>([]);
   const [variantQuery, setVariantQuery] = useState("");
   const [variantOptions, setVariantOptions] = useState<VariantOption[]>([]);
   const [variantSearched, setVariantSearched] = useState(false);
@@ -204,7 +208,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
       setDiscountTotal("");
       setShippingFee("");
       setNote("");
-      setLines([{ productVariantId: "", sku: "", quantity: "1", unitPrice: "", discountAmount: "" }]);
+      setLines([]);
       setVariantQuery("");
       latestQuery.current = "";
       setVariantOptions([]);
@@ -690,7 +694,6 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
               <button type="button" className="rounded border px-2 py-1 text-sm" onClick={() => setLines(lines.filter((_, i) => i !== idx))}>Xóa dòng</button>
             </div>
           ))}
-          <button type="button" className="rounded border px-3 py-1" onClick={() => setLines([...lines, { productVariantId: "", sku: "", quantity: "1", unitPrice: "", discountAmount: "" }])}>+ Thêm dòng (chọn SKU ở ô tìm kiếm)</button>
           <div className="flex gap-2">
             <label className="text-sm">Chiết khấu đơn
               <input type="number" min={0} step={0.01} className="ml-1 w-28 rounded border p-1" value={discountTotal} onChange={(e) => setDiscountTotal(e.target.value)} />
