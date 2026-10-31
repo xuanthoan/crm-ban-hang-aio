@@ -264,6 +264,11 @@ async function getOrCreateItem(tx: AnyTx, variantId: string): Promise<any> {
 export async function reserveStock(tx: AnyTx, lines: ReservedLine[]): Promise<void> {
   const aggregated = aggregateLines(lines);
   const items: { variantId: string; item: any; quantity: number }[] = [];
+  // Collect EVERY shortfall instead of failing on the first line, so the
+  // user can fix all lines in one pass instead of fix-and-retry per line.
+  // Nothing is reserved yet at throw time, so the all-or-nothing rule
+  // still holds.
+  const shortfalls: string[] = [];
   for (const line of aggregated) {
     if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
       throw new OrderError("Số lượng đặt giữ phải là số nguyên lớn hơn 0.", 400);
@@ -276,12 +281,16 @@ export async function reserveStock(tx: AnyTx, lines: ReservedLine[]): Promise<vo
       const label = variant
         ? `${variant.sku} (${variant.product?.name ?? ""} / ${variant.variantName})`
         : "SKU này";
-      throw new OrderError(
-        `Không đủ tồn khả dụng để giữ cho đơn nháp (${label}: tồn ${item.quantity}, đang giữ ${item.reservedQuantity ?? 0}, khả dụng ${availableQuantity(item)}, cần ${line.quantity}). Toàn bộ đơn đã bị hủy, không tạo đơn nửa vời.`,
-        400,
-      );
+      shortfalls.push(`${label}: tồn ${item.quantity}, đang giữ ${item.reservedQuantity ?? 0}, khả dụng ${availableQuantity(item)}, cần ${line.quantity}`);
+    } else {
+      items.push({ variantId: line.variantId, item, quantity: line.quantity });
     }
-    items.push({ variantId: line.variantId, item, quantity: line.quantity });
+  }
+  if (shortfalls.length > 0) {
+    throw new OrderError(
+      `Không đủ tồn khả dụng để giữ cho đơn nháp (${shortfalls.join("; ")}). Toàn bộ đơn đã bị hủy, không tạo đơn nửa vời.`,
+      400,
+    );
   }
   for (const entry of items) {
     await tx.inventoryItem.update({

@@ -699,15 +699,21 @@ router.post("/orders/:id/confirm", authorize("order.confirm"), async (req, res) 
       // the held quantity since the draft was created: refuse the
       // confirm (draft + hold stay intact via rollback) instead of
       // letting the inventory service go negative.
+      // Same rule as the draft reserve check: report every short line at
+      // once instead of only the first one.
+      const shortfalls: string[] = [];
       for (const item of order.items) {
         const stock = await tx.inventoryItem.findUnique({ where: { variantId: item.productVariantId } });
         const physical = stock ? stock.quantity : 0;
         if (physical < item.quantity) {
-          throw new OrderError(
-            `Không đủ tồn vật lý để xác nhận đơn (SKU ${item.variant?.sku ?? item.productVariantId}: tồn vật lý ${physical}, cần ${item.quantity}). Đơn vẫn giữ trạng thái nháp và đặt giữ.`,
-            400,
-          );
+          shortfalls.push(`SKU ${item.variant?.sku ?? item.productVariantId}: tồn vật lý ${physical}, cần ${item.quantity}`);
         }
+      }
+      if (shortfalls.length > 0) {
+        throw new OrderError(
+          `Không đủ tồn vật lý để xác nhận đơn (${shortfalls.join("; ")}). Đơn vẫn giữ trạng thái nháp và đặt giữ.`,
+          400,
+        );
       }
       // Convert hold -> real deduction, in the same transaction.
       await releaseReservation(
