@@ -371,6 +371,12 @@ router.get("/reminders", async (req, res) => {
       }
       where.status = statusParam;
     }
+    // The "done"/"cancelled" tabs are status groups, not time groups: the
+    // in-memory time-group filter below only runs for overdue/due_today/
+    // upcoming, so done/cancelled tabs used to return every reminder
+    // unfiltered. Filter them by status at the DB instead.
+    if (group === "done") where.status = "completed";
+    else if (group === "cancelled") where.status = "cancelled";
     const q = String(req.query.q ?? "").trim();
     if (q) where.title = { contains: q, mode: "insensitive" };
     // Time groups are derived, so filter in memory for those groups.

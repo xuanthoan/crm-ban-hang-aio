@@ -290,18 +290,30 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
   const [days, setDays] = useState("7");
   const [threshold, setThreshold] = useState("5000000");
   const [tagId, setTagId] = useState("");
+  const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState("");
 
   const canView = permissions.includes("segment.view");
 
   const loadSegments = useCallback(async () => {
     try {
-      const data = await api(`/api/segments?days=${days}`, token);
+      const params = new URLSearchParams({ days });
+      if (tagId) params.set("tagId", tagId);
+      const data = await api(`/api/segments?${params.toString()}`, token);
       setSegments(data.segments as typeof segments);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được phân đoạn.");
     }
-  }, [days, token]);
+  }, [days, tagId, token]);
+
+  // Tags for the by-tag segment: a dropdown by name, not a raw Tag ID
+  // typed from memory (the ID is not shown anywhere in the UI).
+  useEffect(() => {
+    if (!canView) return;
+    api("/api/tags?pageSize=100", token)
+      .then((data) => setTags(((data.data as { id: string; name: string }[]) ?? [])))
+      .catch(() => {});
+  }, [canView, token]);
 
   const loadItems = useCallback(async () => {
     try {
@@ -332,7 +344,10 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
       <div className="flex flex-wrap gap-2">
         <label className="text-sm">Số ngày tới (sinh nhật): <input className="rounded border p-1" value={days} onChange={(e) => setDays(e.target.value)} size={4} /></label>
         <label className="text-sm">Ngưỡng giá trị cao: <input className="rounded border p-1" value={threshold} onChange={(e) => setThreshold(e.target.value)} size={10} /></label>
-        <label className="text-sm">Tag ID (cho phân đoạn theo tag): <input className="rounded border p-1" value={tagId} onChange={(e) => setTagId(e.target.value)} /></label>
+        <label className="text-sm">Tag (cho phân đoạn theo tag): <select className="rounded border p-1" value={tagId} onChange={(e) => setTagId(e.target.value)}>
+          <option value="">— Chọn tag —</option>
+          {tags.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
+        </select></label>
       </div>
       <div className="grid gap-2">
         {segments.map((s) => (
@@ -349,7 +364,11 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
             <strong>{String(it.childName ?? it.fullName ?? "")}</strong>
             {Boolean(it.customerName) && Boolean(it.childName) && <span> · Khách: {String(it.customerName)}</span>}
             {Boolean(it.nextBirthday) && <span> · Sinh nhật sắp tới: {isoToVnDate(String(it.nextBirthday))} ({String(it.upcomingAge)} tuổi)</span>}
-            {Boolean(it.reason) && <span> · {String(it.reason)}</span>}
+            {/* Child-birthday rows already render nextBirthday/upcomingAge
+                above; their reason repeats the same info verbatim, so
+                showing it too prints the birthday twice. Other segments
+                keep their reason, which carries distinct info. */}
+            {Boolean(it.reason) && !(Boolean(it.childName) && Boolean(it.nextBirthday)) && <span> · {String(it.reason)}</span>}
             {Boolean(it.phone) && <span> · {String(it.phone)}</span>}
           </li>
         ))}

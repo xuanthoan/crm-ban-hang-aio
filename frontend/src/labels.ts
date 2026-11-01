@@ -112,6 +112,9 @@ export const REMINDER_GROUP_LABELS: Record<string, string> = {
 // Trạng thái nhắc việc.
 export const REMINDER_STATUS_LABELS: Record<string, string> = {
   pending: "Đang chờ",
+  // Backend statuses are pending/completed/cancelled; "done" is the
+  // timeGroup name for completed reminders, kept for compatibility.
+  completed: "Đã hoàn thành",
   done: "Đã xong",
   cancelled: "Đã hủy",
 };
