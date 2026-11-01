@@ -413,7 +413,11 @@ export function summarizeInventory(
   for (const r of rows) {
     totalQuantity += r.quantity;
     totalReserved += r.reservedQuantity;
-    if (r.quantity <= lowStockThreshold) low += 1;
+    // Low stock and out of stock are disjoint: a zero-stock SKU is
+    // "out of stock", not "low stock". Previously low counted zeros too,
+    // so the summary said "low 22" while the low-stock list (which
+    // excludes zeros) was empty on the same page.
+    if (r.quantity > 0 && r.quantity <= lowStockThreshold) low += 1;
     if (r.quantity === 0) out += 1;
     if (includeValue) value += r.quantity * (r.currentImportPrice ?? 0);
   }

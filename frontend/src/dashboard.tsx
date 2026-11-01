@@ -290,6 +290,18 @@ export function ReportsPage({ token }: { token: string }) {
               {(inventory.lowStock ?? []).length === 0 && <tr><td className="py-1 text-gray-500">Không có SKU tồn thấp.</td></tr>}
             </tbody>
           </table>
+          <h4 className="mt-3 font-semibold">Hết hàng</h4>
+          <table className="mt-2 w-full text-sm">
+            <tbody>
+              {(inventory.outOfStock ?? []).map((r: any) => (
+                <tr key={r.productVariantId} className="border-t">
+                  <td className="py-1 pr-2">{r.sku} — {r.productName} {r.variantName}</td>
+                  <td className="py-1 text-right">Tồn {r.quantity} · Khả dụng {r.availableQuantity}</td>
+                </tr>
+              ))}
+              {(inventory.outOfStock ?? []).length === 0 && <tr><td className="py-1 text-gray-500">Không có SKU hết hàng.</td></tr>}
+            </tbody>
+          </table>
         </div>
       )}
     </section>
