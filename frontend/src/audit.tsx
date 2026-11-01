@@ -140,6 +140,14 @@ export default function AuditPage({ token }: { token: string }) {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
+    // An inverted range (from > to) can never match a row; say so
+    // instead of silently showing an empty list.
+    if (from && to && from > to) {
+      setError("Từ ngày phải trước hoặc bằng Đến ngày.");
+      setRows([]);
+      setTotal(0);
+      return;
+    }
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (actorId.trim()) params.set("actorId", actorId.trim());
@@ -170,24 +178,34 @@ export default function AuditPage({ token }: { token: string }) {
       </p>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <label className="block text-sm">
-          Người thực hiện (actorId)
-          <input className="mt-1 w-full rounded border p-2" value={actorId} onChange={(e) => { setActorId(e.target.value); setPage(1); }} />
+          Người thực hiện
+          <input className="mt-1 w-full rounded border p-2" value={actorId} onChange={(e) => { setActorId(e.target.value); setPage(1); }} placeholder="vd: tên đăng nhập (admin) hoặc mã người dùng" />
         </label>
         <label className="block text-sm">
           Hành động
-          <input className="mt-1 w-full rounded border p-2" value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }} placeholder="vd: order.cancel" />
+          <select className="mt-1 w-full rounded border p-2" value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
+            <option value="">Tất cả hành động</option>
+            {Object.entries(AUDIT_ACTION_LABELS).map(([code, label]) => (
+              <option key={code} value={code}>{label}</option>
+            ))}
+          </select>
         </label>
         <label className="block text-sm">
           Loại thực thể
-          <input className="mt-1 w-full rounded border p-2" value={entityType} onChange={(e) => { setEntityType(e.target.value); setPage(1); }} placeholder="vd: order" />
+          <select className="mt-1 w-full rounded border p-2" value={entityType} onChange={(e) => { setEntityType(e.target.value); setPage(1); }}>
+            <option value="">Tất cả loại</option>
+            {Object.entries(ENTITY_TYPE_LABELS).map(([code, label]) => (
+              <option key={code} value={code}>{label}</option>
+            ))}
+          </select>
         </label>
         <label className="block text-sm">
           Mã thực thể
-          <input className="mt-1 w-full rounded border p-2" value={entityId} onChange={(e) => { setEntityId(e.target.value); setPage(1); }} />
+          <input className="mt-1 w-full rounded border p-2" value={entityId} onChange={(e) => { setEntityId(e.target.value); setPage(1); }} placeholder="vd: customers, hoặc mã dòng" />
         </label>
         <label className="block text-sm">
           Tìm kiếm
-          <input className="mt-1 w-full rounded border p-2" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+          <input className="mt-1 w-full rounded border p-2" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="vd: export, order, tên đăng nhập" />
         </label>
         <label className="block text-sm">
           Từ ngày

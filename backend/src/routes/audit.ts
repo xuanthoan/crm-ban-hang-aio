@@ -88,16 +88,29 @@ function serializeRow(req: import("express").Request, row: any) {
   };
 }
 
-function buildWhere(req: import("express").Request): Record<string, unknown> | { error: string } {
+async function buildWhere(req: import("express").Request): Promise<Record<string, unknown> | { error: string }> {
   const viewAll = canViewAll(req);
   const viewOwn = canViewOwn(req);
   if (!viewAll && !viewOwn) return { error: "forbidden" };
 
-  const actorId = (req.query.actorId ?? req.query.user_id) as string | undefined;
+  const actorParam = (req.query.actorId ?? req.query.user_id) as string | undefined;
   const action = req.query.action as string | undefined;
   const entityType = (req.query.entityType ?? req.query.entity_type) as string | undefined;
   const entityId = (req.query.entityId ?? req.query.entity_id) as string | undefined;
   const q = req.query.q as string | undefined;
+
+  // The filter box accepts either the internal user id or the login
+  // username (the list shows the actor's name, so a username is what a
+  // human reviewer will type). Resolve a username to its id first, so
+  // the view_own check below still compares ids, never raw input.
+  let actorId = actorParam;
+  if (actorParam) {
+    const prisma: any = getPrisma();
+    const user =
+      (await prisma.user.findUnique({ where: { id: actorParam } }).catch(() => null)) ??
+      (await prisma.user.findUnique({ where: { username: actorParam } }).catch(() => null));
+    if (user) actorId = user.id;
+  }
 
   // view_own callers may only ever see their own rows.
   if (!viewAll && actorId && actorId !== req.user!.id) return { error: "forbidden" };
@@ -113,6 +126,8 @@ function buildWhere(req: import("express").Request): Record<string, unknown> | {
       { action: { contains: q, mode: "insensitive" } },
       { entityType: { contains: q, mode: "insensitive" } },
       { entityId: { contains: q, mode: "insensitive" } },
+      { actor: { username: { contains: q, mode: "insensitive" } } },
+      { actor: { fullName: { contains: q, mode: "insensitive" } } },
     ];
   }
   return where;
@@ -138,7 +153,7 @@ router.get("/audit-logs", async (req, res) => {
       res.status(400).json({ status: "error", message: to.error });
       return;
     }
-    const whereOrError = buildWhere(req);
+    const whereOrError = await buildWhere(req);
     if (whereOrError && typeof whereOrError === "object" && "error" in whereOrError) {
       res.status(403).json({ status: "error", message: "Bạn không có quyền xem nhật ký audit này." });
       return;
