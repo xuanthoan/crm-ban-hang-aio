@@ -692,6 +692,9 @@ router.get("/segments", authorize("segment.view"), async (req, res) => {
     const days = Math.max(1, Math.min(365, parseInt(String(req.query.days ?? "7"), 10) || 7));
     const customers = await loadSegmentBase(prisma, req);
     const tagId = String(req.query.tagId ?? "");
+    // Same parsing as the items route below: the high-value count must
+    // follow the threshold the user typed, not a hardcoded 5.000.000.
+    const threshold = Math.max(0, parseInt(String(req.query.threshold ?? "5000000"), 10) || 5000000);
     const counts: Record<string, number | null> = {};
     counts.birthday_customers = customers.filter((c: any) => c.dateOfBirth && isBirthdayWithin(new Date(c.dateOfBirth), now, days)).length;
     counts.birthday_children = customers.reduce((sum: number, c: any) => sum + (c.children ?? []).filter((ch: any) => ch.dateOfBirth && isBirthdayWithin(new Date(ch.dateOfBirth), now, days)).length, 0);
@@ -703,7 +706,7 @@ router.get("/segments", authorize("segment.view"), async (req, res) => {
     counts.new_customers = customers.filter((c: any) => isNewCustomer(new Date(c.createdAt), now, 30)).length;
     counts.no_purchase_customers = customers.filter((c: any) => (c.orders ?? []).length === 0).length;
     counts.debt_customers = customers.filter((c: any) => totalDebt((c.orders ?? []).map((o: any) => ({ status: "confirmed", grandTotal: Number(o.grandTotal ?? 0), debtTotal: Number(o.debtTotal ?? 0), createdAt: new Date(o.createdAt) }))) > 0).length;
-    counts.high_value_customers = customers.filter((c: any) => totalGrand((c.orders ?? []).map((o: any) => ({ status: "confirmed", grandTotal: Number(o.grandTotal ?? 0), debtTotal: Number(o.debtTotal ?? 0), createdAt: new Date(o.createdAt) }))) >= 5000000).length;
+    counts.high_value_customers = customers.filter((c: any) => totalGrand((c.orders ?? []).map((o: any) => ({ status: "confirmed", grandTotal: Number(o.grandTotal ?? 0), debtTotal: Number(o.debtTotal ?? 0), createdAt: new Date(o.createdAt) }))) >= threshold).length;
     counts.by_tag = tagId ? customers.filter((c: any) => (c.tagLinks ?? []).some((t: any) => t.tagId === tagId)).length : null;
     res.json({
       status: "ok",

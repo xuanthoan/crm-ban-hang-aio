@@ -283,12 +283,21 @@ export default function RemindersPage({ token, permissions }: { token: string; p
   );
 }
 
+// Same vi-VN dot grouping as the money inputs on the order/product
+// forms: the threshold is displayed grouped but sent to the API as
+// plain digits (parseInt would stop at the first dot otherwise).
+function formatMoneyInput(text: string): string {
+  const digits = text.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+  return Number(digits).toLocaleString("vi-VN");
+}
+
 export function SegmentsPage({ token, permissions }: { token: string; permissions: string[] }) {
   const [segments, setSegments] = useState<{ key: string; name: string; description: string; count: number | null; note: string }[]>([]);
   const [selected, setSelected] = useState("birthday_customers");
   const [items, setItems] = useState<Record<string, unknown>[]>([]);
   const [days, setDays] = useState("7");
-  const [threshold, setThreshold] = useState("5000000");
+  const [threshold, setThreshold] = useState("5.000.000");
   const [tagId, setTagId] = useState("");
   const [tags, setTags] = useState<{ id: string; name: string }[]>([]);
   const [error, setError] = useState("");
@@ -299,12 +308,17 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
     try {
       const params = new URLSearchParams({ days });
       if (tagId) params.set("tagId", tagId);
+      // The counts must follow the typed threshold too: previously the
+      // counts call never sent it, so the high-value count stayed frozen
+      // at the 5.000.000 default no matter what the user typed.
+      const thresholdDigits = threshold.replace(/[^0-9]/g, "");
+      if (thresholdDigits) params.set("threshold", thresholdDigits);
       const data = await api(`/api/segments?${params.toString()}`, token);
       setSegments(data.segments as typeof segments);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Không tải được phân đoạn.");
     }
-  }, [days, tagId, token]);
+  }, [days, tagId, threshold, token]);
 
   // Tags for the by-tag segment: a dropdown by name, not a raw Tag ID
   // typed from memory (the ID is not shown anywhere in the UI).
@@ -317,7 +331,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
 
   const loadItems = useCallback(async () => {
     try {
-      const params = new URLSearchParams({ days, threshold, pageSize: "50" });
+      const params = new URLSearchParams({ days, threshold: threshold.replace(/[^0-9]/g, "") || "5000000", pageSize: "50" });
       if (tagId) params.set("tagId", tagId);
       const data = await api(`/api/segments/${selected}/customers?${params.toString()}`, token);
       setItems(data.items as Record<string, unknown>[]);
@@ -343,7 +357,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
       {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap gap-2">
         <label className="text-sm">Số ngày tới (sinh nhật): <input className="rounded border p-1" value={days} onChange={(e) => setDays(e.target.value)} size={4} /></label>
-        <label className="text-sm">Ngưỡng giá trị cao: <input className="rounded border p-1" value={threshold} onChange={(e) => setThreshold(e.target.value)} size={10} /></label>
+        <label className="text-sm">Ngưỡng giá trị cao: <input className="rounded border p-1" value={threshold} onChange={(e) => setThreshold(formatMoneyInput(e.target.value))} inputMode="numeric" size={10} /></label>
         <label className="text-sm">Tag (cho phân đoạn theo tag): <select className="rounded border p-1" value={tagId} onChange={(e) => setTagId(e.target.value)}>
           <option value="">— Chọn tag —</option>
           {tags.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
