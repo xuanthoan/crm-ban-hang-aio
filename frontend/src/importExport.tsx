@@ -123,7 +123,7 @@ export default function ImportExportPage({ token, permissions }: { token: string
       await downloadCsv(
         `/api/export/${exportEntity}${query ? `?${query}` : ""}`,
         token,
-        `${exportEntity}-${new Date().toISOString().slice(0, 10)}.csv`,
+        `export-${exportEntity}-${new Date().toISOString().slice(0, 10)}.csv`,
       );
       setResult(`Đã tải file export ${exportEntity}.`);
     } catch (err) {

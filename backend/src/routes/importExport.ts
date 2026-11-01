@@ -588,7 +588,7 @@ router.get("/export/customers", authorize("customer.export"), async (req: AnyReq
       isoDate(c.createdAt),
     ]);
     await writeAudit(prisma, { actorId: req.user!.id, action: "export", entityType: "export", entityId: "customers", newValue: { entity: "customers", filters: { q, status: req.query.status ?? null }, rowCount: rows.length }, ipAddress: req.ip ?? null });
-    sendCsv(res, `customers-${exportDate()}.csv`, headers, rows);
+    sendCsv(res, `export-customers-${exportDate()}.csv`, headers, rows);
   } catch (err) {
     dbUnavailable(res, err);
   }
@@ -629,7 +629,7 @@ router.get("/export/products", authorize("product.export"), async (req: AnyReq, 
       }
     }
     await writeAudit(prisma, { actorId: req.user!.id, action: "export", entityType: "export", entityId: "products", newValue: { entity: "products", filters: { q }, rowCount: rows.length }, ipAddress: req.ip ?? null });
-    sendCsv(res, `products-${exportDate()}.csv`, headers, rows);
+    sendCsv(res, `export-products-${exportDate()}.csv`, headers, rows);
   } catch (err) {
     dbUnavailable(res, err);
   }
@@ -661,7 +661,7 @@ router.get("/export/orders", authorize("order.export"), async (req: AnyReq, res:
       ...(moneyAllowed ? [decimalToString(o.grandTotal), decimalToString(o.paidTotal), decimalToString(o.debtTotal), o.paymentStatus] : []),
     ]);
     await writeAudit(prisma, { actorId: req.user!.id, action: "export", entityType: "export", entityId: "orders", newValue: { entity: "orders", rowCount: rows.length }, ipAddress: req.ip ?? null });
-    sendCsv(res, `orders-${exportDate()}.csv`, headers, rows);
+    sendCsv(res, `export-orders-${exportDate()}.csv`, headers, rows);
   } catch (err) {
     dbUnavailable(res, err);
   }
@@ -700,7 +700,7 @@ router.get("/export/inventory", authorize("inventory.view"), async (req: AnyReq,
       ]);
     }
     await writeAudit(prisma, { actorId: req.user!.id, action: "export", entityType: "export", entityId: "inventory", newValue: { entity: "inventory", rowCount: rows.length }, ipAddress: req.ip ?? null });
-    sendCsv(res, `inventory-${exportDate()}.csv`, headers, rows);
+    sendCsv(res, `export-inventory-${exportDate()}.csv`, headers, rows);
   } catch (err) {
     dbUnavailable(res, err);
   }
