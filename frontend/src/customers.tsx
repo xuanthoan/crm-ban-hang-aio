@@ -5,6 +5,16 @@ import { EntityAuditTimeline } from "./audit";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
+// Gender used to be free text, so the DB holds inconsistent values
+// ("Nam", "Nữ", even a bare "N"). The form now constrains it to a
+// select; the backend still stores a plain string, so no API change.
+const GENDER_OPTIONS = [
+  { value: "", label: "—" },
+  { value: "Nam", label: "Nam" },
+  { value: "Nữ", label: "Nữ" },
+  { value: "Khác", label: "Khác" },
+];
+
 interface Tag {
   id: string;
   name: string;
@@ -551,7 +561,9 @@ export default function CustomersPage({ token, permissions }: { token: string; p
           <p className="text-sm text-gray-500">Họ tên hoặc ít nhất một số điện thoại là bắt buộc (theo docs 01).</p>
           <label className="block">Họ tên<input className="mt-1 w-full rounded border p-2" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="block">Giới tính<input className="mt-1 w-full rounded border p-2" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} /></label>
+            <label className="block">Giới tính<select className="mt-1 w-full rounded border p-2" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+              {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+            </select></label>
             <label className="block">Ngày sinh<input type="date" className="mt-1 w-full rounded border p-2" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
             <label className="block">Email<input className="mt-1 w-full rounded border p-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
             <label className="block">Nguồn<input className="mt-1 w-full rounded border p-2" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
@@ -605,7 +617,9 @@ export default function CustomersPage({ token, permissions }: { token: string; p
               <div key={i} className="mt-2 grid grid-cols-2 gap-2 rounded border p-2">
                 <label className="block col-span-2">Họ tên con<input className="mt-1 w-full rounded border p-2" value={ch.fullName} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, fullName: e.target.value } : x)) }))} /></label>
                 <label className="block">Ngày sinh<input type="date" className="mt-1 w-full rounded border p-2" value={ch.dateOfBirth} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: e.target.value } : x)) }))} /></label>
-                <label className="block">Giới tính<input className="mt-1 w-full rounded border p-2" value={ch.gender} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)) }))} /></label>
+                <label className="block">Giới tính<select className="mt-1 w-full rounded border p-2" value={ch.gender} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)) }))}>
+                  {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+                </select></label>
                 <label className="block col-span-2">Ghi chú<input className="mt-1 w-full rounded border p-2" value={ch.note} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)) }))} /></label>
                 <button type="button" onClick={() => setForm((f) => ({ ...f, children: f.children.filter((_, j) => j !== i) }))} className="rounded border px-2 py-1">Xóa thông tin con</button>
               </div>
