@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PAYMENT_STATUS_LABELS, isoToVnDate } from "./labels";
+import { PAYMENT_RECORD_LABELS, PAYMENT_STATUS_LABELS, isoToVnDate, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -77,6 +77,22 @@ interface PurchaseOrder {
   createdAt: string;
   items?: PurchaseOrderItem[];
   itemsCount?: number;
+  payments?: SupplierPayment[];
+}
+
+interface SupplierPayment {
+  id: string;
+  purchaseOrderId: string;
+  amount: number;
+  paymentMethod: string;
+  paymentMethodLabel: string;
+  note: string | null;
+  status: string;
+  cancelReason: string | null;
+  cancelledByName: string | null;
+  cancelledAt: string | null;
+  createdByName: string | null;
+  createdAt: string;
 }
 
 interface SupplierOption {
@@ -152,11 +168,28 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
   const [returnReason, setReturnReason] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // Sprint NCC-3: supplier payments live in the PO detail, mirroring
+  // the payment section of the sales-order detail. The payment list
+  // arrives inside the detail response (backend includes it); after a
+  // payment create/cancel we simply re-open the detail to refresh.
+  const [payAmount, setPayAmount] = useState("");
+  const [payMethod, setPayMethod] = useState("cash");
+  const [payNote, setPayNote] = useState("");
+  const [cancelReasons, setCancelReasons] = useState<Record<string, string>>({});
+  const [payBusy, setPayBusy] = useState(false);
+
   const canCreate = permissions.includes("purchase.create");
   const canConfirm = permissions.includes("purchase.confirm");
   const canComplete = permissions.includes("purchase.complete");
   const canCancel = permissions.includes("purchase.cancel");
   const canReturn = permissions.includes("purchase.return");
+  // No new view codes for supplier payments: the payment section
+  // follows PO visibility (purchase.view_all / view_own), same rule
+  // as the detail itself.
+  const canViewPayments =
+    permissions.includes("purchase.view_all") || permissions.includes("purchase.view_own");
+  const canCreatePayment = permissions.includes("supplier_payment.create");
+  const canCancelPayment = permissions.includes("supplier_payment.cancel");
 
   const loadSuppliers = useCallback(async () => {
     // Best effort: users with a purchase role but no supplier role
@@ -365,6 +398,63 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
       setError(err instanceof Error ? err.message : `Không ${labels[action]} được.`);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const createPayment = async () => {
+    if (!detail) return;
+    const amount = parseMoney(payAmount);
+    if (amount === null || amount <= 0) {
+      setError("Số tiền thanh toán phải là số nguyên (đồng) lớn hơn 0.");
+      return;
+    }
+    if (detail.debtTotal <= 0) {
+      setError(
+        detail.debtTotal < 0
+          ? `Đơn đang thừa tiền ${Math.abs(detail.debtTotal).toLocaleString("vi-VN")} (nhà cung cấp đang nợ lại), không tạo thêm payment. Hoàn tiền chưa làm ở sprint này.`
+          : "Đơn đã thanh toán đủ, không tạo thêm payment.",
+      );
+      return;
+    }
+    setPayBusy(true);
+    setError("");
+    setInfo("");
+    try {
+      await api(`/api/purchase-orders/${detail.id}/payments`, token, "POST", {
+        amount,
+        paymentMethod: payMethod,
+        note: payNote.trim() || null,
+      });
+      setPayAmount("");
+      setPayNote("");
+      setInfo(`Đã ghi nhận thanh toán NCC ${amount.toLocaleString("vi-VN")}. Số liệu đã được backend tính lại, không tự tính ở frontend.`);
+      await openDetail(detail.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ghi nhận thanh toán NCC thất bại.");
+    } finally {
+      setPayBusy(false);
+    }
+  };
+
+  const cancelPayment = async (paymentId: string) => {
+    if (!detail) return;
+    const reason = (cancelReasons[paymentId] ?? "").trim();
+    if (!reason) {
+      setError("Hủy thanh toán NCC bắt buộc phải có lý do.");
+      return;
+    }
+    setPayBusy(true);
+    setError("");
+    setInfo("");
+    try {
+      await api(`/api/purchase-orders/${detail.id}/payments/${paymentId}/cancel`, token, "POST", { reason });
+      setCancelReasons((prev) => ({ ...prev, [paymentId]: "" }));
+      setInfo("Đã hủy thanh toán NCC. Công nợ đã được backend tính lại ngay; payment đã hủy vẫn hiển thị trong danh sách.");
+      await openDetail(detail.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Hủy thanh toán NCC thất bại.");
+    } finally {
+      setPayBusy(false);
     }
   };
 
@@ -680,6 +770,63 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
               </label>
               <button type="submit" disabled={busy} className="rounded bg-orange-600 px-4 py-2 text-white disabled:opacity-50">Xác nhận trả hàng</button>
             </form>
+          )}
+
+          {canViewPayments && (
+            <div className="mt-4 rounded border p-3">
+              <h4 className="font-semibold">Thanh toán cho nhà cung cấp</h4>
+              <p className="text-sm text-gray-600">
+                Đã trả: {detail.paidTotal.toLocaleString("vi-VN")} · Còn nợ: {detail.debtTotal.toLocaleString("vi-VN")} · Trạng thái: {labelFor(PAYMENT_STATUS_LABELS, detail.paymentStatus)}
+                {detail.debtTotal < 0 && ` · Đơn đang thừa tiền ${Math.abs(detail.debtTotal).toLocaleString("vi-VN")} (nhà cung cấp đang nợ lại — hoàn tiền chưa làm ở sprint này, không tạo thêm payment).`}
+              </p>
+              <ul className="mt-2 space-y-2 text-sm">
+                {(detail.payments ?? []).map((p) => (
+                  <li key={p.id} className="flex flex-wrap items-center gap-2 border-b pb-2">
+                    <span>
+                      <strong>{p.amount.toLocaleString("vi-VN")}</strong> · {p.paymentMethodLabel} · {isoToVnDate(p.createdAt)} · {labelFor(PAYMENT_RECORD_LABELS, p.status)}
+                      {p.note && ` · ${p.note}`}
+                      {p.status === "cancelled" && ` · Lý do hủy: ${p.cancelReason ?? ""}${p.cancelledByName ? ` (bởi ${p.cancelledByName})` : ""}`}
+                    </span>
+                    {p.status === "active" && canCancelPayment && (
+                      <span className="flex items-center gap-2">
+                        <input
+                          className="rounded border p-1"
+                          placeholder="Lý do hủy (bắt buộc)"
+                          value={cancelReasons[p.id] ?? ""}
+                          onChange={(e) => setCancelReasons({ ...cancelReasons, [p.id]: e.target.value })}
+                        />
+                        <button disabled={payBusy} onClick={() => cancelPayment(p.id)} className="rounded border border-red-300 px-2 py-1 text-red-700 disabled:opacity-50">Hủy thanh toán</button>
+                      </span>
+                    )}
+                  </li>
+                ))}
+                {(detail.payments ?? []).length === 0 && <li className="text-gray-500">Chưa có thanh toán NCC nào cho đơn này.</li>}
+              </ul>
+              {(detail.status === "confirmed" || detail.status === "completed") && canCreatePayment && (
+                <div className="mt-3 space-y-2">
+                  <h5 className="font-semibold">Ghi nhận thanh toán NCC mới</h5>
+                  <p className="text-sm text-gray-600">Chỉ trả cho đơn nhập đã xác nhận hoặc đã hoàn thành. Số tiền không được vượt số còn nợ; backend kiểm tra lại trong cùng transaction.</p>
+                  <label className="block text-sm">
+                    Số tiền (đồng, số nguyên &gt; 0)
+                    <input type="text" inputMode="numeric" className="mt-1 w-full rounded border p-2" value={payAmount} onChange={(e) => setPayAmount(formatMoneyInput(e.target.value))} />
+                  </label>
+                  <label className="block text-sm">
+                    Phương thức
+                    <select className="mt-1 w-full rounded border p-2" value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+                      <option value="cash">Tiền mặt</option>
+                      <option value="bank_transfer">Chuyển khoản</option>
+                      <option value="cod">COD</option>
+                      <option value="e_wallet">Ví điện tử</option>
+                    </select>
+                  </label>
+                  <label className="block text-sm">
+                    Ghi chú
+                    <input className="mt-1 w-full rounded border p-2" value={payNote} onChange={(e) => setPayNote(e.target.value)} />
+                  </label>
+                  <button disabled={payBusy || detail.debtTotal <= 0} onClick={createPayment} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">Ghi nhận thanh toán</button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

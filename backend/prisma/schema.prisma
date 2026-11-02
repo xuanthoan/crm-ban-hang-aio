@@ -178,6 +178,8 @@ model User {
   assignedCustomers     Customer[]             @relation("CustomerAssignee")
   createdPayments       Payment[]              @relation("PaymentCreator")
   cancelledPayments     Payment[]              @relation("PaymentCanceller")
+  createdSupplierPayments   SupplierPayment[]  @relation("SupplierPaymentCreator")
+  cancelledSupplierPayments SupplierPayment[]  @relation("SupplierPaymentCanceller")
   inventoryTransactions InventoryTransaction[] @relation("InventoryCreator")
   customerActivities    CustomerActivity[]     @relation("ActivityCreator")
   reminders             Reminder[]             @relation("ReminderCreator")
@@ -629,6 +631,7 @@ model PurchaseOrder {
   supplier  Supplier            @relation(fields: [supplierId], references: [id])
   createdBy User?               @relation("PurchaseOrderCreator", fields: [createdById], references: [id])
   items     PurchaseOrderItem[]
+  payments  SupplierPayment[]
 }
 
 model PurchaseOrderItem {
@@ -654,6 +657,34 @@ model PurchaseOrderItem {
 
   purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
   variant       ProductVariant @relation(fields: [variantId], references: [id])
+}
+
+// ---------- Supplier payments (Sprint NCC-3) ----------
+// Mirrors the Payment model field-for-field (same names where they
+// apply), except the money model is integer VND like the rest of the
+// purchase module (no Decimal, no enum): amount is Int, status is a
+// plain string ("active" / "cancelled"). The supplier is reached
+// through the purchase order, so there is no supplierId column here.
+// Cancelling never hard-deletes: status becomes "cancelled" with a
+// mandatory reason, cancelledById and cancelledAt. There is NO
+// hard-delete route for supplier payments, ever.
+model SupplierPayment {
+  id              String    @id @default(cuid())
+  purchaseOrderId String
+  amount          Int
+  paymentMethod   String
+  note            String?
+  status          String    @default("active")
+  cancelledReason String?
+  cancelledById   String?
+  cancelledAt     DateTime?
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  createdBy     User?         @relation("SupplierPaymentCreator", fields: [createdById], references: [id])
+  cancelledBy   User?         @relation("SupplierPaymentCanceller", fields: [cancelledById], references: [id])
 }
 
 model Payment {

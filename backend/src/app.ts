@@ -12,6 +12,7 @@ import dashboardRouter from "./routes/dashboard";
 import importExportRouter from "./routes/importExport";
 import suppliersRouter from "./routes/suppliers";
 import purchasesRouter from "./routes/purchases";
+import supplierPaymentsRouter from "./routes/supplierPayments";
 
 /**
  * Sprint Auth app.
@@ -41,6 +42,7 @@ export function createApp(): express.Express {
   app.use("/api", importExportRouter);
   app.use("/api", suppliersRouter);
 app.use("/api", purchasesRouter);
+app.use("/api", supplierPaymentsRouter);
 
   // Catch-all for unknown API routes (not a business error).
   app.use("/api", (_req: Request, res: Response) => {

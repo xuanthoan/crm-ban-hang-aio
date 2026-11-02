@@ -99,6 +99,11 @@ export const PERMISSIONS = [
   { code: "purchase.complete", module: "purchase", description: "Hoàn thành đơn nhập" },
   { code: "purchase.cancel", module: "purchase", description: "Hủy đơn nhập" },
   { code: "purchase.return", module: "purchase", description: "Trả hàng cho nhà cung cấp" },
+  // Supplier payments (Sprint NCC-3) — deliberately NO view codes:
+  // the payment section and the debt page follow PO visibility
+  // (purchase.view_all / view_own); only create/cancel have codes.
+  { code: "supplier_payment.create", module: "supplier_payment", description: "Tạo thanh toán NCC" },
+  { code: "supplier_payment.cancel", module: "supplier_payment", description: "Hủy thanh toán NCC" },
   // Audit log (Sprint Audit) — read-only. There is deliberately NO
   // audit.create/update/delete permission: audit rows are written
   // only by writeAudit() inside other operations, never via an API.
@@ -120,6 +125,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     "customer.view_all", "customer.create", "customer.update", "customer.assign", "customer.tag_manage", "customer.import",
     "supplier.view_all", "supplier.create", "supplier.update",
     "purchase.view_all", "purchase.create", "purchase.confirm",
+    "supplier_payment.create",
     "order.export",
     "product.view",
     "inventory.view", "inventory.view_transactions",
@@ -156,6 +162,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     "product.view",
     "order.view_all", "order.export",
     "payment.view_all", "payment.create", "payment.update", "payment.cancel",
+    "supplier_payment.create", "supplier_payment.cancel",
     "debt.view_all",
     "segment.view",
     "report.view_debt", "report.view_revenue",

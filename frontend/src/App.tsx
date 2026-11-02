@@ -10,6 +10,7 @@ import ImportExportPage from "./importExport";
 import AuditPage from "./audit";
 import SuppliersPage from "./suppliers";
 import PurchasesPage from "./purchases";
+import SupplierDebtsPage from "./supplierDebts";
 
 type HealthState = "loading" | "connected" | "not-connected";
 
@@ -29,6 +30,7 @@ const MODULES = [
   { name: "Khách hàng", note: "Nhiều số điện thoại, 1 số chính — theo quy tắc chốt cứng 4.1" },
   { name: "Nhà cung cấp", note: "Danh bạ nhà cung cấp, nhiều số điện thoại, 1 số chính (Sprint NCC-1)" },
   { name: "Đơn nhập hàng", note: "Đơn nhập từ nhà cung cấp, nhận hàng tăng kho, trả hàng NCC (Sprint NCC-2)" },
+  { name: "Công nợ NCC", note: "Đơn nhập confirmed/completed còn nợ, tổng nợ theo từng NCC (Sprint NCC-3)" },
   { name: "Sản phẩm / SKU", note: "SKU là đơn vị bán và trừ kho duy nhất" },
   { name: "Kho", note: "Mọi thay đổi kho đều có transaction, không tồn âm ở MVP" },
   { name: "Đơn hàng", note: "Dòng đơn bắt buộc có SKU + snapshot tại thời điểm bán" },
@@ -70,7 +72,7 @@ export default function App() {
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const [otpMode, setOtpMode] = useState("");
-  const [section, setSection] = useState<"home" | "customers" | "suppliers" | "purchases" | "products" | "inventory" | "orders" | "debts" | "reminders" | "segments" | "dashboard" | "reports" | "importExport" | "audit">("home");
+  const [section, setSection] = useState<"home" | "customers" | "suppliers" | "purchases" | "supplierDebts" | "products" | "inventory" | "orders" | "debts" | "reminders" | "segments" | "dashboard" | "reports" | "importExport" | "audit">("home");
   const [otpModeDraft, setOtpModeDraft] = useState("off");
   const [smtpConfigured, setSmtpConfigured] = useState(false);
   const [otpDevLog, setOtpDevLog] = useState(false);
@@ -229,6 +231,9 @@ export default function App() {
     user?.permissions.includes("supplier.view_all") || user?.permissions.includes("supplier.view_own");
   const canViewPurchases =
     user?.permissions.includes("purchase.view_all") || user?.permissions.includes("purchase.view_own");
+  // No new view codes for supplier payments: the NCC debt page follows
+  // PO visibility (purchase.view_all / view_own), same as the PO list.
+  const canViewSupplierDebts = canViewPurchases;
   const canViewProducts = user?.permissions.includes("product.view");
   const canViewInventory = user?.permissions.includes("inventory.view");
   const canViewOrders =
@@ -337,6 +342,9 @@ export default function App() {
             {canViewDebts && (
               <button onClick={() => setSection("debts")} className="rounded border px-4 py-2">Công nợ</button>
             )}
+            {canViewSupplierDebts && (
+              <button onClick={() => setSection("supplierDebts")} className="rounded border px-4 py-2">Công nợ NCC</button>
+            )}
             {canViewReminders && (
               <button onClick={() => setSection("reminders")} className="rounded border px-4 py-2">Nhắc việc</button>
             )}
@@ -367,6 +375,8 @@ export default function App() {
             <RemindersPage token={token ?? ""} permissions={user.permissions} />
           ) : section === "debts" && canViewDebts ? (
             <DebtsPage token={token ?? ""} permissions={user.permissions} />
+          ) : section === "supplierDebts" && canViewSupplierDebts ? (
+            <SupplierDebtsPage token={token ?? ""} />
           ) : section === "orders" && canViewOrders ? (
             <OrdersPage token={token ?? ""} permissions={user.permissions} />
           ) : section === "inventory" && canViewInventory ? (

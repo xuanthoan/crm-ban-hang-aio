@@ -206,6 +206,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "purchase_order.return": "Trả hàng NCC",
   "payment.create": "Tạo payment",
   "payment.cancel": "Hủy payment",
+  "supplier_payment.create": "Tạo thanh toán NCC",
+  "supplier_payment.cancel": "Hủy thanh toán NCC",
   "reminder.create": "Tạo nhắc việc",
   "reminder.update": "Cập nhật nhắc việc",
   "reminder.complete": "Hoàn thành nhắc việc",
@@ -233,6 +235,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   reminder: "Nhắc việc",
   system_setting: "Cài đặt hệ thống",
   supplier: "Nhà cung cấp",
+  supplier_payment: "Thanh toán NCC",
   user: "Người dùng",
   variant: "Biến thể (SKU)",
 };

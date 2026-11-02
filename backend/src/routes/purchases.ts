@@ -56,6 +56,7 @@ import {
   PurchaseError,
   recomputeTotalsAfterReturn,
 } from "../lib/purchases";
+import { recalculatePurchasePaymentTotals, serializeSupplierPayment } from "../lib/supplierPayments";
 import { getPrisma } from "../lib/prisma";
 
 const router = Router();
@@ -175,6 +176,11 @@ function serializePO(po: any, includeItems: boolean) {
   };
   if (includeItems) {
     base.items = (po.items ?? []).map(serializeItem);
+    // Payments are included only when the query fetched them (every
+    // detail-returning route below does). List responses omit the key.
+    if (po.payments !== undefined) {
+      base.payments = (po.payments ?? []).map(serializeSupplierPayment);
+    }
   } else {
     base.itemsCount = po._count?.items ?? (po.items ? po.items.length : 0);
   }
@@ -260,7 +266,7 @@ async function resolveLines(tx: AnyTx, raw: Omit<ValidatedLine, "variant">[], op
 async function loadPOForWrite(tx: AnyTx, id: string): Promise<any> {
   const po = await tx.purchaseOrder.findUnique({
     where: { id },
-    include: { items: { include: { variant: { include: { product: true } } } }, supplier: true },
+    include: { items: { include: { variant: { include: { product: true } } } }, payments: { include: { createdBy: { select: { fullName: true } }, cancelledBy: { select: { fullName: true } } }, orderBy: { createdAt: "desc" } }, supplier: true },
   });
   if (!po) {
     throw new PurchaseError("Không tìm thấy đơn nhập.", 404);
@@ -395,7 +401,7 @@ router.get("/purchase-orders/:id", async (req, res) => {
       where: { id: req.params.id },
       include: {
         supplier: true,
-        items: { include: { variant: { include: { product: true } } }, orderBy: { createdAt: "asc" } },
+        items: { include: { variant: { include: { product: true } } }, orderBy: { createdAt: "asc" } }, payments: { include: { createdBy: { select: { fullName: true } }, cancelledBy: { select: { fullName: true } } }, orderBy: { createdAt: "desc" } },
       },
     });
     if (!po) {
@@ -485,7 +491,7 @@ router.post("/purchase-orders", authorize("purchase.create"), async (req, res) =
                 })),
               },
             },
-            include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } } },
+            include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } }, payments: { include: { createdBy: { select: { fullName: true } }, cancelledBy: { select: { fullName: true } } }, orderBy: { createdAt: "desc" } } },
           });
           // Draft POs deliberately change NO stock: the goods do not
           // exist yet, so there is nothing to hold or reserve.
@@ -602,7 +608,7 @@ router.patch("/purchase-orders/:id", authorize("purchase.create"), async (req, r
       const saved = await tx.purchaseOrder.update({
         where: { id: po.id },
         data,
-        include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } } },
+        include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } }, payments: { include: { createdBy: { select: { fullName: true } }, cancelledBy: { select: { fullName: true } } }, orderBy: { createdAt: "desc" } } },
       });
       await writeAudit(tx, {
         actorId,
@@ -672,7 +678,7 @@ router.post("/purchase-orders/:id/confirm", authorize("purchase.confirm"), async
       const saved = await tx.purchaseOrder.update({
         where: { id: po.id },
         data: { status: "confirmed", received: true, receivedAt: new Date() },
-        include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } } },
+        include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } }, payments: { include: { createdBy: { select: { fullName: true } }, cancelledBy: { select: { fullName: true } } }, orderBy: { createdAt: "desc" } } },
       });
       await writeAudit(tx, {
         actorId,
@@ -708,7 +714,7 @@ router.post("/purchase-orders/:id/complete", authorize("purchase.complete"), asy
       const saved = await tx.purchaseOrder.update({
         where: { id: po.id },
         data: { status: "completed" },
-        include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } } },
+        include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } }, payments: { include: { createdBy: { select: { fullName: true } }, cancelledBy: { select: { fullName: true } } }, orderBy: { createdAt: "desc" } } },
       });
       await writeAudit(tx, {
         actorId,
@@ -755,7 +761,7 @@ router.post("/purchase-orders/:id/cancel", authorize("purchase.cancel"), async (
     });
     const full = await getPrisma().purchaseOrder.findUnique({
       where: { id: (updated as any).id },
-      include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } } },
+      include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } }, payments: { include: { createdBy: { select: { fullName: true } }, cancelledBy: { select: { fullName: true } } }, orderBy: { createdAt: "desc" } } },
     });
     res.json({ status: "ok", data: serializePO(full, true) });
   } catch (err) {
@@ -873,9 +879,15 @@ router.post("/purchase-orders/:id/return", authorize("purchase.return"), async (
           fullyReturned,
         },
       });
+      // Sprint NCC-3: a return changes grand_total, so the money
+      // totals must be recomputed from ACTIVE supplier payments in the
+      // SAME transaction. This is what makes over-return credit real:
+      // grand_total below paid_total yields negative debt with status
+      // "paid", never stale totals from before the return.
+      const recalc = await recalculatePurchasePaymentTotals(tx, po.id);
       const saved = await tx.purchaseOrder.findUnique({
         where: { id: po.id },
-        include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } } },
+        include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } }, payments: { include: { createdBy: { select: { fullName: true } }, cancelledBy: { select: { fullName: true } } }, orderBy: { createdAt: "desc" } } },
       });
       await writeAudit(tx, {
         actorId,
@@ -885,9 +897,9 @@ router.post("/purchase-orders/:id/return", authorize("purchase.return"), async (
         oldValue: { grandTotal: po.grandTotal, paidTotal: po.paidTotal, debtTotal: po.debtTotal },
         newValue: {
           grandTotal: totals.grandTotal,
-          paidTotal: po.paidTotal ?? 0,
-          debtTotal: totals.debtTotal,
-          paymentStatus: totals.paymentStatus,
+          paidTotal: recalc.totals.paidTotal,
+          debtTotal: recalc.totals.debtTotal,
+          paymentStatus: recalc.totals.paymentStatus,
           fullyReturned,
           returned: Array.from(byItem.values()).map(({ item, quantity, reason }) => ({ sku: item.skuSnapshot, quantity, reason })),
         },
