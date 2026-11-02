@@ -14,7 +14,9 @@
  *
  * Transaction types are exactly the enum in schema.prisma:
  * initial, import, export, adjustment_increase, adjustment_decrease,
- * set, order_confirmed, order_cancelled, return.
+ * set, order_confirmed, order_cancelled, return, plus the Sprint NCC-2
+ * purchase-order types purchase_received, purchase_cancelled,
+ * purchase_return (stock direction reversed: receipt ADDS stock).
  *
  * Inactive-SKU policy (decided in this sprint, see DEVELOPMENT_PLAN.md):
  *  - initial / import / export are BLOCKED for an inactive variant or an
@@ -39,7 +41,10 @@ export type InventoryTxType =
   | "set"
   | "order_confirmed"
   | "order_cancelled"
-  | "return";
+  | "return"
+  | "purchase_received"
+  | "purchase_cancelled"
+  | "purchase_return";
 
 /** Error carrying an HTTP status, so routes can map it without guessing. */
 export class InventoryError extends Error {

@@ -87,6 +87,18 @@ enum InventoryTransactionType {
   order_confirmed
   order_cancelled
   return
+  // Sprint NCC-2 — purchase-order stock movements (mirror of the order
+  // types, stock direction reversed: receipt ADDS stock).
+  purchase_received
+  purchase_cancelled
+  purchase_return
+}
+
+enum PurchaseOrderStatus {
+  draft
+  confirmed
+  completed
+  cancelled
 }
 
 enum ReminderStatus {
@@ -160,6 +172,7 @@ model User {
 
   auditLogs             AuditLog[]             @relation("AuditActor")
   createdOrders         Order[]                @relation("OrderCreator")
+  createdPurchaseOrders PurchaseOrder[]        @relation("PurchaseOrderCreator")
   createdCustomers      Customer[]             @relation("CustomerCreator")
   createdSuppliers      Supplier[]             @relation("SupplierCreator")
   assignedCustomers     Customer[]             @relation("CustomerAssignee")
@@ -391,6 +404,7 @@ model Supplier {
 
   createdBy User?          @relation("SupplierCreator", fields: [createdById], references: [id])
   phones    SupplierPhone[]
+  purchaseOrders PurchaseOrder[]
 }
 
 model SupplierPhone {
@@ -473,6 +487,7 @@ model ProductVariant {
   inventoryItem         InventoryItem?
   inventoryTransactions InventoryTransaction[]
   orderItems            OrderItem[]
+  purchaseOrderItems    PurchaseOrderItem[]
 }
 
 // ---------- Inventory ----------
@@ -574,6 +589,71 @@ model OrderItem {
 
   order   Order          @relation(fields: [orderId], references: [id])
   variant ProductVariant @relation(fields: [productVariantId], references: [id])
+}
+
+// ---------- Purchase orders (Sprint NCC-2) ----------
+
+model PurchaseOrder {
+  id        String              @id @default(cuid())
+  code      String              @unique
+  supplierId String
+  status    PurchaseOrderStatus @default(draft)
+  // Money is integer VND (đồng nguyên) in this module, unlike the
+  // Decimal(19,2) sales orders. paidTotal/debtTotal are DERIVED and
+  // recomputed server-side on every change; the frontend must never
+  // send them as input. NCC-2 has no payments yet, so paidTotal stays
+  // 0 and debtTotal = grandTotal; Sprint NCC-3 recomputes them from
+  // active supplier payments. paymentStatus is a plain string (not an
+  // enum) so NCC-3 can reuse the unpaid/partial/paid vocabulary
+  // without a second enum migration.
+  grandTotal    Int    @default(0)
+  paidTotal     Int    @default(0)
+  debtTotal     Int    @default(0)
+  paymentStatus String @default("unpaid")
+  // Receipt flags (locked rules 2.3, mirrored from sales orders):
+  // receive exactly once, restore exactly once.
+  received   Boolean   @default(false)
+  receivedAt DateTime?
+  restored   Boolean   @default(false)
+  restoredAt DateTime?
+  // True when every line is fully returned. Status does NOT change on
+  // full return (MVP has only the 4 statuses, no "returned" status).
+  fullyReturned Boolean @default(false)
+  // Data scope mirrors orders: purchase.view_own sees only POs the
+  // user created.
+  createdById String?
+  note        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  supplier  Supplier            @relation(fields: [supplierId], references: [id])
+  createdBy User?               @relation("PurchaseOrderCreator", fields: [createdById], references: [id])
+  items     PurchaseOrderItem[]
+}
+
+model PurchaseOrderItem {
+  id            String @id @default(cuid())
+  purchaseOrderId String
+  // Receiving unit is ALWAYS a variant/SKU, never the parent product.
+  variantId String
+  // Snapshots at receipt time: later product/SKU renames must not
+  // change old purchase orders.
+  skuSnapshot         String
+  productNameSnapshot String
+  variantNameSnapshot String
+  quantity            Int
+  // Unit purchase cost, snapshot in integer VND. Receiving NEVER
+  // rewrites the variant's current importPrice (design 13 §7.2).
+  unitCost         Int
+  // Sprint NCC-2 — quantity already returned to the supplier.
+  // Returnable quantity = quantity - returnedQuantity.
+  returnedQuantity Int      @default(0)
+  lineTotal        Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  purchaseOrder PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
+  variant       ProductVariant @relation(fields: [variantId], references: [id])
 }
 
 model Payment {

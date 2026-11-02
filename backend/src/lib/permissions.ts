@@ -80,14 +80,25 @@ export const PERMISSIONS = [
   { code: "report.view_inventory_value", module: "report", description: "Xem giá trị tồn kho trong báo cáo" },
   { code: "report.view_debt", module: "report", description: "Xem báo cáo công nợ" },
   { code: "report.export", module: "report", description: "Export báo cáo" },
-  // Suppliers (Sprint NCC-1: directory only). Purchase-order and
-  // supplier-payment codes arrive with Sprint NCC-2 / NCC-3.
+  // Suppliers (Sprint NCC-1: directory only). Purchase-order codes
+  // arrive with Sprint NCC-2; supplier-payment codes with NCC-3.
   { code: "supplier.view_all", module: "supplier", description: "Xem tất cả nhà cung cấp" },
   { code: "supplier.view_own", module: "supplier", description: "Xem nhà cung cấp của mình" },
   { code: "supplier.create", module: "supplier", description: "Tạo nhà cung cấp" },
   { code: "supplier.update", module: "supplier", description: "Sửa nhà cung cấp" },
   { code: "supplier.deactivate", module: "supplier", description: "Ngừng hợp tác nhà cung cấp" },
   { code: "supplier.hard_delete", module: "supplier", description: "Xóa cứng nhà cung cấp chưa có đơn nhập (chỉ Admin)" },
+  // Purchase orders (Sprint NCC-2). There is deliberately NO
+  // purchase.update code: creating and editing a draft belong to the
+  // same drafting lifecycle, so draft edits are authorized by
+  // purchase.create (see routes/purchases.ts).
+  { code: "purchase.view_all", module: "purchase", description: "Xem tất cả đơn nhập" },
+  { code: "purchase.view_own", module: "purchase", description: "Xem đơn nhập do mình tạo" },
+  { code: "purchase.create", module: "purchase", description: "Tạo và sửa đơn nhập nháp" },
+  { code: "purchase.confirm", module: "purchase", description: "Xác nhận nhận hàng (nhập kho)" },
+  { code: "purchase.complete", module: "purchase", description: "Hoàn thành đơn nhập" },
+  { code: "purchase.cancel", module: "purchase", description: "Hủy đơn nhập" },
+  { code: "purchase.return", module: "purchase", description: "Trả hàng cho nhà cung cấp" },
   // Audit log (Sprint Audit) — read-only. There is deliberately NO
   // audit.create/update/delete permission: audit rows are written
   // only by writeAudit() inside other operations, never via an API.
@@ -108,6 +119,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   manager: [
     "customer.view_all", "customer.create", "customer.update", "customer.assign", "customer.tag_manage", "customer.import",
     "supplier.view_all", "supplier.create", "supplier.update",
+    "purchase.view_all", "purchase.create", "purchase.confirm",
     "order.export",
     "product.view",
     "inventory.view", "inventory.view_transactions",
@@ -134,11 +146,13 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
     "product.view",
     "inventory.view", "inventory.import_stock", "inventory.export", "inventory.adjust", "inventory.view_transactions",
     "order.view_all",
+    "purchase.view_all", "purchase.confirm",
     "audit.view_own",
   ],
   accountant: [
     "customer.view_all",
     "supplier.view_all",
+    "purchase.view_all",
     "product.view",
     "order.view_all", "order.export",
     "payment.view_all", "payment.create", "payment.update", "payment.cancel",

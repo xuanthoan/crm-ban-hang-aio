@@ -474,10 +474,15 @@ router.delete("/suppliers/:id", async (req, res) => {
       return;
     }
     if (hard) {
-      // NCC-1 has no purchase orders yet, so hard delete is allowed for
-      // Admin. NCC-2 MUST add a guard here: block hard delete for any
-      // supplier that has purchase orders (locked rules §5 — no hard
-      // delete of data with transactions).
+      // Sprint NCC-2 (locked rule §5 — no hard delete of data with
+      // transactions): a supplier with ANY purchase order, in any
+      // status, cannot be hard-deleted. Use "Ngừng hợp tác"
+      // (deactivate) instead; the PO history stays intact.
+      const poCount = await prisma.purchaseOrder.count({ where: { supplierId: supplier.id } });
+      if (poCount > 0) {
+        res.status(409).json({ status: "error", message: `Nhà cung cấp đã có ${poCount} đơn nhập hàng (kể cả đơn nháp/hủy) nên không xóa cứng được. Hãy dùng "Ngừng hợp tác" để giữ lại lịch sử.` });
+        return;
+      }
       await prisma.$transaction(async (tx: any) => {
         await tx.supplierPhone.deleteMany({ where: { supplierId: supplier.id } });
         await tx.supplier.delete({ where: { id: supplier.id } });

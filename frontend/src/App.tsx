@@ -9,6 +9,7 @@ import { DashboardPage, ReportsPage } from "./dashboard";
 import ImportExportPage from "./importExport";
 import AuditPage from "./audit";
 import SuppliersPage from "./suppliers";
+import PurchasesPage from "./purchases";
 
 type HealthState = "loading" | "connected" | "not-connected";
 
@@ -27,6 +28,7 @@ interface UserInfo {
 const MODULES = [
   { name: "Khách hàng", note: "Nhiều số điện thoại, 1 số chính — theo quy tắc chốt cứng 4.1" },
   { name: "Nhà cung cấp", note: "Danh bạ nhà cung cấp, nhiều số điện thoại, 1 số chính (Sprint NCC-1)" },
+  { name: "Đơn nhập hàng", note: "Đơn nhập từ nhà cung cấp, nhận hàng tăng kho, trả hàng NCC (Sprint NCC-2)" },
   { name: "Sản phẩm / SKU", note: "SKU là đơn vị bán và trừ kho duy nhất" },
   { name: "Kho", note: "Mọi thay đổi kho đều có transaction, không tồn âm ở MVP" },
   { name: "Đơn hàng", note: "Dòng đơn bắt buộc có SKU + snapshot tại thời điểm bán" },
@@ -68,7 +70,7 @@ export default function App() {
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const [otpMode, setOtpMode] = useState("");
-  const [section, setSection] = useState<"home" | "customers" | "suppliers" | "products" | "inventory" | "orders" | "debts" | "reminders" | "segments" | "dashboard" | "reports" | "importExport" | "audit">("home");
+  const [section, setSection] = useState<"home" | "customers" | "suppliers" | "purchases" | "products" | "inventory" | "orders" | "debts" | "reminders" | "segments" | "dashboard" | "reports" | "importExport" | "audit">("home");
   const [otpModeDraft, setOtpModeDraft] = useState("off");
   const [smtpConfigured, setSmtpConfigured] = useState(false);
   const [otpDevLog, setOtpDevLog] = useState(false);
@@ -225,6 +227,8 @@ export default function App() {
     user?.permissions.includes("customer.view_all") || user?.permissions.includes("customer.view_own");
   const canViewSuppliers =
     user?.permissions.includes("supplier.view_all") || user?.permissions.includes("supplier.view_own");
+  const canViewPurchases =
+    user?.permissions.includes("purchase.view_all") || user?.permissions.includes("purchase.view_own");
   const canViewProducts = user?.permissions.includes("product.view");
   const canViewInventory = user?.permissions.includes("inventory.view");
   const canViewOrders =
@@ -318,6 +322,9 @@ export default function App() {
             {canViewSuppliers && (
               <button onClick={() => setSection("suppliers")} className="rounded border px-4 py-2">Nhà cung cấp</button>
             )}
+            {canViewPurchases && (
+              <button onClick={() => setSection("purchases")} className="rounded border px-4 py-2">Đơn nhập hàng</button>
+            )}
             {canViewProducts && (
               <button onClick={() => setSection("products")} className="rounded border px-4 py-2">Sản phẩm / SKU</button>
             )}
@@ -372,6 +379,8 @@ export default function App() {
             <AuditPage token={token ?? ""} />
           ) : section === "suppliers" && canViewSuppliers ? (
             <SuppliersPage token={token ?? ""} permissions={user.permissions} isAdmin={user.role === "admin"} />
+          ) : section === "purchases" && canViewPurchases ? (
+            <PurchasesPage token={token ?? ""} permissions={user.permissions} />
           ) : section === "customers" && canViewCustomers ? (
             <CustomersPage token={token ?? ""} permissions={user.permissions} />
           ) : (
