@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { clearCustomValidity, invalidMessage } from "./validity";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -443,7 +444,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
         <form onSubmit={handleSave} className="space-y-4 rounded border p-4">
           <h3 className="font-semibold">{formId ? "Sửa sản phẩm" : "Thêm sản phẩm"}</h3>
           <label className="block">Tên sản phẩm *
-            <input className="mt-1 w-full rounded border p-2" value={name} onChange={(e) => setName(e.target.value)} required />
+            <input className="mt-1 w-full rounded border p-2" value={name} onChange={(e) => { clearCustomValidity(e); setName(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tên sản phẩm." }))} required />
           </label>
           <label className="block">Mô tả
             <textarea className="mt-1 w-full rounded border p-2" value={description} onChange={(e) => setDescription(e.target.value)} />

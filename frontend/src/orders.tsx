@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ORDER_STATUS_LABELS, PAYMENT_RECORD_LABELS, PAYMENT_STATUS_LABELS, isoToVnDate, labelFor } from "./labels";
+import { clearCustomValidity, invalidMessage } from "./validity";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -663,7 +664,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
           {!editingId && (
             <label className="block">
               Khách hàng
-              <select className="mt-1 w-full rounded border p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)} required>
+              <select className="mt-1 w-full rounded border p-2" value={customerId} onChange={(e) => { clearCustomValidity(e); setCustomerId(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng chọn khách hàng." }))} required>
                 <option value="">— Chọn khách hàng —</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>{c.fullName}</option>
@@ -703,8 +704,9 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
               <span className="text-sm font-medium">{l.sku || "Dòng mới"}</span>
               <label className="text-sm">SL
                 <input type="number" min={1} step={1} className="ml-1 w-20 rounded border p-1" value={l.quantity} onChange={(e) => {
+                  clearCustomValidity(e);
                   const next = [...lines]; next[idx].quantity = e.target.value; setLines(next);
-                }} required />
+                }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập số lượng.", underflow: "Số lượng phải từ 1 trở lên.", badInput: "Số lượng phải là số nguyên." }))} required />
               </label>
               <label className="text-sm">Đơn giá
                 <input type="text" inputMode="numeric" className="ml-1 w-28 rounded border p-1" value={l.unitPrice} onChange={(e) => {

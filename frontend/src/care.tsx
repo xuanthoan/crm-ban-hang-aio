@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { clearCustomValidity, invalidMessage } from "./validity";
 import {
   ACTIVITY_RESULT_LABELS,
   ACTIVITY_TYPE_LABELS,
@@ -145,7 +146,7 @@ export function CustomerCareTab({ token, permissions, customerId }: { token: str
             </label>
           </div>
           <label className="block text-sm">Nội dung (bắt buộc)
-            <textarea className="mt-1 w-full rounded border p-2" value={content} onChange={(e) => setContent(e.target.value)} required />
+            <textarea className="mt-1 w-full rounded border p-2" value={content} onChange={(e) => { clearCustomValidity(e); setContent(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập nội dung." }))} required />
           </label>
           <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">Ghi hoạt động</button>
         </form>
@@ -248,8 +249,8 @@ export default function RemindersPage({ token, permissions }: { token: string; p
       {canCreate && (
         <form onSubmit={handleCreate} className="space-y-2 rounded border p-3">
           <div className="grid grid-cols-2 gap-2">
-            <label className="block text-sm">Tiêu đề (bắt buộc)<input className="mt-1 w-full rounded border p-2" value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
-            <label className="block text-sm">Hạn (bắt buộc)<input type="date" className="mt-1 w-full rounded border p-2" value={dueAt} onChange={(e) => setDueAt(e.target.value)} required /></label>
+            <label className="block text-sm">Tiêu đề (bắt buộc)<input className="mt-1 w-full rounded border p-2" value={title} onChange={(e) => { clearCustomValidity(e); setTitle(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tiêu đề." }))} required /></label>
+            <label className="block text-sm">Hạn (bắt buộc)<input type="date" className="mt-1 w-full rounded border p-2" value={dueAt} onChange={(e) => { clearCustomValidity(e); setDueAt(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng chọn hạn." }))} required /></label>
             <label className="block text-sm">Loại
               <select className="mt-1 w-full rounded border p-2" value={type} onChange={(e) => setType(e.target.value)}>
                 <option value="">—</option>

@@ -6,7 +6,7 @@
 // The message must be cleared on change, otherwise a previously set custom
 // message sticks even after the user fixes the value.
 export function invalidMessage(
-  target: HTMLInputElement | HTMLSelectElement,
+  target: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
   messages: {
     missing?: string;
     overflow?: string;
@@ -23,7 +23,7 @@ export function invalidMessage(
 }
 
 export function clearCustomValidity(
-  e: { currentTarget: HTMLInputElement | HTMLSelectElement },
+  e: { currentTarget: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement },
 ): void {
   e.currentTarget.setCustomValidity("");
 }

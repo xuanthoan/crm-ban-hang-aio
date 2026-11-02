@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { clearCustomValidity, invalidMessage } from "./validity";
 import CustomersPage from "./customers";
 import DebtsPage from "./debts";
 import InventoryPage from "./inventory";
@@ -278,11 +279,11 @@ export default function App() {
           <h2 className="text-lg font-semibold">Đăng nhập</h2>
           <label className="block">
             Tên đăng nhập hoặc email
-            <input className="mt-1 w-full rounded border p-2" value={username} onChange={(e) => setUsername(e.target.value)} required />
+            <input className="mt-1 w-full rounded border p-2" value={username} onChange={(e) => { clearCustomValidity(e); setUsername(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tên đăng nhập hoặc email." }))} required />
           </label>
           <label className="block">
             Mật khẩu
-            <input type="password" className="mt-1 w-full rounded border p-2" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <input type="password" className="mt-1 w-full rounded border p-2" value={password} onChange={(e) => { clearCustomValidity(e); setPassword(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mật khẩu." }))} required />
           </label>
           <button disabled={busy} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">
             {busy ? "Đang đăng nhập…" : "Đăng nhập"}
@@ -299,7 +300,7 @@ export default function App() {
           <p className="text-sm text-gray-600">Mã đã gửi tới {maskedEmail}. Mã gồm 6 số, hết hạn sau 5 phút, sai quá 5 lần phải đăng nhập lại.</p>
           <label className="block">
             Mã OTP
-            <input className="mt-1 w-full rounded border p-2 tracking-widest" value={otpCode} onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} required />
+            <input className="mt-1 w-full rounded border p-2 tracking-widest" value={otpCode} onChange={(e) => { clearCustomValidity(e); setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6)); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mã OTP." }))} required />
           </label>
           <div className="flex gap-2">
             <button disabled={busy} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">Xác nhận mã</button>
@@ -423,9 +424,9 @@ export default function App() {
 
           <form onSubmit={handleChangePassword} className="space-y-3 rounded border p-4">
             <h2 className="text-lg font-semibold">Đổi mật khẩu</h2>
-            <label className="block">Mật khẩu hiện tại<input type="password" name="current_password" className="mt-1 w-full rounded border p-2" required /></label>
-            <label className="block">Mật khẩu mới (ít nhất 8 ký tự)<input type="password" name="new_password" className="mt-1 w-full rounded border p-2" required /></label>
-            <label className="block">Nhập lại mật khẩu mới<input type="password" name="confirm_password" className="mt-1 w-full rounded border p-2" required /></label>
+            <label className="block">Mật khẩu hiện tại<input type="password" name="current_password" className="mt-1 w-full rounded border p-2" onChange={clearCustomValidity} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mật khẩu hiện tại." }))} required /></label>
+            <label className="block">Mật khẩu mới (ít nhất 8 ký tự)<input type="password" name="new_password" className="mt-1 w-full rounded border p-2" onChange={clearCustomValidity} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mật khẩu mới." }))} required /></label>
+            <label className="block">Nhập lại mật khẩu mới<input type="password" name="confirm_password" className="mt-1 w-full rounded border p-2" onChange={clearCustomValidity} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập lại mật khẩu mới." }))} required /></label>
             <button className="rounded bg-blue-600 px-4 py-2 text-white">Đổi mật khẩu</button>
           </form>
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { INVENTORY_TX_LABELS, isoToVnDateTime, labelFor } from "./labels";
+import { clearCustomValidity, invalidMessage } from "./validity";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -330,15 +331,17 @@ export default function InventoryPage({ token, permissions }: { token: string; p
                 <label className="block">
                   Đặt về
                   <input type="number" min={0} className="mt-1 rounded border p-2" value={line.setTo} onChange={(e) => {
+                    clearCustomValidity(e);
                     const next = [...lines]; next[idx] = { ...next[idx], setTo: e.target.value }; setLines(next);
-                  }} required />
+                  }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập số tồn muốn đặt.", underflow: "Số tồn muốn đặt không được nhỏ hơn 0.", badInput: "Số tồn phải là số nguyên." }))} required />
                 </label>
               ) : (
                 <label className="block">
                   Số lượng
                   <input type="number" min={1} className="mt-1 rounded border p-2" value={line.quantity} onChange={(e) => {
+                    clearCustomValidity(e);
                     const next = [...lines]; next[idx] = { ...next[idx], quantity: e.target.value }; setLines(next);
-                  }} required />
+                  }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập số lượng.", underflow: "Số lượng phải từ 1 trở lên.", badInput: "Số lượng phải là số nguyên." }))} required />
                 </label>
               )}
               <button type="button" className="rounded border px-3 py-2" disabled={lines.length <= 1} onClick={() => setLines(lines.filter((_, i) => i !== idx))}>Xóa dòng</button>
