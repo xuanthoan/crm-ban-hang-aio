@@ -161,6 +161,7 @@ model User {
   auditLogs             AuditLog[]             @relation("AuditActor")
   createdOrders         Order[]                @relation("OrderCreator")
   createdCustomers      Customer[]             @relation("CustomerCreator")
+  createdSuppliers      Supplier[]             @relation("SupplierCreator")
   assignedCustomers     Customer[]             @relation("CustomerAssignee")
   createdPayments       Payment[]              @relation("PaymentCreator")
   cancelledPayments     Payment[]              @relation("PaymentCanceller")
@@ -353,6 +354,70 @@ model Reminder {
   createdBy   User?     @relation("ReminderCreator", fields: [createdById], references: [id])
   assignedTo  User?     @relation("ReminderAssignee", fields: [assignedToId], references: [id])
   completedBy User?     @relation("ReminderCompleter", fields: [completedById], references: [id])
+}
+
+// ---------- Suppliers (Sprint NCC-1: directory only) ----------
+// NCC-2 will add PurchaseOrder / PurchaseOrderItem / SupplierPayment
+// here. A supplier with purchase orders must never be hard-deleted —
+// the hard-delete route must gain that guard in NCC-2 (see
+// backend/src/routes/suppliers.ts).
+
+enum SupplierStatus {
+  active
+  inactive
+}
+
+enum SupplierPhoneStatus {
+  active
+  inactive
+}
+
+model Supplier {
+  id        String         @id @default(cuid())
+  name      String
+  // Tax code: optional, but unique when provided (design 13 §7.4).
+  // Empty input is stored as null so the unique index never blocks
+  // two suppliers that both have no tax code.
+  taxCode   String?        @unique
+  email     String?
+  address   String?
+  note      String?
+  status    SupplierStatus @default(active)
+  // Data scope mirrors customers: supplier.view_all sees all,
+  // supplier.view_own sees only suppliers this user created.
+  createdById String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  createdBy User?          @relation("SupplierCreator", fields: [createdById], references: [id])
+  phones    SupplierPhone[]
+}
+
+model SupplierPhone {
+  id              String              @id @default(cuid())
+  supplierId      String
+  phone           String
+  phoneNormalized String
+  // Exactly one primary phone per supplier (enforced by service in
+  // Sprint NCC-1, not by a DB partial unique index, to keep the
+  // scaffold portable) — same rule as CustomerPhone.
+  isPrimary       Boolean             @default(false)
+  label           String?
+  status          SupplierPhoneStatus @default(active)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  // Blocks a duplicate phone inside the same supplier. The GLOBAL
+  // duplicate check (against every phone of every OTHER supplier) is
+  // a service rule in Sprint NCC-1, because it must ignore inactive
+  // phones and report which existing supplier already owns the number.
+  // Phones are deliberately NOT checked against customer phones: one
+  // number may belong to both a customer and a supplier (design 13 §7.3).
+  @@unique([supplierId, phoneNormalized])
+  @@index([phoneNormalized])
 }
 
 // ---------- Products / SKU ----------

@@ -80,6 +80,14 @@ export const PERMISSIONS = [
   { code: "report.view_inventory_value", module: "report", description: "Xem giá trị tồn kho trong báo cáo" },
   { code: "report.view_debt", module: "report", description: "Xem báo cáo công nợ" },
   { code: "report.export", module: "report", description: "Export báo cáo" },
+  // Suppliers (Sprint NCC-1: directory only). Purchase-order and
+  // supplier-payment codes arrive with Sprint NCC-2 / NCC-3.
+  { code: "supplier.view_all", module: "supplier", description: "Xem tất cả nhà cung cấp" },
+  { code: "supplier.view_own", module: "supplier", description: "Xem nhà cung cấp của mình" },
+  { code: "supplier.create", module: "supplier", description: "Tạo nhà cung cấp" },
+  { code: "supplier.update", module: "supplier", description: "Sửa nhà cung cấp" },
+  { code: "supplier.deactivate", module: "supplier", description: "Ngừng hợp tác nhà cung cấp" },
+  { code: "supplier.hard_delete", module: "supplier", description: "Xóa cứng nhà cung cấp chưa có đơn nhập (chỉ Admin)" },
   // Audit log (Sprint Audit) — read-only. There is deliberately NO
   // audit.create/update/delete permission: audit rows are written
   // only by writeAudit() inside other operations, never via an API.
@@ -99,6 +107,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: PERMISSIONS.map((p) => p.code),
   manager: [
     "customer.view_all", "customer.create", "customer.update", "customer.assign", "customer.tag_manage", "customer.import",
+    "supplier.view_all", "supplier.create", "supplier.update",
     "order.export",
     "product.view",
     "inventory.view", "inventory.view_transactions",
@@ -111,6 +120,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
   sales: [
     "customer.view_own", "customer.create", "customer.update",
+    "supplier.view_all",
     "product.view",
     "inventory.view",
     "order.view_own", "order.create", "order.update_draft", "order.confirm",
@@ -128,6 +138,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
   accountant: [
     "customer.view_all",
+    "supplier.view_all",
     "product.view",
     "order.view_all", "order.export",
     "payment.view_all", "payment.create", "payment.update", "payment.cancel",

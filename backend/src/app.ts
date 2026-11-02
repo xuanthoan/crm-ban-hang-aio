@@ -10,6 +10,7 @@ import productsRouter from "./routes/products";
 import careRouter from "./routes/care";
 import dashboardRouter from "./routes/dashboard";
 import importExportRouter from "./routes/importExport";
+import suppliersRouter from "./routes/suppliers";
 
 /**
  * Sprint Auth app.
@@ -37,6 +38,7 @@ export function createApp(): express.Express {
   app.use("/api", careRouter);
   app.use("/api", dashboardRouter);
   app.use("/api", importExportRouter);
+  app.use("/api", suppliersRouter);
 
   // Catch-all for unknown API routes (not a business error).
   app.use("/api", (_req: Request, res: Response) => {
