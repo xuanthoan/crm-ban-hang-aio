@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PAYMENT_RECORD_LABELS, PAYMENT_STATUS_LABELS, isoToVnDate, labelFor } from "./labels";
+import { clearCustomValidity, invalidMessage } from "./validity";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -537,7 +538,7 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
           ) : (
             <label className="mb-3 block">
               <span className="mb-1 block text-sm">Nhà cung cấp *</span>
-              <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className="w-full rounded border px-3 py-2" required>
+              <select value={supplierId} onChange={(e) => { clearCustomValidity(e); setSupplierId(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng chọn nhà cung cấp." }))} className="w-full rounded border px-3 py-2" required>
                 <option value="">-- Chọn nhà cung cấp --</option>
                 {suppliers.filter((s) => s.status === "active").map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
@@ -609,7 +610,8 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
                           min={1}
                           step={1}
                           value={l.quantity}
-                          onChange={(e) => setLines((prev) => prev.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x)))}
+                          onChange={(e) => { clearCustomValidity(e); setLines((prev) => prev.map((x, i) => (i === idx ? { ...x, quantity: e.target.value } : x))); }}
+                          onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập số lượng.", underflow: "Số lượng phải từ 1 trở lên.", badInput: "Số lượng phải là số nguyên." }))}
                           className="w-24 rounded border px-2 py-1"
                           required
                         />
@@ -619,7 +621,8 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
                           type="text"
                           inputMode="numeric"
                           value={l.unitCost}
-                          onChange={(e) => setLines((prev) => prev.map((x, i) => (i === idx ? { ...x, unitCost: formatMoneyInput(e.target.value) } : x)))}
+                          onChange={(e) => { clearCustomValidity(e); setLines((prev) => prev.map((x, i) => (i === idx ? { ...x, unitCost: formatMoneyInput(e.target.value) } : x))); }}
+                          onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập đơn giá nhập." }))}
                           className="w-36 rounded border px-2 py-1"
                           placeholder="0"
                           required
@@ -755,7 +758,8 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
                     max={i.remainingQuantity}
                     step={1}
                     value={returnQty[i.id] ?? ""}
-                    onChange={(e) => setReturnQty((prev) => ({ ...prev, [i.id]: e.target.value }))}
+                    onChange={(e) => { clearCustomValidity(e); setReturnQty((prev) => ({ ...prev, [i.id]: e.target.value })); }}
+                    onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { overflow: `Số lượng trả không được vượt quá ${i.remainingQuantity} (số còn trả được của dòng này).`, underflow: "Số lượng trả không được nhỏ hơn 0.", badInput: "Số lượng trả phải là số nguyên." }))}
                     className="w-24 rounded border px-2 py-1"
                     placeholder="0"
                   />
