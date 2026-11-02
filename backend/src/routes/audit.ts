@@ -98,6 +98,13 @@ async function buildWhere(req: import("express").Request): Promise<Record<string
   const entityType = (req.query.entityType ?? req.query.entity_type) as string | undefined;
   const entityId = (req.query.entityId ?? req.query.entity_id) as string | undefined;
   const q = req.query.q as string | undefined;
+  // Codes derived by the frontend from Vietnamese labels matching q
+  // (e.g. q="khách hàng" -> customer actions + customer/customer_tag
+  // entity types). Filtering by them exposes nothing new: callers can
+  // already filter by any action/entityType directly, and view_own
+  // callers still have actorId forced to themselves below.
+  const qActions = (req.query.qActions as string | undefined)?.split(",").map((s) => s.trim()).filter(Boolean);
+  const qEntityTypes = (req.query.qEntityTypes as string | undefined)?.split(",").map((s) => s.trim()).filter(Boolean);
 
   // The filter box accepts either the internal user id or the login
   // username (the list shows the actor's name, so a username is what a
@@ -122,13 +129,16 @@ async function buildWhere(req: import("express").Request): Promise<Record<string
   if (entityType) where.entityType = entityType;
   if (entityId) where.entityId = entityId;
   if (q) {
-    where.OR = [
+    const or: Record<string, unknown>[] = [
       { action: { contains: q, mode: "insensitive" } },
       { entityType: { contains: q, mode: "insensitive" } },
       { entityId: { contains: q, mode: "insensitive" } },
       { actor: { username: { contains: q, mode: "insensitive" } } },
       { actor: { fullName: { contains: q, mode: "insensitive" } } },
     ];
+    if (qActions?.length) or.push({ action: { in: qActions } });
+    if (qEntityTypes?.length) or.push({ entityType: { in: qEntityTypes } });
+    where.OR = or;
   }
   return where;
 }

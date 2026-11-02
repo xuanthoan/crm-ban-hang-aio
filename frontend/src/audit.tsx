@@ -154,7 +154,24 @@ export default function AuditPage({ token }: { token: string }) {
       if (action.trim()) params.set("action", action.trim());
       if (entityType.trim()) params.set("entityType", entityType.trim());
       if (entityId.trim()) params.set("entityId", entityId.trim());
-      if (q.trim()) params.set("q", q.trim());
+      if (q.trim()) {
+        params.set("q", q.trim());
+        // Free-text search must also understand the Vietnamese labels
+        // the list shows: a word like "khách hàng" matches no stored
+        // code, but it appears in several action/entity labels. Map it
+        // to those codes (diacritic-insensitive) and let the backend
+        // OR them into the search. Raw-code matching still applies too.
+        const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        const qNorm = norm(q.trim());
+        const qActionCodes = Object.entries(AUDIT_ACTION_LABELS)
+          .filter(([, label]) => norm(label).includes(qNorm))
+          .map(([code]) => code);
+        const qEntityCodes = Object.entries(ENTITY_TYPE_LABELS)
+          .filter(([, label]) => norm(label).includes(qNorm))
+          .map(([code]) => code);
+        if (qActionCodes.length) params.set("qActions", qActionCodes.join(","));
+        if (qEntityCodes.length) params.set("qEntityTypes", qEntityCodes.join(","));
+      }
       if (from) params.set("from", from);
       if (to) params.set("to", to);
       const data = await api(`/api/audit-logs?${params.toString()}`, token);
@@ -201,11 +218,11 @@ export default function AuditPage({ token }: { token: string }) {
         </label>
         <label className="block text-sm">
           Mã thực thể
-          <input className="mt-1 w-full rounded border p-2" value={entityId} onChange={(e) => { setEntityId(e.target.value); setPage(1); }} placeholder="vd: customers, hoặc mã dòng" />
+          <input className="mt-1 w-full rounded border p-2" value={entityId} onChange={(e) => { setEntityId(e.target.value); setPage(1); }} placeholder="vd: customers, hoặc mã cm... sau dấu /" />
         </label>
         <label className="block text-sm">
           Tìm kiếm
-          <input className="mt-1 w-full rounded border p-2" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="vd: export, order, tên đăng nhập" />
+          <input className="mt-1 w-full rounded border p-2" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="vd: khách hàng, export, tên đăng nhập" />
         </label>
         <label className="block text-sm">
           Từ ngày
