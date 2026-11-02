@@ -658,7 +658,7 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
               </p>
               {(detail.items ?? []).filter((i) => i.remainingQuantity > 0).map((i) => (
                 <label key={i.id} className="mb-2 flex items-center gap-2 text-sm">
-                  <span className="w-64 truncate">{i.sku} (còn trả được {i.remainingQuantity})</span>
+                  <span className="min-w-0 flex-1 break-words">{i.sku} (còn trả được {i.remainingQuantity})</span>
                   <input
                     type="number"
                     min={0}

@@ -140,6 +140,9 @@ export const INVENTORY_TX_LABELS: Record<string, string> = {
   order_confirmed: "Trừ kho khi xác nhận đơn",
   order_cancelled: "Hoàn kho khi hủy đơn",
   return: "Hoàn kho khi trả hàng",
+  purchase_received: "Nhập kho theo đơn nhập",
+  purchase_cancelled: "Hoàn kho khi hủy đơn nhập",
+  purchase_return: "Trừ kho khi trả hàng NCC",
 };
 
 // Hành động audit (lập từ các action: "..." trong backend/src).

@@ -216,7 +216,7 @@ export default function SuppliersPage({
   }
 
   async function handleHardDelete(id: string) {
-    if (!window.confirm("Xóa CỨNG nhà cung cấp này? Chỉ thành công khi nhà cung cấp chưa có đơn nhập nào (ở Sprint NCC-1 chưa có đơn nhập nên điều kiện này luôn đúng với Admin).")) return;
+    if (!window.confirm("Xóa CỨNG nhà cung cấp này? Chỉ thành công khi nhà cung cấp chưa có đơn nhập nào.")) return;
     setError("");
     try {
       await api(`/api/suppliers/${id}?hard=true`, token, "DELETE");
