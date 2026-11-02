@@ -80,14 +80,18 @@ export const PERMISSIONS = [
   { code: "report.view_inventory_value", module: "report", description: "Xem giá trị tồn kho trong báo cáo" },
   { code: "report.view_debt", module: "report", description: "Xem báo cáo công nợ" },
   { code: "report.export", module: "report", description: "Export báo cáo" },
-  // Suppliers (Sprint NCC-1: directory only). Purchase-order codes
-  // arrive with Sprint NCC-2; supplier-payment codes with NCC-3.
+  // Suppliers (Sprint NCC-1: directory). Purchase-order codes arrive
+  // with Sprint NCC-2, supplier-payment codes with NCC-3, and
+  // import/export codes with NCC-4 — mirroring the customer
+  // import/export codes (customer.import / customer.export).
   { code: "supplier.view_all", module: "supplier", description: "Xem tất cả nhà cung cấp" },
   { code: "supplier.view_own", module: "supplier", description: "Xem nhà cung cấp của mình" },
   { code: "supplier.create", module: "supplier", description: "Tạo nhà cung cấp" },
   { code: "supplier.update", module: "supplier", description: "Sửa nhà cung cấp" },
   { code: "supplier.deactivate", module: "supplier", description: "Ngừng hợp tác nhà cung cấp" },
   { code: "supplier.hard_delete", module: "supplier", description: "Xóa cứng nhà cung cấp chưa có đơn nhập (chỉ Admin)" },
+  { code: "supplier.import", module: "supplier", description: "Import nhà cung cấp từ CSV" },
+  { code: "supplier.export", module: "supplier", description: "Export nhà cung cấp ra CSV" },
   // Purchase orders (Sprint NCC-2). There is deliberately NO
   // purchase.update code: creating and editing a draft belong to the
   // same drafting lifecycle, so draft edits are authorized by
@@ -99,6 +103,9 @@ export const PERMISSIONS = [
   { code: "purchase.complete", module: "purchase", description: "Hoàn thành đơn nhập" },
   { code: "purchase.cancel", module: "purchase", description: "Hủy đơn nhập" },
   { code: "purchase.return", module: "purchase", description: "Trả hàng cho nhà cung cấp" },
+  // Sprint NCC-4: PO export mirrors order.export (per-order rows, no
+  // line unit costs — see routes/importExport.ts).
+  { code: "purchase.export", module: "purchase", description: "Export đơn nhập ra CSV" },
   // Supplier payments (Sprint NCC-3) — deliberately NO view codes:
   // the payment section and the debt page follow PO visibility
   // (purchase.view_all / view_own); only create/cancel have codes.
@@ -123,8 +130,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: PERMISSIONS.map((p) => p.code),
   manager: [
     "customer.view_all", "customer.create", "customer.update", "customer.assign", "customer.tag_manage", "customer.import",
-    "supplier.view_all", "supplier.create", "supplier.update",
-    "purchase.view_all", "purchase.create", "purchase.confirm",
+    "supplier.view_all", "supplier.create", "supplier.update", "supplier.import",
+    "purchase.view_all", "purchase.create", "purchase.confirm", "purchase.export",
     "supplier_payment.create",
     "order.export",
     "product.view",
@@ -158,7 +165,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   accountant: [
     "customer.view_all",
     "supplier.view_all",
-    "purchase.view_all",
+    "purchase.view_all", "purchase.export",
     "product.view",
     "order.view_all", "order.export",
     "payment.view_all", "payment.create", "payment.update", "payment.cancel",

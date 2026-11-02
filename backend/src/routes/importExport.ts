@@ -40,13 +40,20 @@ import {
   findInFileBarcodeDuplicates,
   findInFilePhoneDuplicates,
   findInFileSkuDuplicates,
+  findInFileTaxCodeDuplicates,
   groupProductRows,
   resolveGeneratedSku,
   validateCustomerRow,
   validateProductRow,
+  validateSupplierRow,
   type ValidatedCustomerRow,
   type ValidatedProductRow,
+  type ValidatedSupplierRow,
 } from "../lib/importExport";
+import {
+  duplicateErrorMessage as supplierDuplicateErrorMessage,
+  findDuplicatePhone as findSupplierDuplicatePhone,
+} from "../lib/suppliers";
 import { normalizeSku, variantSkuBase } from "../lib/products";
 import { getPrisma } from "../lib/prisma";
 
@@ -79,9 +86,9 @@ function prunePreviews() {
 /** In-memory preview store: preview_id -> validated valid rows. */
 interface Preview {
   id: string;
-  entity: "customers" | "products";
+  entity: "customers" | "products" | "suppliers";
   userId: string;
-  rows: (ValidatedCustomerRow | ValidatedProductRow)[];
+  rows: (ValidatedCustomerRow | ValidatedProductRow | ValidatedSupplierRow)[];
   totalRows: number;
   createdAt: number;
 }
@@ -93,6 +100,7 @@ function newPreviewId(): string {
 
 const CUSTOMER_HEADERS = ["name", "phones", "email", "address", "source", "tags", "status", "note"];
 const PRODUCT_HEADERS = ["product_name", "category", "sku", "variant_name", "attributes", "sell_price", "import_price", "barcode", "status"];
+const SUPPLIER_HEADERS = ["name", "phones", "address", "tax_code", "note"];
 
 const CUSTOMER_TEMPLATE_ROWS: string[][] = [
   ["Nguyễn Văn A", "0987884244;0901234567", "a@example.com", "123 Đường Lớn, Quận 1", "facebook", "VIP;Mua sỉ", "active", "Khách quen"],
@@ -102,13 +110,17 @@ const PRODUCT_TEMPLATE_ROWS: (string | number)[][] = [
   ["Áo thun nữ 2027", "Áo thun", "AO-THUN-NU-2027-DEN-S", "Đen / S", "color:Đen;size:S", 150000, 90000, "", "active"],
   ["Sách thiếu nhi tập 1", "Sách", "", "Mặc định", "", 50000, 30000, "", "active"],
 ];
+const SUPPLIER_TEMPLATE_ROWS: string[][] = [
+  ["Công ty TNHH Sách An Bình", "0281234567;0901234567", "123 Đường Lớn, Quận 1", "0312345678", "NCC sách thiếu nhi"],
+  ["Cửa hàng Văn phòng phẩm Minh Đức", "0912345678", "", "", ""],
+];
 
 /** GET /api/import/templates/:entity — CSV template (header + example rows). */
 router.get("/import/templates/:entity", async (req: AnyReq, res: AnyRes) => {
   try {
     const entity = req.params.entity;
-    if (entity !== "customers" && entity !== "products") {
-      res.status(400).json({ status: "error", message: "Entity chỉ nhận customers hoặc products." });
+    if (entity !== "customers" && entity !== "products" && entity !== "suppliers") {
+      res.status(400).json({ status: "error", message: "Entity chỉ nhận customers, products hoặc suppliers." });
       return;
     }
     if (entity === "customers" && !has(req, "customer.import")) {
@@ -119,8 +131,12 @@ router.get("/import/templates/:entity", async (req: AnyReq, res: AnyRes) => {
       res.status(403).json({ status: "error", message: "Bạn không có quyền import sản phẩm." });
       return;
     }
-    const headers = entity === "customers" ? CUSTOMER_HEADERS : PRODUCT_HEADERS;
-    const rows = entity === "customers" ? CUSTOMER_TEMPLATE_ROWS : PRODUCT_TEMPLATE_ROWS;
+    if (entity === "suppliers" && !has(req, "supplier.import")) {
+      res.status(403).json({ status: "error", message: "Bạn không có quyền import nhà cung cấp." });
+      return;
+    }
+    const headers = entity === "customers" ? CUSTOMER_HEADERS : entity === "products" ? PRODUCT_HEADERS : SUPPLIER_HEADERS;
+    const rows = entity === "customers" ? CUSTOMER_TEMPLATE_ROWS : entity === "products" ? PRODUCT_TEMPLATE_ROWS : SUPPLIER_TEMPLATE_ROWS;
     const csv = `\uFEFF${toCsv(headers, rows)}`;
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="template-${entity}.csv"`);
@@ -257,6 +273,62 @@ async function previewProducts(req: AnyReq, text: string): Promise<{ total: numb
   return { total: validated.length, rows, validRows: validated.filter((r) => r.errors.length === 0) };
 }
 
+async function previewSuppliers(req: AnyReq, text: string): Promise<{ total: number; rows: { row_number: number; valid: boolean; errors: string[]; data: ValidatedSupplierRow }[]; validRows: ValidatedSupplierRow[] }> {
+  const parsed = parseCsv(text);
+  checkHeaders(parsed.headers, ["name"], "suppliers");
+  checkRowLimit(parsed.rows);
+  const prisma = getPrisma();
+  const validated = parsed.rows.map((row, idx) => validateSupplierRow(row, idx + 2));
+  // In-file duplicates (phones + tax codes): every row sharing the
+  // value is invalid, same treatment as customer in-file phone dups.
+  const inFilePhones = findInFilePhoneDuplicates(validated);
+  const inFileTax = findInFileTaxCodeDuplicates(validated);
+  for (const row of validated) {
+    for (const phone of row.phones) {
+      const lines = inFilePhones.get(phone.phoneNormalized);
+      if (lines && lines.length > 1) {
+        row.errors.push(`Số ${phone.phoneNormalized} bị trùng với dòng ${lines.filter((l) => l !== row.rowNumber).join(", ")} trong cùng file.`);
+      }
+    }
+    if (row.taxCode) {
+      const lines = inFileTax.get(row.taxCode);
+      if (lines && lines.length > 1) {
+        row.errors.push(`Mã số thuế ${row.taxCode} bị trùng với dòng ${lines.filter((l) => l !== row.rowNumber).join(", ")} trong cùng file.`);
+      }
+    }
+  }
+  // Database duplicates — phones: ACTIVE phones of any supplier
+  // (supplier scope only, never customer phones — design 13 §7.3).
+  const allPhones = [...new Set(validated.flatMap((r) => r.phones.map((p) => p.phoneNormalized)))];
+  if (allPhones.length > 0) {
+    const existing = await prisma.supplierPhone.findMany({
+      where: { phoneNormalized: { in: allPhones }, status: "active", deletedAt: null },
+      include: { supplier: { select: { id: true, name: true } } },
+    });
+    const byPhone = new Map<string, any>(existing.map((e: any) => [e.phoneNormalized, e]));
+    for (const row of validated) {
+      for (const phone of row.phones) {
+        const hit = byPhone.get(phone.phoneNormalized);
+        if (hit) row.errors.push(supplierDuplicateErrorMessage({ phone: hit.phone, phoneNormalized: hit.phoneNormalized, supplierId: hit.supplier.id, supplierName: hit.supplier.name || "(chưa có tên)" }));
+      }
+    }
+  }
+  // Database duplicates — tax codes: unique when provided, checked
+  // against suppliers in ANY status (same rule as the create API).
+  const allTax = [...new Set(validated.filter((r) => r.taxCode).map((r) => r.taxCode as string))];
+  if (allTax.length > 0) {
+    const existing = await prisma.supplier.findMany({ where: { taxCode: { in: allTax } }, select: { taxCode: true, name: true } });
+    const byTax = new Map<string, any>(existing.map((e: any) => [e.taxCode, e]));
+    for (const row of validated) {
+      if (!row.taxCode) continue;
+      const hit = byTax.get(row.taxCode);
+      if (hit) row.errors.push(`Mã số thuế ${row.taxCode} đã tồn tại ở nhà cung cấp "${hit.name}".`);
+    }
+  }
+  const rows = validated.map((row) => ({ row_number: row.rowNumber, valid: row.errors.length === 0, errors: [...new Set(row.errors)], data: { ...row, errors: [...new Set(row.errors)] } }));
+  return { total: validated.length, rows, validRows: validated.filter((r) => r.errors.length === 0) };
+}
+
 const rawBody = express.raw({ type: "multipart/form-data", limit: "5mb" });
 
 /** POST /api/import/:entity/preview — validate only, writes nothing. */
@@ -272,8 +344,12 @@ router.post(
       res.status(403).json({ status: "error", message: "Bạn không có quyền import sản phẩm." });
       return;
     }
-    if (entity !== "customers" && entity !== "products") {
-      res.status(400).json({ status: "error", message: "Entity chỉ nhận customers hoặc products." });
+    if (entity === "suppliers" && !has(req, "supplier.import")) {
+      res.status(403).json({ status: "error", message: "Bạn không có quyền import nhà cung cấp." });
+      return;
+    }
+    if (entity !== "customers" && entity !== "products" && entity !== "suppliers") {
+      res.status(400).json({ status: "error", message: "Entity chỉ nhận customers, products hoặc suppliers." });
       return;
     }
     next();
@@ -281,9 +357,9 @@ router.post(
   rawBody,
   async (req: AnyReq, res: AnyRes) => {
     try {
-      const entity = req.params.entity as "customers" | "products";
+      const entity = req.params.entity as "customers" | "products" | "suppliers";
       const { text } = readUploadedCsv(req);
-      const result = entity === "customers" ? await previewCustomers(req, text) : await previewProducts(req, text);
+      const result = entity === "customers" ? await previewCustomers(req, text) : entity === "products" ? await previewProducts(req, text) : await previewSuppliers(req, text);
       prunePreviews();
       const preview: Preview = {
         id: newPreviewId(),
@@ -474,12 +550,64 @@ async function confirmProducts(req: AnyReq, preview: Preview): Promise<{ importe
   return { imported, skipped };
 }
 
+/** Re-check one stored supplier row against the CURRENT database. */
+async function revalidateSupplierRow(prisma: AnyTx, row: ValidatedSupplierRow): Promise<string[]> {
+  const errors: string[] = [];
+  if (!row.name) errors.push("Tên nhà cung cấp (name) không được để trống.");
+  const conflict = await findSupplierDuplicatePhone(prisma, row.phones.map((p) => p.phoneNormalized));
+  if (conflict) errors.push(supplierDuplicateErrorMessage(conflict));
+  if (row.taxCode) {
+    const taxHit = await prisma.supplier.findFirst({ where: { taxCode: row.taxCode }, select: { name: true } });
+    if (taxHit) errors.push(`Mã số thuế ${row.taxCode} đã tồn tại ở nhà cung cấp "${taxHit.name}" tại thời điểm xác nhận.`);
+  }
+  return errors;
+}
+
+async function confirmSuppliers(req: AnyReq, preview: Preview): Promise<{ imported: { id: string; name: string }[]; skipped: { row_number: number; name: string; errors: string[] }[] }> {
+  const prisma = getPrisma();
+  const imported: { id: string; name: string }[] = [];
+  const skipped: { row_number: number; name: string; errors: string[] }[] = [];
+  for (const row of preview.rows as ValidatedSupplierRow[]) {
+    const errors = await revalidateSupplierRow(prisma, row);
+    if (errors.length > 0) {
+      skipped.push({ row_number: row.rowNumber, name: row.name, errors });
+      continue;
+    }
+    try {
+      // normalizePhoneList already resolved the primary: the first
+      // phone when none was marked — so the first phone in the CSV
+      // cell becomes the primary, and the supplier is created active.
+      const created = await prisma.supplier.create({
+        data: {
+          name: row.name,
+          taxCode: row.taxCode,
+          address: row.address,
+          note: row.note,
+          status: "active",
+          createdById: req.user!.id,
+          phones: { create: row.phones.map((p) => ({ phone: p.phone, phoneNormalized: p.phoneNormalized, label: p.label, isPrimary: p.isPrimary, status: "active" })) },
+        },
+      });
+      imported.push({ id: created.id, name: created.name });
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (code === "P2002") {
+        skipped.push({ row_number: row.rowNumber, name: row.name, errors: ["Dữ liệu bị trùng với database (số điện thoại/mã số thuế) tại thời điểm xác nhận."] });
+      } else {
+        console.error("[import] supplier row failed:", err);
+        skipped.push({ row_number: row.rowNumber, name: row.name, errors: ["Lỗi hệ thống khi nhập dòng này, dòng đã bị bỏ qua."] });
+      }
+    }
+  }
+  return { imported, skipped };
+}
+
 /** POST /api/import/:entity/confirm — re-validate, then write valid rows. */
 router.post("/import/:entity/confirm", async (req: AnyReq, res: AnyRes) => {
   try {
     const entity = req.params.entity;
-    if (entity !== "customers" && entity !== "products") {
-      res.status(400).json({ status: "error", message: "Entity chỉ nhận customers hoặc products." });
+    if (entity !== "customers" && entity !== "products" && entity !== "suppliers") {
+      res.status(400).json({ status: "error", message: "Entity chỉ nhận customers, products hoặc suppliers." });
       return;
     }
     if (entity === "customers" && !has(req, "customer.import")) {
@@ -488,6 +616,10 @@ router.post("/import/:entity/confirm", async (req: AnyReq, res: AnyRes) => {
     }
     if (entity === "products" && !has(req, "product.import")) {
       res.status(403).json({ status: "error", message: "Bạn không có quyền import sản phẩm." });
+      return;
+    }
+    if (entity === "suppliers" && !has(req, "supplier.import")) {
+      res.status(403).json({ status: "error", message: "Bạn không có quyền import nhà cung cấp." });
       return;
     }
     const previewId = typeof req.body?.preview_id === "string" ? req.body.preview_id : "";
@@ -505,7 +637,7 @@ router.post("/import/:entity/confirm", async (req: AnyReq, res: AnyRes) => {
       res.status(403).json({ status: "error", message: "Preview này thuộc về người dùng khác." });
       return;
     }
-    const result = entity === "customers" ? await confirmCustomers(req, preview) : await confirmProducts(req, preview);
+    const result = entity === "customers" ? await confirmCustomers(req, preview) : entity === "products" ? await confirmProducts(req, preview) : await confirmSuppliers(req, preview);
     previews.delete(previewId);
     const prisma = getPrisma();
     await writeAudit(prisma, {
@@ -594,6 +726,51 @@ router.get("/export/customers", authorize("customer.export"), async (req: AnyReq
   }
 });
 
+/** GET /api/export/suppliers — Sprint NCC-4. Mirrors /export/customers:
+ *  scope by supplier.view_all/view_own, CSV-injection guard via toCsv,
+ *  one audit log, filename export-suppliers-YYYY-MM-DD.csv. Columns
+ *  mirror the supplier list/detail fields (all active phones, joined
+ *  by ';'). No money column exists here: supplier money lives on
+ *  purchase orders (see /export/purchase-orders) and the debt report.
+ */
+router.get("/export/suppliers", authorize("supplier.export"), async (req: AnyReq, res: AnyRes) => {
+  try {
+    const prisma = getPrisma();
+    const viewAll = has(req, "supplier.view_all");
+    const viewOwn = has(req, "supplier.view_own");
+    if (!viewAll && !viewOwn) {
+      res.status(403).json({ status: "error", message: "Bạn không có quyền xem nhà cung cấp." });
+      return;
+    }
+    const scope = viewAll ? {} : { createdById: req.user!.id };
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const where: Record<string, unknown> = { ...scope };
+    if (q) where.name = { contains: q, mode: "insensitive" };
+    if (typeof req.query.status === "string" && req.query.status) where.status = req.query.status;
+    const suppliers = await prisma.supplier.findMany({
+      where,
+      include: { phones: { where: { status: "active", deletedAt: null } } },
+      orderBy: { createdAt: "desc" },
+      take: 10000,
+    });
+    const headers = ["name", "phones", "email", "address", "tax_code", "status", "note", "created_at"];
+    const rows = suppliers.map((s: any) => [
+      s.name,
+      s.phones.map((p: any) => p.phone).join(";"),
+      s.email ?? "",
+      s.address ?? "",
+      s.taxCode ?? "",
+      s.status,
+      s.note ?? "",
+      isoDate(s.createdAt),
+    ]);
+    await writeAudit(prisma, { actorId: req.user!.id, action: "export", entityType: "export", entityId: "suppliers", newValue: { entity: "suppliers", filters: { q, status: req.query.status ?? null }, rowCount: rows.length }, ipAddress: req.ip ?? null });
+    sendCsv(res, `export-suppliers-${exportDate()}.csv`, headers, rows);
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
 /** GET /api/export/products — import_price column omitted entirely without view_cost. */
 router.get("/export/products", authorize("product.export"), async (req: AnyReq, res: AnyRes) => {
   try {
@@ -662,6 +839,53 @@ router.get("/export/orders", authorize("order.export"), async (req: AnyReq, res:
     ]);
     await writeAudit(prisma, { actorId: req.user!.id, action: "export", entityType: "export", entityId: "orders", newValue: { entity: "orders", rowCount: rows.length }, ipAddress: req.ip ?? null });
     sendCsv(res, `export-orders-${exportDate()}.csv`, headers, rows);
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/** GET /api/export/purchase-orders — Sprint NCC-4. Mirrors
+ *  /export/orders exactly: ONE ROW PER ORDER (not per line), scope by
+ *  purchase.view_all/view_own, money columns omitted without
+ *  system-level money rights, one audit log, filename
+ *  export-purchase-orders-YYYY-MM-DD.csv. Deliberately NO line unit
+ *  costs in this export: unitCost is cost data (same sensitivity as
+ *  importPrice), and a per-order export has no line detail to attach
+ *  it to. A future line-level PO export must gate unitCost behind
+ *  product.view_cost, like /export/products gates import_price.
+ *  Status/payment_status/received/restored are raw stored values,
+ *  same convention as /export/orders.
+ */
+router.get("/export/purchase-orders", authorize("purchase.export"), async (req: AnyReq, res: AnyRes) => {
+  try {
+    const prisma = getPrisma();
+    const viewAll = has(req, "purchase.view_all");
+    const viewOwn = has(req, "purchase.view_own");
+    if (!viewAll && !viewOwn) {
+      res.status(403).json({ status: "error", message: "Bạn không có quyền xem đơn nhập." });
+      return;
+    }
+    const moneyAllowed = viewAll || has(req, "report.view_debt") || has(req, "report.view_revenue");
+    const where: Record<string, unknown> = { ...(viewAll ? {} : { createdById: req.user!.id }) };
+    const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    if (q) where.OR = [{ code: { contains: q, mode: "insensitive" } }, { supplier: { name: { contains: q, mode: "insensitive" } } }];
+    if (typeof req.query.status === "string" && req.query.status) where.status = req.query.status;
+    if (typeof req.query.supplierId === "string" && req.query.supplierId) where.supplierId = req.query.supplierId;
+    if (typeof req.query.from === "string" && req.query.from) where.createdAt = { ...(where.createdAt as object ?? {}), gte: new Date(req.query.from) };
+    if (typeof req.query.to === "string" && req.query.to) where.createdAt = { ...(where.createdAt as object ?? {}), lte: new Date(req.query.to) };
+    const orders = await prisma.purchaseOrder.findMany({ where, include: { supplier: true }, orderBy: { createdAt: "desc" }, take: 10000 });
+    const headers = ["po_code", "supplier_name", "status", "order_date", ...(moneyAllowed ? ["grand_total", "paid_total", "debt_total", "payment_status"] : []), "received", "restored"];
+    const rows = orders.map((o: any) => [
+      o.code,
+      o.supplier?.name ?? "",
+      o.status,
+      isoDate(o.createdAt),
+      ...(moneyAllowed ? [o.grandTotal, o.paidTotal, o.debtTotal, o.paymentStatus] : []),
+      o.received ? "true" : "false",
+      o.restored ? "true" : "false",
+    ]);
+    await writeAudit(prisma, { actorId: req.user!.id, action: "export", entityType: "export", entityId: "purchase-orders", newValue: { entity: "purchase-orders", rowCount: rows.length }, ipAddress: req.ip ?? null });
+    sendCsv(res, `export-purchase-orders-${exportDate()}.csv`, headers, rows);
   } catch (err) {
     dbUnavailable(res, err);
   }

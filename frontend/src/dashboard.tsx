@@ -177,6 +177,7 @@ export function ReportsPage({ token }: { token: string }) {
   const [topCustomers, setTopCustomers] = useState<any[]>([]);
   const [methods, setMethods] = useState<any[]>([]);
   const [debt, setDebt] = useState<any>(null);
+  const [supplierDebt, setSupplierDebt] = useState<any>(null);
   const [inventory, setInventory] = useState<any>(null);
   const [error, setError] = useState("");
 
@@ -198,6 +199,17 @@ export function ReportsPage({ token }: { token: string }) {
       setInventory((inv as any).data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tải được báo cáo.");
+    }
+    // Supplier-debt report is fetched separately and fault-tolerantly:
+    // it requires purchase.view_all/view_own, so users who cannot view
+    // purchase orders (e.g. Sales) get 403 here — that must hide this
+    // section, not fail the whole Reports page.
+    try {
+      const q = periodQuery(preset, from, to);
+      const sup = await api(`/api/reports/supplier-debt?${q}&limit=10`, token);
+      setSupplierDebt((sup as any).data);
+    } catch {
+      setSupplierDebt(null);
     }
   }, [token, preset, from, to]);
 
@@ -270,6 +282,25 @@ export function ReportsPage({ token }: { token: string }) {
                   <td className="py-1 text-right">{c.orderCount} đơn · {fmt(c.debtTotal)}</td>
                 </tr>
               ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {supplierDebt && (
+        <div className="rounded border p-4">
+          <h3 className="font-semibold">Báo cáo công nợ nhà cung cấp</h3>
+          <p className="text-sm">Trong khoảng: tiền nhập {fmt(supplierDebt.totals?.purchaseTotal)} · {supplierDebt.totals?.poCount ?? 0} đơn nhập (đã xác nhận/hoàn thành) · Đã trả {fmt(supplierDebt.totals?.paidTotal)} · Còn nợ {fmt(supplierDebt.totals?.debtOwing)} · Tiền thừa {fmt(supplierDebt.totals?.credit)} · Nợ ròng {fmt(supplierDebt.totals?.netDebt)}</p>
+          <p className="text-sm text-gray-500">Chỉ tính đơn nhập confirmed/completed tạo trong khoảng; đơn nháp và đơn hủy không tính. Nợ là tổng các debtTotal dương, tiền thừa báo riêng và không trừ vào nợ.</p>
+          <table className="mt-2 w-full text-sm">
+            <tbody>
+              {(supplierDebt.suppliers ?? []).map((s: any) => (
+                <tr key={s.supplierId} className="border-t">
+                  <td className="py-1 pr-2">{s.supplierName ?? s.supplierId}</td>
+                  <td className="py-1 text-right">{s.poCount} đơn · Nhập {fmt(s.purchaseTotal)} · Đã trả {fmt(s.paidTotal)} · Nợ {fmt(s.debtTotal)}</td>
+                </tr>
+              ))}
+              {(supplierDebt.suppliers ?? []).length === 0 && <tr><td className="py-1 text-gray-500">Chưa có đơn nhập trong khoảng.</td></tr>}
             </tbody>
           </table>
         </div>

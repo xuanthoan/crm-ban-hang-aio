@@ -34,21 +34,24 @@ async function downloadCsv(path: string, token: string, filename: string) {
 }
 
 export default function ImportExportPage({ token, permissions }: { token: string; permissions: string[] }) {
-  const [importEntity, setImportEntity] = useState<"customers" | "products">("customers");
+  const [importEntity, setImportEntity] = useState<"customers" | "products" | "suppliers">("customers");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const [result, setResult] = useState<string>("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [exportEntity, setExportEntity] = useState<"customers" | "products" | "orders" | "inventory">("customers");
+  const [exportEntity, setExportEntity] = useState<"customers" | "products" | "orders" | "inventory" | "suppliers" | "purchase-orders">("customers");
   const [exportQ, setExportQ] = useState("");
 
   const canImportCustomers = permissions.includes("customer.import");
   const canImportProducts = permissions.includes("product.import");
+  const canImportSuppliers = permissions.includes("supplier.import");
   const canExportCustomers = permissions.includes("customer.export");
   const canExportProducts = permissions.includes("product.export");
   const canExportOrders = permissions.includes("order.export");
   const canExportInventory = permissions.includes("inventory.view");
+  const canExportSuppliers = permissions.includes("supplier.export");
+  const canExportPurchaseOrders = permissions.includes("purchase.export");
 
   async function handleTemplate() {
     setError("");
@@ -141,13 +144,14 @@ export default function ImportExportPage({ token, permissions }: { token: string
       {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
       {result && <p className="rounded border border-green-300 bg-green-50 p-3 text-green-800">{result}</p>}
 
-      {(canImportCustomers || canImportProducts) && (
+      {(canImportCustomers || canImportProducts || canImportSuppliers) && (
         <div className="space-y-3 rounded border p-4">
           <h3 className="font-semibold">Import</h3>
           <div className="flex flex-wrap items-center gap-2">
-            <select className="rounded border p-2" value={importEntity} onChange={(e) => { setImportEntity(e.target.value as "customers" | "products"); setPreview(null); }}>
+            <select className="rounded border p-2" value={importEntity} onChange={(e) => { setImportEntity(e.target.value as "customers" | "products" | "suppliers"); setPreview(null); }}>
               {canImportCustomers && <option value="customers">Khách hàng</option>}
               {canImportProducts && <option value="products">Sản phẩm / SKU</option>}
+              {canImportSuppliers && <option value="suppliers">Nhà cung cấp</option>}
             </select>
             <button type="button" onClick={handleTemplate} className="rounded border px-4 py-2">Tải file mẫu</button>
           </div>
@@ -162,6 +166,14 @@ export default function ImportExportPage({ token, permissions }: { token: string
               Cột: product_name, category, sku, variant_name, attributes (dạng color:Đen;size:S), sell_price, import_price, barcode, status.
               Các dòng cùng tên sản phẩm + danh mục được gom thành một sản phẩm cha với nhiều biến thể. SKU để trống sẽ tự sinh;
               SKU tự nhập mà trùng thì dòng đó không hợp lệ và hệ thống không tự đổi mã của bạn.
+            </p>
+          )}
+          {importEntity === "suppliers" && (
+            <p className="text-sm text-gray-600">
+              Cột: name (bắt buộc), phones (nhiều số ngăn cách bằng ; hoặc |, số đầu tiên là số chính), address, tax_code, note.
+              Số trùng trong file hoặc với nhà cung cấp khác, và mã số thuế trùng với nhà cung cấp khác, đều làm dòng đó
+              không hợp lệ. Nhà cung cấp mới tạo ở trạng thái đang hợp tác. Số điện thoại chỉ kiểm tra trùng trong phạm vi
+              nhà cung cấp, không kiểm tra với số của khách hàng.
             </p>
           )}
           <form onSubmit={handlePreview} className="flex flex-wrap items-center gap-2">
@@ -207,7 +219,8 @@ export default function ImportExportPage({ token, permissions }: { token: string
         <p className="text-sm text-gray-600">
           Các cột nhạy cảm được lọc ở backend theo quyền của bạn: không có quyền xem giá nhập thì file sản phẩm không có cột
           import_price; không có quyền xem công nợ/doanh thu thì file đơn hàng không có các cột tiền. Export toàn bộ khách hàng
-          chỉ dành cho người có quyền export khách.
+          chỉ dành cho người có quyền export khách. File đơn nhập tính theo đơn (1 dòng/đơn, không có đơn giá nhập từng dòng);
+          file nhà cung cấp gồm tên, số điện thoại, email, địa chỉ, mã số thuế, trạng thái, ghi chú.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <select className="rounded border p-2" value={exportEntity} onChange={(e) => setExportEntity(e.target.value as typeof exportEntity)}>
@@ -215,6 +228,8 @@ export default function ImportExportPage({ token, permissions }: { token: string
             {canExportProducts && <option value="products">Sản phẩm / SKU</option>}
             {canExportOrders && <option value="orders">Đơn hàng</option>}
             {canExportInventory && <option value="inventory">Tồn kho</option>}
+            {canExportSuppliers && <option value="suppliers">Nhà cung cấp</option>}
+            {canExportPurchaseOrders && <option value="purchase-orders">Đơn nhập hàng</option>}
           </select>
           <input className="rounded border p-2" placeholder="Từ khóa tìm kiếm (tên/SKU)" value={exportQ} onChange={(e) => setExportQ(e.target.value)} />
           <button type="button" onClick={handleExport} className="rounded bg-blue-600 px-4 py-2 text-white">Tải CSV</button>

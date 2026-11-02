@@ -548,6 +548,108 @@ router.get("/reports/debt", async (req, res) => {
 });
 
 /* ------------------------------------------------------------------ */
+/* GET /api/reports/supplier-debt — Sprint NCC-4                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Supplier-debt report. Mirrors /reports/debt, but for purchase
+ * orders (design 13 §7, Sprint NCC-4):
+ *  - Only confirmed/completed POs count; draft and cancelled POs
+ *    never count (same committed rule as sales reports).
+ *  - Period metrics are SNAPSHOTS of the POs created in the period:
+ *    purchase total = Σ grandTotal, paid total = Σ paidTotal of
+ *    those same POs (attributed to the PO creation day, not the
+ *    payment day — same attribution rule as sales revenue).
+ *  - Debt owing = sum of POSITIVE debtTotals only; credit (negative
+ *    debtTotal from over-return) is reported separately and never
+ *    nets the owing away — same convention as /reports/debt.
+ *  - Per-supplier rows cover the same in-period committed POs
+ *    (poCount, purchaseTotal, paidTotal, debtTotal owing-only),
+ *    sorted by debt owed, capped by ?limit= (default 10, max 50).
+ *  - Scope follows PO visibility (purchase.view_all / view_own),
+ *    NOT the report.* codes: a user who cannot view POs at all
+ *    gets 403, and the Reports page hides this section for them.
+ *  - READ-ONLY: no AuditLog is written for viewing.
+ */
+router.get("/reports/supplier-debt", async (req, res) => {
+  try {
+    const viewAll = has(req, "purchase.view_all");
+    const viewOwn = has(req, "purchase.view_own");
+    if (!viewAll && !viewOwn) {
+      res.status(403).json({ status: "error", message: "Bạn không có quyền xem báo cáo công nợ NCC." });
+      return;
+    }
+    const scope = viewAll ? "all" : "own";
+    const period = parsePeriod(req.query as Record<string, unknown>);
+    const limit = parseLimit(req.query as Record<string, unknown>, 10);
+    const prisma = getPrisma();
+    const pos = await prisma.purchaseOrder.findMany({
+      where: {
+        ...(scope === "own" ? { createdById: req.user!.id } : {}),
+        ...periodWhere(period),
+        status: { in: [...COMMITTED_ORDER_STATUSES] },
+      },
+      include: { supplier: { select: { name: true } } },
+    });
+    let purchaseTotal = 0;
+    let paidTotal = 0;
+    let debtOwing = 0;
+    let credit = 0;
+    const byStatus = new Map<string, { orderCount: number; debtTotal: number }>();
+    const bySupplier = new Map<string, { supplierId: string; supplierName: string | null; poCount: number; purchaseTotal: number; paidTotal: number; debtTotal: number }>();
+    for (const po of pos as any[]) {
+      const grand = dec(po.grandTotal);
+      const paid = dec(po.paidTotal);
+      const debt = dec(po.debtTotal);
+      purchaseTotal += grand;
+      paidTotal += paid;
+      if (debt > 0) {
+        debtOwing += debt;
+        const row = byStatus.get(po.paymentStatus) ?? { orderCount: 0, debtTotal: 0 };
+        row.orderCount += 1;
+        row.debtTotal += debt;
+        byStatus.set(po.paymentStatus, row);
+      } else if (debt < 0) {
+        credit += -debt;
+      }
+      const s = bySupplier.get(po.supplierId) ?? { supplierId: po.supplierId, supplierName: po.supplier?.name ?? null, poCount: 0, purchaseTotal: 0, paidTotal: 0, debtTotal: 0 };
+      s.poCount += 1;
+      s.purchaseTotal += grand;
+      s.paidTotal += paid;
+      if (debt > 0) s.debtTotal += debt;
+      bySupplier.set(po.supplierId, s);
+    }
+    const suppliers = [...bySupplier.values()]
+      .sort((a, b) => b.debtTotal - a.debtTotal || b.purchaseTotal - a.purchaseTotal)
+      .slice(0, limit);
+    res.json({
+      status: "ok",
+      data: {
+        period: { preset: period.preset, from: period.fromLabel, to: period.toLabel },
+        scope,
+        scopeNote: scope === "own"
+          ? "Phạm vi cá nhân: chỉ tính đơn nhập do bạn tạo."
+          : "Phạm vi toàn hệ thống.",
+        note: "Chỉ tính đơn nhập confirmed/completed tạo trong khoảng (đơn nháp và đơn hủy không tính). Tiền nhập là Σ grandTotal snapshot, đã trả là Σ paidTotal snapshot của cùng các đơn (quy về ngày tạo đơn, không phải ngày tạo thanh toán). Nợ là tổng các debtTotal dương, tiền thừa âm báo riêng và không trừ vào nợ — cùng quy tắc với báo cáo công nợ bán hàng. Ngày theo ngày UTC (ngày đổi lúc 07:00 giờ Việt Nam).",
+        totals: {
+          purchaseTotal,
+          paidTotal,
+          debtOwing,
+          credit,
+          netDebt: debtOwing - credit,
+          poCount: pos.length,
+          supplierCount: bySupplier.size,
+        },
+        byPaymentStatus: [...byStatus.entries()].map(([paymentStatus, v]) => ({ paymentStatus, ...v })),
+        suppliers,
+      },
+    });
+  } catch (err) {
+    handleError(res, err);
+  }
+});
+
+/* ------------------------------------------------------------------ */
 /* GET /api/reports/inventory                                         */
 /* ------------------------------------------------------------------ */
 

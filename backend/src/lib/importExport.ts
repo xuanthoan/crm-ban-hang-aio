@@ -18,6 +18,7 @@
 import { parseAttributesCell, parsePriceCell, splitListCell } from "./csv";
 import { isValidPhoneNormalized, normalizePhone, normalizePhoneList } from "./customers";
 import { combinationName, normalizeSku, resolveAutoSku, variantSkuBase } from "./products";
+import { normalizePhoneList as normalizeSupplierPhoneList } from "./suppliers";
 
 /** Limits (also enforced in the route, before any row is processed). */
 export const MAX_IMPORT_ROWS = 1000;
@@ -35,6 +36,16 @@ export interface ValidatedCustomerRow {
   source: string | null;
   tags: string[];
   status: "active" | "inactive";
+  note: string | null;
+  errors: string[];
+}
+
+export interface ValidatedSupplierRow {
+  rowNumber: number;
+  name: string;
+  phones: { phone: string; phoneNormalized: string; label: string | null; isPrimary: boolean }[];
+  address: string | null;
+  taxCode: string | null;
   note: string | null;
   errors: string[];
 }
@@ -150,8 +161,41 @@ export function validateProductRow(row: Record<string, string>, rowNumber: numbe
   };
 }
 
-/** Detect in-file duplicate phones across customer rows (normalized). */
-export function findInFilePhoneDuplicates(rows: ValidatedCustomerRow[]): Map<string, number[]> {
+/**
+ * Validate one supplier CSV row (columns: name, phones, address,
+ * tax_code, note). Phones are separated by ';' or '|' and normalized
+ * with the supplier phone rules (lib/suppliers.ts): unlimited phones,
+ * exactly one primary (the first phone when none is marked), in-row
+ * duplicates blocked. Name is mandatory; a row with no phones is
+ * valid (a supplier needs a name, not a phone — same rule as the
+ * supplier create API). Tax code is stored trimmed-or-null; its
+ * uniqueness is checked by the route layer, not here.
+ */
+export function validateSupplierRow(row: Record<string, string>, rowNumber: number): ValidatedSupplierRow {
+  const errors: string[] = [];
+  const name = (row.name ?? "").trim();
+  if (!name) errors.push("Tên nhà cung cấp (name) không được để trống.");
+  const phoneList = splitListCell(row.phones);
+  const normalized = normalizeSupplierPhoneList(phoneList.map((phone) => ({ phone })));
+  if (normalized.error) errors.push(normalized.error);
+  return {
+    rowNumber,
+    name,
+    phones: normalized.phones,
+    address: (row.address ?? "").trim() || null,
+    taxCode: (row.tax_code ?? "").trim() || null,
+    note: (row.note ?? "").trim() || null,
+    errors,
+  };
+}
+
+/**
+ * Detect in-file duplicate phones across rows (normalized). Works for
+ * customer and supplier rows alike — both carry the same phone shape.
+ */
+export function findInFilePhoneDuplicates(
+  rows: { rowNumber: number; phones: { phoneNormalized: string }[] }[],
+): Map<string, number[]> {
   const byPhone = new Map<string, number[]>();
   for (const row of rows) {
     for (const phone of row.phones) {
@@ -162,6 +206,20 @@ export function findInFilePhoneDuplicates(rows: ValidatedCustomerRow[]): Map<str
   }
   const dup = new Map<string, number[]>();
   for (const [phone, lines] of byPhone) if (lines.length > 1) dup.set(phone, lines);
+  return dup;
+}
+
+/** Detect in-file duplicate tax codes across supplier rows (non-empty only). */
+export function findInFileTaxCodeDuplicates(rows: ValidatedSupplierRow[]): Map<string, number[]> {
+  const byTax = new Map<string, number[]>();
+  for (const row of rows) {
+    if (!row.taxCode) continue;
+    const list = byTax.get(row.taxCode) ?? [];
+    list.push(row.rowNumber);
+    byTax.set(row.taxCode, list);
+  }
+  const dup = new Map<string, number[]>();
+  for (const [tax, lines] of byTax) if (lines.length > 1) dup.set(tax, lines);
   return dup;
 }
 
