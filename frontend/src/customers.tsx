@@ -396,19 +396,19 @@ export default function CustomersPage({ token, permissions }: { token: string; p
         Một khách có thể có bao nhiêu số cũng được, đúng 1 số chính. Trùng bất kỳ số nào với khách khác đều bị chặn ở backend
         và báo rõ khách đã có số đó.
       </p>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
-      {info && <p className="rounded border border-green-300 bg-green-50 p-3 text-green-800">{info}</p>}
+      {error && <p className="alert-error">{error}</p>}
+      {info && <p className="alert-success">{info}</p>}
 
       {view === "list" && (
         <>
           <div className="flex flex-wrap items-end gap-2">
             <label className="block">
               Tìm theo tên hoặc số
-              <input className="mt-1 w-full rounded border p-2" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên, 0987…, +84…" />
+              <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên, 0987…, +84…" />
             </label>
             <label className="block">
               Tag
-              <select className="mt-1 rounded border p-2" value={tagId} onChange={(e) => setTagId(e.target.value)}>
+              <select className="input" value={tagId} onChange={(e) => setTagId(e.target.value)}>
                 <option value="">Tất cả tag</option>
                 {tags.map((t) => (
                   <option key={t.id} value={t.id}>{t.name}</option>
@@ -417,22 +417,22 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             </label>
             <label className="block">
               Trạng thái
-              <select className="mt-1 rounded border p-2" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="">Tất cả</option>
                 <option value="active">Đang hoạt động</option>
                 <option value="inactive">Ngừng hoạt động</option>
               </select>
             </label>
-            <button onClick={() => loadCustomers(1)} className="rounded bg-blue-600 px-4 py-2 text-white">Tìm</button>
+            <button onClick={() => loadCustomers(1)} className="btn btn-primary">Tìm</button>
             {canCreate && (
-              <button onClick={openCreate} className="rounded border px-4 py-2">+ Tạo khách hàng</button>
+              <button onClick={openCreate} className="btn btn-secondary">+ Tạo khách hàng</button>
             )}
           </div>
           {loading && <p>Đang tải…</p>}
           <p className="text-sm text-gray-500">Tổng: {total} khách hàng · Trang {page}/{totalPages}</p>
           <ul className="space-y-2">
             {customers.map((c) => (
-              <li key={c.id} className="rounded border p-3">
+              <li key={c.id} className="card-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <strong>{c.fullName || "(chưa có tên)"}</strong>
@@ -444,9 +444,9 @@ export default function CustomersPage({ token, permissions }: { token: string; p
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => openDetail(c.id)} className="rounded border px-3 py-1">Xem</button>
+                    <button onClick={() => openDetail(c.id)} className="btn btn-sm btn-secondary">Xem</button>
                     {canDeactivate && c.status === "active" && (
-                      <button onClick={() => handleDeactivate(c.id)} className="rounded border px-3 py-1">Ngừng hoạt động</button>
+                      <button onClick={() => handleDeactivate(c.id)} className="btn btn-sm btn-secondary">Ngừng hoạt động</button>
                     )}
                   </div>
                 </div>
@@ -455,16 +455,16 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             {customers.length === 0 && !loading && <li className="text-gray-500">Chưa có khách hàng nào khớp bộ lọc.</li>}
           </ul>
           <div className="flex gap-2">
-            <button disabled={page <= 1} onClick={() => loadCustomers(page - 1)} className="rounded border px-4 py-2 disabled:opacity-50">Trang trước</button>
-            <button disabled={page >= totalPages} onClick={() => loadCustomers(page + 1)} className="rounded border px-4 py-2 disabled:opacity-50">Trang sau</button>
+            <button disabled={page <= 1} onClick={() => loadCustomers(page - 1)} className="btn btn-secondary disabled:opacity-50">Trang trước</button>
+            <button disabled={page >= totalPages} onClick={() => loadCustomers(page + 1)} className="btn btn-secondary disabled:opacity-50">Trang sau</button>
           </div>
         </>
       )}
 
       {view === "detail" && detail && (
         <div className="space-y-4">
-          <button onClick={() => { setView("list"); loadCustomers(page); }} className="rounded border px-3 py-1">← Về danh sách</button>
-          <div className="rounded border p-4">
+          <button onClick={() => { setView("list"); loadCustomers(page); }} className="btn btn-sm btn-secondary">← Về danh sách</button>
+          <div className="card">
             <h3 className="text-lg font-semibold">{detail.fullName || "(chưa có tên)"}</h3>
             <p className="text-sm text-gray-600">
               {detail.gender ? `Giới tính: ${detail.gender} · ` : ""}
@@ -477,17 +477,17 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             {detail.note && <p className="mt-2 text-sm">Ghi chú: {detail.note}</p>}
             <p className="mt-2 text-sm text-gray-500">Tag: {detail.tags.map((t) => t.name).join(", ") || "Chưa có tag"}</p>
             <div className="mt-3 flex gap-2">
-              {canUpdate && <button onClick={() => openEdit(detail)} className="rounded bg-blue-600 px-4 py-2 text-white">Sửa</button>}
+              {canUpdate && <button onClick={() => openEdit(detail)} className="btn btn-primary">Sửa</button>}
               {canDeactivate && detail.status === "active" && (
-                <button onClick={() => handleDeactivate(detail.id)} className="rounded border px-4 py-2">Ngừng hoạt động</button>
+                <button onClick={() => handleDeactivate(detail.id)} className="btn btn-secondary">Ngừng hoạt động</button>
               )}
               {canHardDelete && (
-                <button onClick={() => handleHardDelete(detail.id)} className="rounded border px-4 py-2 text-red-700">Xóa cứng (chỉ khi chưa có dữ liệu liên quan)</button>
+                <button onClick={() => handleHardDelete(detail.id)} className="btn btn-secondary text-red-700">Xóa cứng (chỉ khi chưa có dữ liệu liên quan)</button>
               )}
             </div>
           </div>
 
-          <div className="rounded border p-4">
+          <div className="card">
             <h4 className="font-semibold">Số điện thoại ({detail.phones.length})</h4>
             <ul className="mt-2 space-y-2">
               {detail.phones.map((p) => (
@@ -496,10 +496,10 @@ export default function CustomersPage({ token, permissions }: { token: string; p
                   {p.label && <span className="text-gray-500">({p.label})</span>}
                   {p.isPrimary && <strong className="text-blue-700">[Số chính]</strong>}
                   {canUpdate && !p.isPrimary && (
-                    <button onClick={() => handleMakePrimary(p)} className="rounded border px-2 py-1 text-sm">Đặt làm số chính</button>
+                    <button onClick={() => handleMakePrimary(p)} className="btn btn-sm btn-secondary text-sm">Đặt làm số chính</button>
                   )}
                   {canUpdate && (
-                    <button onClick={() => handleDeletePhone(p)} className="rounded border px-2 py-1 text-sm">Xóa số</button>
+                    <button onClick={() => handleDeletePhone(p)} className="btn btn-sm btn-secondary text-sm">Xóa số</button>
                   )}
                 </li>
               ))}
@@ -507,7 +507,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             </ul>
           </div>
 
-          <div className="rounded border p-4">
+          <div className="card">
             <h4 className="font-semibold">Con cái ({detail.children.length})</h4>
             <ul className="mt-2 space-y-2">
               {detail.children.map((ch) => (
@@ -522,7 +522,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             </ul>
           </div>
 
-          <div className="rounded border p-4">
+          <div className="card">
             <h4 className="font-semibold">Đơn hàng và công nợ</h4>
             {canViewDebt && customerDebt ? (
               <>
@@ -545,7 +545,7 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             )}
           </div>
 
-          <div className="rounded border p-4">
+          <div className="card">
             <CustomerCareTab token={token} permissions={permissions} customerId={detail.id} />
           </div>
 
@@ -556,34 +556,34 @@ export default function CustomersPage({ token, permissions }: { token: string; p
       )}
 
       {view === "form" && (
-        <form onSubmit={handleSubmit} className="space-y-4 rounded border p-4">
+        <form onSubmit={handleSubmit} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa khách hàng" : "Tạo khách hàng mới"}</h3>
           <p className="text-sm text-gray-500">Họ tên hoặc ít nhất một số điện thoại là bắt buộc (theo docs 01).</p>
-          <label className="block">Họ tên<input className="mt-1 w-full rounded border p-2" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
+          <label className="block">Họ tên<input className="input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="block">Giới tính<select className="mt-1 w-full rounded border p-2" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+            <label className="block">Giới tính<select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
               {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
             </select></label>
-            <label className="block">Ngày sinh<input type="date" className="mt-1 w-full rounded border p-2" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
-            <label className="block">Email<input className="mt-1 w-full rounded border p-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-            <label className="block">Nguồn<input className="mt-1 w-full rounded border p-2" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
+            <label className="block">Ngày sinh<input type="date" className="input" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
+            <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+            <label className="block">Nguồn<input className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
           </div>
-          <label className="block">Địa chỉ<input className="mt-1 w-full rounded border p-2" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
-          <label className="block">Ghi chú<textarea className="mt-1 w-full rounded border p-2" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
+          <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
+          <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
 
           <div>
             <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
             {form.phones.map((p, i) => (
               <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
-                <input className="rounded border p-2" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
-                <input className="rounded border p-2" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: chính, phụ, Zalo…" />
+                <input className="field" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
+                <input className="field" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: chính, phụ, Zalo…" />
                 <label className="flex items-center gap-1">
                   <input type="radio" name="primary-phone" checked={p.isPrimary} onChange={() => setPrimary(i)} /> Số chính
                 </label>
-                <button type="button" onClick={() => removePhone(i)} className="rounded border px-2 py-1">Xóa số</button>
+                <button type="button" onClick={() => removePhone(i)} className="btn btn-sm btn-secondary">Xóa số</button>
               </div>
             ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 rounded border px-3 py-1">+ Thêm số điện thoại</button>
+            <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm số điện thoại</button>
           </div>
 
           <div>
@@ -605,8 +605,8 @@ export default function CustomersPage({ token, permissions }: { token: string; p
             </div>
             {canTagManage && (
               <div className="mt-2 flex gap-2">
-                <input className="rounded border p-2" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} placeholder="Tên tag mới" />
-                <button type="button" onClick={handleCreateTag} className="rounded border px-3 py-1">+ Tạo tag</button>
+                <input className="field" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} placeholder="Tên tag mới" />
+                <button type="button" onClick={handleCreateTag} className="btn btn-sm btn-secondary">+ Tạo tag</button>
               </div>
             )}
           </div>
@@ -614,22 +614,22 @@ export default function CustomersPage({ token, permissions }: { token: string; p
           <div>
             <h4 className="font-semibold">Con cái (không giới hạn số lượng)</h4>
             {form.children.map((ch, i) => (
-              <div key={i} className="mt-2 grid grid-cols-2 gap-2 rounded border p-2">
-                <label className="block col-span-2">Họ tên con<input className="mt-1 w-full rounded border p-2" value={ch.fullName} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, fullName: e.target.value } : x)) }))} /></label>
-                <label className="block">Ngày sinh<input type="date" className="mt-1 w-full rounded border p-2" value={ch.dateOfBirth} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: e.target.value } : x)) }))} /></label>
-                <label className="block">Giới tính<select className="mt-1 w-full rounded border p-2" value={ch.gender} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)) }))}>
+              <div key={i} className="mt-2 grid grid-cols-2 gap-2 card-sm">
+                <label className="block col-span-2">Họ tên con<input className="input" value={ch.fullName} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, fullName: e.target.value } : x)) }))} /></label>
+                <label className="block">Ngày sinh<input type="date" className="input" value={ch.dateOfBirth} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: e.target.value } : x)) }))} /></label>
+                <label className="block">Giới tính<select className="input" value={ch.gender} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)) }))}>
                   {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
                 </select></label>
-                <label className="block col-span-2">Ghi chú<input className="mt-1 w-full rounded border p-2" value={ch.note} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)) }))} /></label>
-                <button type="button" onClick={() => setForm((f) => ({ ...f, children: f.children.filter((_, j) => j !== i) }))} className="rounded border px-2 py-1">Xóa thông tin con</button>
+                <label className="block col-span-2">Ghi chú<input className="input" value={ch.note} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)) }))} /></label>
+                <button type="button" onClick={() => setForm((f) => ({ ...f, children: f.children.filter((_, j) => j !== i) }))} className="btn btn-sm btn-secondary">Xóa thông tin con</button>
               </div>
             ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, children: [...f.children, { fullName: "", dateOfBirth: "", gender: "", note: "" }] }))} className="mt-2 rounded border px-3 py-1">+ Thêm con</button>
+            <button type="button" onClick={() => setForm((f) => ({ ...f, children: [...f.children, { fullName: "", dateOfBirth: "", gender: "", note: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm con</button>
           </div>
 
           <div className="flex gap-2">
-            <button className="rounded bg-blue-600 px-4 py-2 text-white">{formId ? "Lưu thay đổi" : "Tạo khách hàng"}</button>
-            <button type="button" onClick={() => setView("list")} className="rounded border px-4 py-2">Hủy</button>
+            <button className="btn btn-primary">{formId ? "Lưu thay đổi" : "Tạo khách hàng"}</button>
+            <button type="button" onClick={() => setView("list")} className="btn btn-secondary">Hủy</button>
           </div>
         </form>
       )}

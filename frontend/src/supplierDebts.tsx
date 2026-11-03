@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { PAYMENT_STATUS_LABELS, isoToVnDate, labelFor } from "./labels";
+import { PAYMENT_STATUS_BADGES, PAYMENT_STATUS_LABELS, badgeFor, isoToVnDate, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -88,12 +88,12 @@ export default function SupplierDebtsPage({ token }: { token: string }) {
       <p className="text-sm font-semibold">Tổng nợ đang hiển thị (theo bộ lọc): {totalDebt.toLocaleString("vi-VN")} · {total} đơn</p>
       <div className="flex flex-wrap gap-2">
         <input
-          className="rounded border p-2"
+          className="field"
           placeholder="Tìm mã đơn / tên nhà cung cấp"
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(1); }}
         />
-        <select className="rounded border p-2" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+        <select className="field" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="">Tất cả trạng thái thanh toán</option>
           <option value="unpaid">Chưa thanh toán</option>
           <option value="partial">Thanh toán một phần</option>
@@ -102,27 +102,27 @@ export default function SupplierDebtsPage({ token }: { token: string }) {
           <input type="checkbox" checked={sortDebt} onChange={(e) => setSortDebt(e.target.checked)} /> Nợ lớn lên trước
         </label>
       </div>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
+      {error && <p className="alert-error">{error}</p>}
 
-      <div className="rounded border p-3">
+      <div className="card-sm">
         <h3 className="mb-2 font-semibold">Tổng nợ theo nhà cung cấp</h3>
         {perSupplier.length === 0 ? (
           <p className="text-sm text-gray-500">Không có nhà cung cấp nào còn nợ theo bộ lọc hiện tại.</p>
         ) : (
-          <table className="w-full border-collapse text-sm">
+          <table className="table">
             <thead>
               <tr className="border-b">
-                <th className="px-2 py-1 text-left">Nhà cung cấp</th>
-                <th className="px-2 py-1 text-left">Số đơn còn nợ</th>
-                <th className="px-2 py-1 text-left">Tổng nợ</th>
+                <th>Nhà cung cấp</th>
+                <th>Số đơn còn nợ</th>
+                <th>Tổng nợ</th>
               </tr>
             </thead>
             <tbody>
               {perSupplier.map((s) => (
                 <tr key={s.supplierId} className="border-b">
-                  <td className="px-2 py-1">{s.supplierName ?? "—"}</td>
-                  <td className="px-2 py-1">{s.poCount}</td>
-                  <td className="px-2 py-1">{s.totalDebt.toLocaleString("vi-VN")}đ</td>
+                  <td>{s.supplierName ?? "—"}</td>
+                  <td>{s.poCount}</td>
+                  <td>{s.totalDebt.toLocaleString("vi-VN")}đ</td>
                 </tr>
               ))}
             </tbody>
@@ -130,30 +130,30 @@ export default function SupplierDebtsPage({ token }: { token: string }) {
         )}
       </div>
 
-      <table className="w-full border-collapse text-sm">
+      <table className="table">
         <thead>
           <tr className="border-b">
-            <th className="px-2 py-1 text-left">Mã đơn</th>
-            <th className="px-2 py-1 text-left">Nhà cung cấp</th>
-            <th className="px-2 py-1 text-left">Trạng thái đơn</th>
-            <th className="px-2 py-1 text-left">Tổng tiền</th>
-            <th className="px-2 py-1 text-left">Đã trả</th>
-            <th className="px-2 py-1 text-left">Còn nợ</th>
-            <th className="px-2 py-1 text-left">Thanh toán</th>
-            <th className="px-2 py-1 text-left">Ngày tạo</th>
+            <th>Mã đơn</th>
+            <th>Nhà cung cấp</th>
+            <th>Trạng thái đơn</th>
+            <th>Tổng tiền</th>
+            <th>Đã trả</th>
+            <th>Còn nợ</th>
+            <th>Thanh toán</th>
+            <th>Ngày tạo</th>
           </tr>
         </thead>
         <tbody>
           {debts.map((d) => (
             <tr key={d.id} className="border-b">
-              <td className="px-2 py-1">{d.code}</td>
-              <td className="px-2 py-1">{d.supplierName ?? "—"}</td>
-              <td className="px-2 py-1">{d.status === "confirmed" ? "Đã nhận hàng" : d.status === "completed" ? "Hoàn thành" : d.status}</td>
-              <td className="px-2 py-1">{d.grandTotal.toLocaleString("vi-VN")}đ</td>
-              <td className="px-2 py-1">{d.paidTotal.toLocaleString("vi-VN")}đ</td>
-              <td className="px-2 py-1">{d.debtTotal.toLocaleString("vi-VN")}đ</td>
-              <td className="px-2 py-1">{labelFor(PAYMENT_STATUS_LABELS, d.paymentStatus)}</td>
-              <td className="px-2 py-1">{isoToVnDate(d.createdAt)}</td>
+              <td>{d.code}</td>
+              <td>{d.supplierName ?? "—"}</td>
+              <td>{d.status === "confirmed" ? "Đã nhận hàng" : d.status === "completed" ? "Hoàn thành" : d.status}</td>
+              <td>{d.grandTotal.toLocaleString("vi-VN")}đ</td>
+              <td>{d.paidTotal.toLocaleString("vi-VN")}đ</td>
+              <td>{d.debtTotal.toLocaleString("vi-VN")}đ</td>
+              <td><span className={badgeFor(PAYMENT_STATUS_BADGES, d.paymentStatus)}>{labelFor(PAYMENT_STATUS_LABELS, d.paymentStatus)}</span></td>
+              <td>{isoToVnDate(d.createdAt)}</td>
             </tr>
           ))}
           {debts.length === 0 && (
@@ -164,9 +164,9 @@ export default function SupplierDebtsPage({ token }: { token: string }) {
         </tbody>
       </table>
       <div className="flex items-center gap-2 text-sm">
-        <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border px-3 py-1 disabled:opacity-50">Trước</button>
+        <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trước</button>
         <span>Trang {page} / {Math.max(1, Math.ceil(total / 20))} (tổng {total})</span>
-        <button disabled={page >= Math.ceil(total / 20)} onClick={() => setPage(page + 1)} className="rounded border px-3 py-1 disabled:opacity-50">Sau</button>
+        <button disabled={page >= Math.ceil(total / 20)} onClick={() => setPage(page + 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Sau</button>
       </div>
     </section>
   );

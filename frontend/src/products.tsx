@@ -87,7 +87,7 @@ function PriceInput({ value, onChange, placeholder, className, disabled }: {
       type="text"
       inputMode="numeric"
       placeholder={placeholder}
-      className={className ?? "mt-1 w-full rounded border p-2"}
+      className={className ?? "input"}
       value={formatMoney(value)}
       onChange={(e) => onChange(parseMoney(e.target.value))}
       disabled={disabled}
@@ -343,37 +343,37 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
         Sản phẩm không có biến thể luôn có đúng 1 SKU mặc định. SKU trùng do bạn nhập sẽ bị chặn,
         SKU tự sinh trùng sẽ tự thêm hậu tố -002, -003…
       </p>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
-      {info && <p className="rounded border border-green-300 bg-green-50 p-3 text-green-800">{info}</p>}
+      {error && <p className="alert-error">{error}</p>}
+      {info && <p className="alert-success">{info}</p>}
 
       {view === "list" && (
         <>
           <div className="flex flex-wrap gap-2">
-            <input className="rounded border p-2" placeholder="Tìm tên sản phẩm, SKU, mã vạch…" value={q} onChange={(e) => setQ(e.target.value)} />
-            <select className="rounded border p-2" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+            <input className="field" placeholder="Tìm tên sản phẩm, SKU, mã vạch…" value={q} onChange={(e) => setQ(e.target.value)} />
+            <select className="field" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="">Tất cả danh mục</option>
               {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
-            <select className="rounded border p-2" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <select className="field" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
               <option value="">Tất cả trạng thái</option>
               <option value="active">Đang bán</option>
               <option value="inactive">Ngừng bán</option>
             </select>
-            <button onClick={() => { setPage(1); load(); }} className="rounded border px-4 py-2">Tìm</button>
-            {canCreate && <button onClick={() => { resetForm(); setView("form"); }} className="rounded bg-blue-600 px-4 py-2 text-white">Thêm sản phẩm</button>}
+            <button onClick={() => { setPage(1); load(); }} className="btn btn-secondary">Tìm</button>
+            {canCreate && <button onClick={() => { resetForm(); setView("form"); }} className="btn btn-primary">Thêm sản phẩm</button>}
           </div>
           {loading ? <p>Đang tải…</p> : (
             <>
               <p className="text-sm text-gray-500">Tổng: {total} sản phẩm — trang {page}/{totalPages}</p>
               <ul className="space-y-2">
                 {products.map((p) => (
-                  <li key={p.id} className="rounded border p-3">
+                  <li key={p.id} className="card-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <button onClick={() => openDetail(p.id)} className="text-left font-semibold text-blue-700">
                         {p.name} <span className="font-normal text-gray-500">({p.category?.name ?? "Chưa có danh mục"})</span>
                       </button>
                       <span className="text-sm text-gray-500">
-                        {p.status === "active" ? "Đang bán" : "Ngừng bán"} · {p.variantCount} SKU · Tồn: {p.totalStock}
+                        <span className={p.status === "active" ? "badge badge-green" : "badge badge-gray"}>{p.status === "active" ? "Đang bán" : "Ngừng bán"}</span> · {p.variantCount} SKU · Tồn: {p.totalStock}
                       </span>
                     </div>
                     <ul className="mt-2 space-y-1 text-sm">
@@ -381,22 +381,22 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                         <li key={v.id ?? v.sku}>
                           {v.sku} — {v.variantName} — {v.sellingPrice.toLocaleString("vi-VN")}đ
                           {canViewCost && v.importPrice !== null && v.importPrice !== undefined ? ` (nhập: ${Number(v.importPrice).toLocaleString("vi-VN")}đ)` : ""}
-                          {" · "}{v.status === "active" ? "Đang bán" : "Ngừng bán"} · Tồn: {v.stockQuantity ?? 0}
+                          {" · "}<span className={v.status === "active" ? "badge badge-green" : "badge badge-gray"}>{v.status === "active" ? "Đang bán" : "Ngừng bán"}</span> · Tồn: {v.stockQuantity ?? 0}
                           {v.isDefault ? " · Mặc định" : ""}
                         </li>
                       ))}
                       {p.variants.length > 5 && <li className="text-gray-500">… và {p.variants.length - 5} SKU khác (mở chi tiết để xem hết).</li>}
                     </ul>
                     <div className="mt-2 flex gap-2">
-                      {canUpdate && <button onClick={() => openEdit(p)} className="rounded border px-3 py-1">Sửa</button>}
-                      {canDeactivate && p.status === "active" && <button onClick={() => handleDeactivate(p.id)} className="rounded border px-3 py-1">Ngừng bán</button>}
+                      {canUpdate && <button onClick={() => openEdit(p)} className="btn btn-sm btn-secondary">Sửa</button>}
+                      {canDeactivate && p.status === "active" && <button onClick={() => handleDeactivate(p.id)} className="btn btn-sm btn-secondary">Ngừng bán</button>}
                     </div>
                   </li>
                 ))}
               </ul>
               <div className="flex gap-2">
-                <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border px-3 py-1 disabled:opacity-50">Trang trước</button>
-                <button disabled={page >= totalPages} onClick={() => setPage(page + 1)} className="rounded border px-3 py-1 disabled:opacity-50">Trang sau</button>
+                <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang trước</button>
+                <button disabled={page >= totalPages} onClick={() => setPage(page + 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang sau</button>
               </div>
             </>
           )}
@@ -404,8 +404,8 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
       )}
 
       {view === "detail" && detail && (
-        <div className="space-y-3 rounded border p-4">
-          <button onClick={() => setView("list")} className="rounded border px-3 py-1">← Danh sách</button>
+        <div className="space-y-3 card">
+          <button onClick={() => setView("list")} className="btn btn-sm btn-secondary">← Danh sách</button>
           <h3 className="text-lg font-semibold">{detail.name}</h3>
           <p className="text-sm text-gray-600">
             Danh mục: {detail.category?.name ?? "Chưa có"} · Trạng thái: {detail.status === "active" ? "Đang bán" : "Ngừng bán"} ·
@@ -415,104 +415,104 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
           <p className="text-sm text-gray-500">Tồn kho ban đầu được nhập ở Sprint Kho. Biến thể mới luôn bắt đầu với tồn 0 và chưa có transaction kho.</p>
           <table className="w-full text-sm">
             <thead><tr className="text-left">
-              <th className="border-b p-2">SKU</th><th className="border-b p-2">Biến thể</th>
-              <th className="border-b p-2">Giá bán</th>
-              {canViewCost && <th className="border-b p-2">Giá nhập</th>}
-              <th className="border-b p-2">Tồn</th><th className="border-b p-2">Trạng thái</th>
+              <th>SKU</th><th>Biến thể</th>
+              <th>Giá bán</th>
+              {canViewCost && <th>Giá nhập</th>}
+              <th>Tồn</th><th>Trạng thái</th>
             </tr></thead>
             <tbody>
               {detail.variants.map((v) => (
                 <tr key={v.id ?? v.sku}>
-                  <td className="border-b p-2">{v.sku}</td>
-                  <td className="border-b p-2">{v.variantName}{v.isDefault ? " (Mặc định)" : ""}</td>
-                  <td className="border-b p-2">{v.sellingPrice.toLocaleString("vi-VN")}đ</td>
-                  {canViewCost && <td className="border-b p-2">{v.importPrice !== null && v.importPrice !== undefined ? `${Number(v.importPrice).toLocaleString("vi-VN")}đ` : "—"}</td>}
-                  <td className="border-b p-2">{v.stockQuantity ?? 0}</td>
-                  <td className="border-b p-2">{v.status === "active" ? "Đang bán" : "Ngừng bán"}{v.isSellable === false ? " (không bán được)" : ""}</td>
+                  <td>{v.sku}</td>
+                  <td>{v.variantName}{v.isDefault ? " (Mặc định)" : ""}</td>
+                  <td>{v.sellingPrice.toLocaleString("vi-VN")}đ</td>
+                  {canViewCost && <td>{v.importPrice !== null && v.importPrice !== undefined ? `${Number(v.importPrice).toLocaleString("vi-VN")}đ` : "—"}</td>}
+                  <td>{v.stockQuantity ?? 0}</td>
+                  <td><span className={v.status === "active" ? "badge badge-green" : "badge badge-gray"}>{v.status === "active" ? "Đang bán" : "Ngừng bán"}</span>{v.isSellable === false ? " (không bán được)" : ""}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="flex gap-2">
-            {canUpdate && <button onClick={() => openEdit(detail)} className="rounded border px-3 py-1">Sửa sản phẩm</button>}
-            {canDeactivate && detail.status === "active" && <button onClick={() => handleDeactivate(detail.id)} className="rounded border px-3 py-1">Ngừng bán</button>}
+            {canUpdate && <button onClick={() => openEdit(detail)} className="btn btn-sm btn-secondary">Sửa sản phẩm</button>}
+            {canDeactivate && detail.status === "active" && <button onClick={() => handleDeactivate(detail.id)} className="btn btn-sm btn-secondary">Ngừng bán</button>}
           </div>
         </div>
       )}
 
       {view === "form" && (
-        <form onSubmit={handleSave} className="space-y-4 rounded border p-4">
+        <form onSubmit={handleSave} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa sản phẩm" : "Thêm sản phẩm"}</h3>
           <label className="block">Tên sản phẩm *
-            <input className="mt-1 w-full rounded border p-2" value={name} onChange={(e) => { clearCustomValidity(e); setName(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tên sản phẩm." }))} required />
+            <input className="input" value={name} onChange={(e) => { clearCustomValidity(e); setName(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tên sản phẩm." }))} required />
           </label>
           <label className="block">Mô tả
-            <textarea className="mt-1 w-full rounded border p-2" value={description} onChange={(e) => setDescription(e.target.value)} />
+            <textarea className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
           </label>
           <div className="flex gap-2">
             <label className="block flex-1">Danh mục có sẵn
-              <select className="mt-1 w-full rounded border p-2" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
                 <option value="">— Chưa chọn —</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
             <label className="block flex-1">Hoặc danh mục mới
-              <input className="mt-1 w-full rounded border p-2" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="VD: Sách thiếu nhi" />
+              <input className="input" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="VD: Sách thiếu nhi" />
             </label>
           </div>
           <label className="block">Trạng thái
-            <select className="mt-1 rounded border p-2" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="active">Đang bán</option>
               <option value="inactive">Ngừng bán</option>
             </select>
           </label>
 
           <div className="flex gap-2">
-            <button type="button" onClick={() => setMode("simple")} className={`rounded border px-3 py-1 ${mode === "simple" ? "bg-blue-100" : ""}`}>Không có biến thể (1 SKU mặc định)</button>
-            <button type="button" onClick={() => setMode("variants")} className={`rounded border px-3 py-1 ${mode === "variants" ? "bg-blue-100" : ""}`}>Có biến thể</button>
+            <button type="button" onClick={() => setMode("simple")} className={`btn btn-sm btn-secondary ${mode === "simple" ? "bg-blue-100" : ""}`}>Không có biến thể (1 SKU mặc định)</button>
+            <button type="button" onClick={() => setMode("variants")} className={`btn btn-sm btn-secondary ${mode === "variants" ? "bg-blue-100" : ""}`}>Có biến thể</button>
           </div>
 
           {mode === "simple" && (
-            <fieldset className="space-y-2 rounded border p-3">
+            <fieldset className="space-y-2 card-sm">
               <legend className="font-semibold">SKU mặc định</legend>
               <p className="text-sm text-gray-500">Để trống mã SKU để hệ thống tự sinh từ tên sản phẩm. Mã bạn tự nhập mà trùng sẽ bị chặn, không tự đổi.</p>
-              <label className="block">Mã SKU <input className="mt-1 w-full rounded border p-2" value={defaultVariant.sku} onChange={(e) => setDefaultVariant({ ...defaultVariant, sku: e.target.value })} /></label>
-              <label className="block">Tên biến thể <input className="mt-1 w-full rounded border p-2" value={defaultVariant.variantName} onChange={(e) => setDefaultVariant({ ...defaultVariant, variantName: e.target.value })} placeholder="Mặc định" /></label>
+              <label className="block">Mã SKU <input className="input" value={defaultVariant.sku} onChange={(e) => setDefaultVariant({ ...defaultVariant, sku: e.target.value })} /></label>
+              <label className="block">Tên biến thể <input className="input" value={defaultVariant.variantName} onChange={(e) => setDefaultVariant({ ...defaultVariant, variantName: e.target.value })} placeholder="Mặc định" /></label>
               <label className="block">Giá bán <PriceInput value={defaultVariant.sellingPrice} onChange={(v) => setDefaultVariant({ ...defaultVariant, sellingPrice: v ?? 0 })} disabled={!canUpdatePrice && !formId && false} /></label>
               {canViewCost && (
                 <label className="block">Giá nhập <PriceInput value={defaultVariant.importPrice} onChange={(v) => setDefaultVariant({ ...defaultVariant, importPrice: v })} /></label>
               )}
-              <label className="block">Mã vạch <input className="mt-1 w-full rounded border p-2" value={defaultVariant.barcode} onChange={(e) => setDefaultVariant({ ...defaultVariant, barcode: e.target.value })} /></label>
+              <label className="block">Mã vạch <input className="input" value={defaultVariant.barcode} onChange={(e) => setDefaultVariant({ ...defaultVariant, barcode: e.target.value })} /></label>
             </fieldset>
           )}
 
           {mode === "variants" && (
             <div className="space-y-3">
-              <div className="space-y-2 rounded border p-3">
+              <div className="space-y-2 card-sm">
                 <h4 className="font-semibold">Nhóm thuộc tính (tối đa 3 nhóm)</h4>
                 {optionGroups.map((g, i) => (
                   <div key={i} className="flex gap-2">
-                    <input className="rounded border p-2" placeholder="Tên nhóm, VD: Màu sắc" value={g.name} onChange={(e) => setOptionGroups(optionGroups.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
-                    <input className="flex-1 rounded border p-2" placeholder="Các giá trị cách nhau bằng dấu phẩy, VD: Đen, Trắng" value={g.valuesText} onChange={(e) => setOptionGroups(optionGroups.map((x, j) => j === i ? { ...x, valuesText: e.target.value } : x))} />
-                    <button type="button" onClick={() => setOptionGroups(optionGroups.filter((_, j) => j !== i))} className="rounded border px-2">Xóa</button>
+                    <input className="input" placeholder="Tên nhóm, VD: Màu sắc" value={g.name} onChange={(e) => setOptionGroups(optionGroups.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} />
+                    <input className="flex-1 input" placeholder="Các giá trị cách nhau bằng dấu phẩy, VD: Đen, Trắng" value={g.valuesText} onChange={(e) => setOptionGroups(optionGroups.map((x, j) => j === i ? { ...x, valuesText: e.target.value } : x))} />
+                    <button type="button" onClick={() => setOptionGroups(optionGroups.filter((_, j) => j !== i))} className="btn btn-sm btn-secondary">Xóa</button>
                   </div>
                 ))}
                 {optionGroups.length < 3 && (
-                  <button type="button" onClick={() => setOptionGroups([...optionGroups, { name: "", valuesText: "" }])} className="rounded border px-3 py-1">+ Thêm nhóm thuộc tính</button>
+                  <button type="button" onClick={() => setOptionGroups([...optionGroups, { name: "", valuesText: "" }])} className="btn btn-sm btn-secondary">+ Thêm nhóm thuộc tính</button>
                 )}
-                <button type="button" onClick={generateRows} className="rounded bg-blue-600 px-3 py-1 text-white">Sinh tổ hợp biến thể</button>
+                <button type="button" onClick={generateRows} className="btn btn-sm btn-primary">Sinh tổ hợp biến thể</button>
               </div>
 
               {manualVariants.length > 0 && (
-                <div className="space-y-2 rounded border p-3">
+                <div className="space-y-2 card-sm">
                   <h4 className="font-semibold">Bảng biến thể ({manualVariants.length} SKU, tối đa 200)</h4>
                   <div className="flex gap-2">
-                    <input type="text" inputMode="numeric" className="rounded border p-2" placeholder="Giá bán áp dụng tất cả" value={bulkSelling} onChange={(e) => { const n = parseMoney(e.target.value); setBulkSelling(n === null ? "" : formatMoney(n)); }} />
-                    {canViewCost && <input type="text" inputMode="numeric" className="rounded border p-2" placeholder="Giá nhập áp dụng tất cả" value={bulkImport} onChange={(e) => { const n = parseMoney(e.target.value); setBulkImport(n === null ? "" : formatMoney(n)); }} />}
-                    <button type="button" onClick={applyBulk} className="rounded border px-3 py-1">Áp dụng cho tất cả</button>
+                    <input type="text" inputMode="numeric" className="input" placeholder="Giá bán áp dụng tất cả" value={bulkSelling} onChange={(e) => { const n = parseMoney(e.target.value); setBulkSelling(n === null ? "" : formatMoney(n)); }} />
+                    {canViewCost && <input type="text" inputMode="numeric" className="input" placeholder="Giá nhập áp dụng tất cả" value={bulkImport} onChange={(e) => { const n = parseMoney(e.target.value); setBulkImport(n === null ? "" : formatMoney(n)); }} />}
+                    <button type="button" onClick={applyBulk} className="btn btn-sm btn-secondary">Áp dụng cho tất cả</button>
                   </div>
                   {manualVariants.map((v, i) => (
-                    <div key={i} className="flex flex-wrap gap-2 rounded border p-2">
+                    <div key={i} className="flex flex-wrap gap-2 card-sm">
                       <span className="w-40 font-medium">{v.variantName}</span>
                       <input className="rounded border p-1" placeholder="SKU (để trống = tự sinh)" value={v.sku} onChange={(e) => setManualVariants(manualVariants.map((x, j) => j === i ? { ...x, sku: e.target.value } : x))} />
                       <PriceInput className="w-28 rounded border p-1" placeholder="Giá bán" value={v.sellingPrice} onChange={(n) => setManualVariants(manualVariants.map((x, j) => j === i ? { ...x, sellingPrice: n ?? 0 } : x))} />
@@ -521,7 +521,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                         <option value="active">Đang bán</option>
                         <option value="inactive">Ngừng bán</option>
                       </select>
-                      <button type="button" onClick={() => setManualVariants(manualVariants.filter((_, j) => j !== i))} className="rounded border px-2">Xóa dòng</button>
+                      <button type="button" onClick={() => setManualVariants(manualVariants.filter((_, j) => j !== i))} className="btn btn-sm btn-secondary">Xóa dòng</button>
                     </div>
                   ))}
                 </div>
@@ -530,8 +530,8 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
           )}
 
           <div className="flex gap-2">
-            <button className="rounded bg-blue-600 px-4 py-2 text-white">Lưu sản phẩm</button>
-            <button type="button" onClick={() => setView("list")} className="rounded border px-4 py-2">Hủy</button>
+            <button className="btn btn-primary">Lưu sản phẩm</button>
+            <button type="button" onClick={() => setView("list")} className="btn btn-secondary">Hủy</button>
           </div>
         </form>
       )}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ORDER_STATUS_LABELS, PAYMENT_RECORD_LABELS, PAYMENT_STATUS_LABELS, isoToVnDate, labelFor } from "./labels";
+import { ORDER_STATUS_BADGES, ORDER_STATUS_LABELS, PAYMENT_RECORD_LABELS, PAYMENT_STATUS_BADGES, PAYMENT_STATUS_LABELS, badgeFor, isoToVnDate, labelFor } from "./labels";
 import { clearCustomValidity, invalidMessage } from "./validity";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -465,12 +465,12 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
         MVP chỉ có 4 trạng thái: nháp / đã xác nhận / hoàn thành / đã hủy. Đơn nháp giữ tồn (tồn khả dụng = tồn vật lý − tồn đang giữ);
         xác nhận mới trừ kho thật và chỉ trừ 1 lần. Trả hàng một phần hoàn kho và tính lại tổng tiền, trạng thái đơn giữ nguyên.
       </p>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
-      {info && <p className="rounded border border-green-300 bg-green-50 p-3 text-green-800">{info}</p>}
+      {error && <p className="alert-error">{error}</p>}
+      {info && <p className="alert-success">{info}</p>}
 
       <div className="flex flex-wrap gap-2">
-        <input className="rounded border p-2" placeholder="Tìm mã đơn / tên khách" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
-        <select className="rounded border p-2" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+        <input className="field" placeholder="Tìm mã đơn / tên khách" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <select className="field" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="">Tất cả trạng thái</option>
           <option value="draft">Nháp</option>
           <option value="confirmed">Đã xác nhận</option>
@@ -478,45 +478,45 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
           <option value="cancelled">Đã hủy</option>
         </select>
         {canCreate && (
-          <button onClick={openCreate} className="rounded bg-blue-600 px-4 py-2 text-white">+ Tạo đơn nháp</button>
+          <button onClick={openCreate} className="btn btn-primary">+ Tạo đơn nháp</button>
         )}
       </div>
 
-      <table className="w-full border-collapse text-sm">
+      <table className="table">
         <thead>
           <tr className="border-b text-left">
-            <th className="p-2">Mã đơn</th>
-            <th className="p-2">Khách hàng</th>
-            <th className="p-2">Trạng thái</th>
-            <th className="p-2">Tổng tiền</th>
-            <th className="p-2">Còn nợ</th>
-            <th className="p-2">Dòng</th>
+            <th>Mã đơn</th>
+            <th>Khách hàng</th>
+            <th>Trạng thái</th>
+            <th>Tổng tiền</th>
+            <th>Còn nợ</th>
+            <th>Dòng</th>
           </tr>
         </thead>
         <tbody>
           {orders.map((o) => (
             <tr key={o.id} className="cursor-pointer border-b hover:bg-gray-50" onClick={() => openDetail(o.id)}>
-              <td className="p-2 font-medium">{o.orderCode}</td>
-              <td className="p-2">{o.customerName ?? o.customerId}</td>
-              <td className="p-2">{labelFor(ORDER_STATUS_LABELS, o.status)}</td>
-              <td className="p-2">{o.grandTotal.toLocaleString("vi-VN")}</td>
-              <td className="p-2">{o.debtTotal.toLocaleString("vi-VN")}</td>
-              <td className="p-2">{o.itemsCount ?? o.items?.length ?? 0}</td>
+              <td className="font-medium">{o.orderCode}</td>
+              <td>{o.customerName ?? o.customerId}</td>
+              <td><span className={badgeFor(ORDER_STATUS_BADGES, o.status)}>{labelFor(ORDER_STATUS_LABELS, o.status)}</span></td>
+              <td>{o.grandTotal.toLocaleString("vi-VN")}</td>
+              <td>{o.debtTotal.toLocaleString("vi-VN")}</td>
+              <td>{o.itemsCount ?? o.items?.length ?? 0}</td>
             </tr>
           ))}
           {orders.length === 0 && (
-            <tr><td className="p-2 text-gray-500" colSpan={6}>Chưa có đơn hàng nào.</td></tr>
+            <tr><td className="text-gray-500" colSpan={6}>Chưa có đơn hàng nào.</td></tr>
           )}
         </tbody>
       </table>
       <div className="flex gap-2">
-        <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border px-3 py-1 disabled:opacity-50">Trang trước</button>
+        <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang trước</button>
         <span className="py-1 text-sm">Trang {page} / {Math.max(1, Math.ceil(total / 20))} ({total} đơn)</span>
-        <button disabled={page >= Math.ceil(total / 20)} onClick={() => setPage(page + 1)} className="rounded border px-3 py-1 disabled:opacity-50">Trang sau</button>
+        <button disabled={page >= Math.ceil(total / 20)} onClick={() => setPage(page + 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang sau</button>
       </div>
 
       {detail && (
-        <div className="rounded border p-4">
+        <div className="card">
           <h3 className="text-base font-semibold">Đơn {detail.orderCode} — {labelFor(ORDER_STATUS_LABELS, detail.status)}</h3>
           <p className="text-sm text-gray-600">
             Khách: {detail.customerName} · Tổng: {detail.grandTotal.toLocaleString("vi-VN")} (hàng {detail.subtotal.toLocaleString("vi-VN")}
@@ -528,28 +528,28 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
             Đã trừ kho: {detail.inventoryDeducted ? "Có" : "Chưa"} · Đã hoàn kho: {detail.inventoryRestored ? "Có" : "Chưa"}
             {detail.note && ` · Ghi chú: ${detail.note}`}
           </p>
-          <table className="mt-3 w-full border-collapse text-sm">
+          <table className="mt-3 table">
             <thead>
               <tr className="border-b text-left">
-                <th className="p-2">SKU</th>
-                <th className="p-2">Sản phẩm / Biến thể (snapshot)</th>
-                <th className="p-2">Đơn giá</th>
-                <th className="p-2">SL</th>
-                <th className="p-2">Đã trả</th>
-                <th className="p-2">Còn trả được</th>
-                <th className="p-2">Thành tiền</th>
+                <th>SKU</th>
+                <th>Sản phẩm / Biến thể (snapshot)</th>
+                <th>Đơn giá</th>
+                <th>SL</th>
+                <th>Đã trả</th>
+                <th>Còn trả được</th>
+                <th>Thành tiền</th>
               </tr>
             </thead>
             <tbody>
               {(detail.items ?? []).map((i) => (
                 <tr key={i.id} className="border-b">
-                  <td className="p-2">{i.skuSnapshot}</td>
-                  <td className="p-2">{i.productNameSnapshot} / {i.variantNameSnapshot}</td>
-                  <td className="p-2">{i.unitPrice.toLocaleString("vi-VN")}</td>
-                  <td className="p-2">{i.quantity}</td>
-                  <td className="p-2">{i.returnedQuantity}</td>
-                  <td className="p-2">{i.remainingQuantity}</td>
-                  <td className="p-2">{i.lineTotal.toLocaleString("vi-VN")}</td>
+                  <td>{i.skuSnapshot}</td>
+                  <td>{i.productNameSnapshot} / {i.variantNameSnapshot}</td>
+                  <td>{i.unitPrice.toLocaleString("vi-VN")}</td>
+                  <td>{i.quantity}</td>
+                  <td>{i.returnedQuantity}</td>
+                  <td>{i.remainingQuantity}</td>
+                  <td>{i.lineTotal.toLocaleString("vi-VN")}</td>
                 </tr>
               ))}
             </tbody>
@@ -557,13 +557,13 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
 
           <div className="mt-3 flex flex-wrap gap-2">
             {detail.status === "draft" && canUpdateDraft && (
-              <button onClick={() => openEditDraft(detail)} className="rounded border px-4 py-2">Sửa đơn nháp</button>
+              <button onClick={() => openEditDraft(detail)} className="btn btn-secondary">Sửa đơn nháp</button>
             )}
             {detail.status === "draft" && canConfirm && (
-              <button disabled={busy} onClick={() => doAction("confirm")} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">Xác nhận (trừ kho)</button>
+              <button disabled={busy} onClick={() => doAction("confirm")} className="btn btn-primary disabled:opacity-50">Xác nhận (trừ kho)</button>
             )}
             {detail.status === "confirmed" && canComplete && (
-              <button disabled={busy} onClick={() => doAction("complete")} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">Hoàn thành</button>
+              <button disabled={busy} onClick={() => doAction("complete")} className="btn btn-primary disabled:opacity-50">Hoàn thành</button>
             )}
             {(detail.status === "draft" || detail.status === "confirmed") && canCancel && (
               <button disabled={busy} onClick={() => doAction("cancel")} className="rounded border border-red-300 px-4 py-2 text-red-700 disabled:opacity-50">Hủy đơn</button>
@@ -571,7 +571,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
           </div>
 
           {(detail.status === "confirmed" || detail.status === "completed") && canReturn && (
-            <div className="mt-4 rounded border p-3">
+            <div className="mt-4 card-sm">
               <h4 className="font-semibold">Trả hàng một phần</h4>
               <p className="text-sm text-gray-600">Nhập số lượng trả cho từng dòng (không vượt số còn trả được) và lý do bắt buộc. Trả hết mọi dòng thì cờ fullyReturned bật nhưng trạng thái đơn giữ nguyên.</p>
               {(detail.items ?? []).map((i) => (
@@ -589,17 +589,17 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
               ))}
               <label className="mt-2 block text-sm">
                 Lý do trả hàng (bắt buộc)
-                <input className="mt-1 w-full rounded border p-2" value={returnReason} onChange={(e) => setReturnReason(e.target.value)} />
+                <input className="input" value={returnReason} onChange={(e) => setReturnReason(e.target.value)} />
               </label>
-              <button disabled={busy} onClick={doReturn} className="mt-2 rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">Xác nhận trả hàng</button>
+              <button disabled={busy} onClick={doReturn} className="mt-2 btn btn-primary disabled:opacity-50">Xác nhận trả hàng</button>
             </div>
           )}
 
           {canViewPayments && (
-            <div className="mt-4 rounded border p-3">
+            <div className="mt-4 card-sm">
               <h4 className="font-semibold">Thanh toán</h4>
               <p className="text-sm text-gray-600">
-                Đã thu: {detail.paidTotal.toLocaleString("vi-VN")} · Còn nợ: {detail.debtTotal.toLocaleString("vi-VN")} · Trạng thái: {labelFor(PAYMENT_STATUS_LABELS, detail.paymentStatus)}
+                Đã thu: {detail.paidTotal.toLocaleString("vi-VN")} · Còn nợ: {detail.debtTotal.toLocaleString("vi-VN")} · Trạng thái: <span className={badgeFor(PAYMENT_STATUS_BADGES, detail.paymentStatus)}>{labelFor(PAYMENT_STATUS_LABELS, detail.paymentStatus)}</span>
                 {detail.debtTotal < 0 && ` · Đơn đang thừa tiền ${Math.abs(detail.debtTotal).toLocaleString("vi-VN")} (tiền thừa cần hoàn — hoàn tiền chưa làm ở sprint này, không tạo thêm payment).`}
               </p>
               <ul className="mt-2 space-y-2 text-sm">
@@ -631,11 +631,11 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
                   <p className="text-sm text-gray-600">Chỉ thu cho đơn đã xác nhận hoặc đã hoàn thành. Số tiền không được vượt số còn nợ; backend kiểm tra lại trong cùng transaction.</p>
                   <label className="block text-sm">
                     Số tiền (đồng, số nguyên &gt; 0)
-                    <input type="text" inputMode="numeric" className="mt-1 w-full rounded border p-2" value={payAmount} onChange={(e) => setPayAmount(formatMoneyInput(e.target.value))} />
+                    <input type="text" inputMode="numeric" className="input" value={payAmount} onChange={(e) => setPayAmount(formatMoneyInput(e.target.value))} />
                   </label>
                   <label className="block text-sm">
                     Phương thức
-                    <select className="mt-1 w-full rounded border p-2" value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
+                    <select className="input" value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
                       <option value="cash">Tiền mặt</option>
                       <option value="bank_transfer">Chuyển khoản</option>
                       <option value="cod">COD</option>
@@ -644,9 +644,9 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
                   </label>
                   <label className="block text-sm">
                     Ghi chú
-                    <input className="mt-1 w-full rounded border p-2" value={payNote} onChange={(e) => setPayNote(e.target.value)} />
+                    <input className="input" value={payNote} onChange={(e) => setPayNote(e.target.value)} />
                   </label>
-                  <button disabled={payBusy || detail.debtTotal <= 0} onClick={createPayment} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">Ghi nhận payment</button>
+                  <button disabled={payBusy || detail.debtTotal <= 0} onClick={createPayment} className="btn btn-primary disabled:opacity-50">Ghi nhận payment</button>
                 </div>
               )}
             </div>
@@ -655,7 +655,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
       )}
 
       {showForm && (
-        <form onSubmit={submitForm} className="space-y-3 rounded border p-4">
+        <form onSubmit={submitForm} className="space-y-3 card">
           <h3 className="text-base font-semibold">{editingId ? "Sửa đơn nháp" : "Tạo đơn nháp mới"}</h3>
           <p className="text-sm text-gray-600">
             Đơn nháp giữ tồn: tạo/sửa đơn sẽ kiểm tra tồn khả dụng (tồn vật lý − tồn đang giữ) và chặn toàn bộ nếu thiếu.
@@ -664,7 +664,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
           {!editingId && (
             <label className="block">
               Khách hàng
-              <select className="mt-1 w-full rounded border p-2" value={customerId} onChange={(e) => { clearCustomValidity(e); setCustomerId(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng chọn khách hàng." }))} required>
+              <select className="input" value={customerId} onChange={(e) => { clearCustomValidity(e); setCustomerId(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng chọn khách hàng." }))} required>
                 <option value="">— Chọn khách hàng —</option>
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>{c.fullName}</option>
@@ -673,19 +673,19 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
             </label>
           )}
           <div className="flex gap-2">
-            <input className="flex-1 rounded border p-2" placeholder="Gõ để tìm SKU (mã / tên biến thể)" value={variantQuery} onChange={(e) => { setVariantQuery(e.target.value); latestQuery.current = e.target.value; }} />
-            <button type="button" onClick={() => void searchVariants()} className="rounded border px-4 py-2">Tìm SKU</button>
+            <input className="flex-1 input" placeholder="Gõ để tìm SKU (mã / tên biến thể)" value={variantQuery} onChange={(e) => { setVariantQuery(e.target.value); latestQuery.current = e.target.value; }} />
+            <button type="button" onClick={() => void searchVariants()} className="btn btn-secondary">Tìm SKU</button>
           </div>
           {variantSearched && variantOptions.length === 0 && (
             <p className="text-sm text-gray-500">Không tìm thấy SKU nào khớp từ khóa.</p>
           )}
           {variantOptions.length > 0 && (
-            <div className="rounded border p-2 text-sm">
+            <div className="card-sm text-sm">
               {variantOptions.map((v) => (
                 <button
                   key={v.id}
                   type="button"
-                  className="mr-2 mt-1 rounded border px-2 py-1"
+                  className="mr-2 mt-1 btn btn-sm btn-secondary"
                   onClick={() => {
                     setLines([...lines, { productVariantId: v.id, sku: v.sku, quantity: "1", unitPrice: formatMoney(v.sellingPrice), discountAmount: "" }]);
                     setVariantOptions([]);
@@ -700,7 +700,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
             </div>
           )}
           {lines.map((l, idx) => (
-            <div key={idx} className="flex flex-wrap items-end gap-2 rounded border p-2">
+            <div key={idx} className="flex flex-wrap items-end gap-2 card-sm">
               <span className="text-sm font-medium">{l.sku || "Dòng mới"}</span>
               <label className="text-sm">SL
                 <input type="number" min={1} step={1} className="ml-1 w-20 rounded border p-1" value={l.quantity} onChange={(e) => {
@@ -718,7 +718,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
                   const next = [...lines]; next[idx].discountAmount = formatMoneyInput(e.target.value); setLines(next);
                 }} />
               </label>
-              <button type="button" className="rounded border px-2 py-1 text-sm" onClick={() => setLines(lines.filter((_, i) => i !== idx))}>Xóa dòng</button>
+              <button type="button" className="btn btn-sm btn-secondary text-sm" onClick={() => setLines(lines.filter((_, i) => i !== idx))}>Xóa dòng</button>
             </div>
           ))}
           <div className="flex gap-2">
@@ -730,11 +730,11 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
             </label>
           </div>
           <label className="block text-sm">Ghi chú
-            <input className="mt-1 w-full rounded border p-2" value={note} onChange={(e) => setNote(e.target.value)} />
+            <input className="input" value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
           <div className="flex gap-2">
-            <button disabled={busy} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">{editingId ? "Lưu đơn nháp" : "Tạo đơn nháp (giữ tồn)"}</button>
-            <button type="button" onClick={() => setShowForm(false)} className="rounded border px-4 py-2">Hủy</button>
+            <button disabled={busy} className="btn btn-primary disabled:opacity-50">{editingId ? "Lưu đơn nháp" : "Tạo đơn nháp (giữ tồn)"}</button>
+            <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary">Hủy</button>
           </div>
         </form>
       )}

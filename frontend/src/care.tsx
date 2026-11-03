@@ -128,32 +128,32 @@ export function CustomerCareTab({ token, permissions, customerId }: { token: str
       {error && <p className="text-sm text-red-700">{error}</p>}
       {info && <p className="text-sm text-green-700">{info}</p>}
       {canCreate && (
-        <form onSubmit={handleSubmit} className="space-y-2 rounded border p-3">
+        <form onSubmit={handleSubmit} className="space-y-2 card-sm">
           <div className="grid grid-cols-3 gap-2">
             <label className="block text-sm">Loại
-              <select className="mt-1 w-full rounded border p-2" value={type} onChange={(e) => setType(e.target.value)}>
+              <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
                 {ACTIVITY_TYPES.map((t) => (<option key={t} value={t}>{labelFor(ACTIVITY_TYPE_LABELS, t)}</option>))}
               </select>
             </label>
             <label className="block text-sm">Kết quả (không bắt buộc)
-              <select className="mt-1 w-full rounded border p-2" value={result} onChange={(e) => setResult(e.target.value)}>
+              <select className="input" value={result} onChange={(e) => setResult(e.target.value)}>
                 <option value="">—</option>
                 {ACTIVITY_RESULTS.map((r) => (<option key={r} value={r}>{labelFor(ACTIVITY_RESULT_LABELS, r)}</option>))}
               </select>
             </label>
             <label className="block text-sm">Ngày thực hiện (mặc định hôm nay)
-              <input type="date" className="mt-1 w-full rounded border p-2" value={performedAt} onChange={(e) => setPerformedAt(e.target.value)} />
+              <input type="date" className="input" value={performedAt} onChange={(e) => setPerformedAt(e.target.value)} />
             </label>
           </div>
           <label className="block text-sm">Nội dung (bắt buộc)
-            <textarea className="mt-1 w-full rounded border p-2" value={content} onChange={(e) => { clearCustomValidity(e); setContent(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập nội dung." }))} required />
+            <textarea className="input" value={content} onChange={(e) => { clearCustomValidity(e); setContent(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập nội dung." }))} required />
           </label>
-          <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">Ghi hoạt động</button>
+          <button type="submit" className="btn btn-primary">Ghi hoạt động</button>
         </form>
       )}
       <ul className="space-y-2">
         {activities.map((a) => (
-          <li key={a.id} className="rounded border p-3 text-sm">
+          <li key={a.id} className="card-sm text-sm">
             <strong>{labelFor(ACTIVITY_TYPE_LABELS, a.type)}</strong> — {isoToVnDate(a.performedAt)}
             {a.result && <span> · Kết quả: {labelFor(ACTIVITY_RESULT_LABELS, a.result)}</span>}
             {a.createdByName && <span> · {a.createdByName}</span>}
@@ -243,37 +243,37 @@ export default function RemindersPage({ token, permissions }: { token: string; p
       {info && <p className="text-sm text-green-700">{info}</p>}
       <div className="flex flex-wrap gap-2">
         {["all", "overdue", "due_today", "upcoming", "done", "cancelled"].map((g) => (
-          <button key={g} onClick={() => setGroup(g)} className={`rounded border px-3 py-1 ${group === g ? "bg-blue-600 text-white" : ""}`}>{labelFor(REMINDER_GROUP_LABELS, g)}</button>
+          <button key={g} onClick={() => setGroup(g)} className={`btn btn-sm btn-secondary ${group === g ? "bg-blue-600 text-white" : ""}`}>{labelFor(REMINDER_GROUP_LABELS, g)}</button>
         ))}
       </div>
       {canCreate && (
-        <form onSubmit={handleCreate} className="space-y-2 rounded border p-3">
+        <form onSubmit={handleCreate} className="space-y-2 card-sm">
           <div className="grid grid-cols-2 gap-2">
-            <label className="block text-sm">Tiêu đề (bắt buộc)<input className="mt-1 w-full rounded border p-2" value={title} onChange={(e) => { clearCustomValidity(e); setTitle(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tiêu đề." }))} required /></label>
-            <label className="block text-sm">Hạn (bắt buộc)<input type="date" className="mt-1 w-full rounded border p-2" value={dueAt} onChange={(e) => { clearCustomValidity(e); setDueAt(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng chọn hạn." }))} required /></label>
+            <label className="block text-sm">Tiêu đề (bắt buộc)<input className="input" value={title} onChange={(e) => { clearCustomValidity(e); setTitle(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tiêu đề." }))} required /></label>
+            <label className="block text-sm">Hạn (bắt buộc)<input type="date" className="input" value={dueAt} onChange={(e) => { clearCustomValidity(e); setDueAt(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng chọn hạn." }))} required /></label>
             <label className="block text-sm">Loại
-              <select className="mt-1 w-full rounded border p-2" value={type} onChange={(e) => setType(e.target.value)}>
+              <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
                 <option value="">—</option>
                 {REMINDER_TYPES.map((t) => (<option key={t} value={t}>{labelFor(REMINDER_TYPE_LABELS, t)}</option>))}
               </select>
             </label>
-            <label className="block text-sm">ID khách (không bắt buộc)<input className="mt-1 w-full rounded border p-2" value={customerId} onChange={(e) => setCustomerId(e.target.value)} placeholder="Để trống nếu là việc chung" /></label>
+            <label className="block text-sm">ID khách (không bắt buộc)<input className="input" value={customerId} onChange={(e) => setCustomerId(e.target.value)} placeholder="Để trống nếu là việc chung" /></label>
           </div>
-          <label className="block text-sm">Ghi chú<textarea className="mt-1 w-full rounded border p-2" value={note} onChange={(e) => setNote(e.target.value)} /></label>
-          <button type="submit" className="rounded bg-blue-600 px-4 py-2 text-white">Tạo nhắc việc</button>
+          <label className="block text-sm">Ghi chú<textarea className="input" value={note} onChange={(e) => setNote(e.target.value)} /></label>
+          <button type="submit" className="btn btn-primary">Tạo nhắc việc</button>
           {!canUpdate && <span className="ml-2 text-sm text-gray-500">Bạn không có quyền sửa nhắc việc đang chờ.</span>}
         </form>
       )}
       <ul className="space-y-2">
         {reminders.map((r) => (
-          <li key={r.id} className="flex flex-wrap items-center gap-2 rounded border p-3 text-sm">
+          <li key={r.id} className="flex flex-wrap items-center gap-2 card-sm text-sm">
             <strong>{r.title}</strong>
             <span>· Hạn {isoToVnDate(r.dueAt)}</span>
             <span>· {labelFor(TIME_GROUP_LABELS, r.timeGroup)} · {labelFor(REMINDER_STATUS_LABELS, r.status)}</span>
             {r.customerName && <span>· Khách: {r.customerName}</span>}
             {r.assignedToName && <span>· Giao: {r.assignedToName}</span>}
-            {r.status === "pending" && canComplete && <button onClick={() => handleAction(r.id, "complete")} className="rounded border px-2 py-1">Hoàn thành</button>}
-            {r.status === "pending" && canCancel && <button onClick={() => handleAction(r.id, "cancel")} className="rounded border px-2 py-1">Hủy</button>}
+            {r.status === "pending" && canComplete && <button onClick={() => handleAction(r.id, "complete")} className="btn btn-sm btn-secondary">Hoàn thành</button>}
+            {r.status === "pending" && canCancel && <button onClick={() => handleAction(r.id, "cancel")} className="btn btn-sm btn-secondary">Hủy</button>}
             {r.completionNote && <span className="text-gray-500">· Ghi chú hoàn thành: {r.completionNote}</span>}
             {r.cancelReason && <span className="text-gray-500">· Lý do hủy: {r.cancelReason}</span>}
           </li>
@@ -366,7 +366,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
       </div>
       <div className="grid gap-2">
         {segments.map((s) => (
-          <button key={s.key} onClick={() => setSelected(s.key)} className={`rounded border p-3 text-left ${selected === s.key ? "border-blue-600" : ""}`}>
+          <button key={s.key} onClick={() => setSelected(s.key)} className={`card-sm text-left ${selected === s.key ? "border-blue-600" : ""}`}>
             <strong>{s.name}</strong> {s.count !== null && <span>({s.count})</span>}
             <p className="text-sm text-gray-600">{s.description}</p>
             <p className="text-sm text-gray-500">{s.note}</p>
@@ -375,7 +375,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
       </div>
       <ul className="space-y-2">
         {items.map((it, i) => (
-          <li key={i} className="rounded border p-3 text-sm">
+          <li key={i} className="card-sm text-sm">
             <strong>{String(it.childName ?? it.fullName ?? "")}</strong>
             {Boolean(it.customerName) && Boolean(it.childName) && <span> · Khách: {String(it.customerName)}</span>}
             {Boolean(it.nextBirthday) && <span> · Sinh nhật sắp tới: {isoToVnDate(String(it.nextBirthday))} ({String(it.upcomingAge)} tuổi)</span>}

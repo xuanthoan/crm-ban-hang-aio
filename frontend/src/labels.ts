@@ -44,6 +44,26 @@ export const PAYMENT_STATUS_LABELS: Record<string, string> = {
   paid: "Đã thanh toán",
 };
 
+// Badge màu cho trạng thái (giao diện mới): map mã trạng thái -> class
+// badge trong index.css. Dùng kèm labelFor: nhãn chữ + màu badge.
+export const ORDER_STATUS_BADGES: Record<string, string> = {
+  draft: "badge badge-gray",
+  confirmed: "badge badge-blue",
+  completed: "badge badge-green",
+  cancelled: "badge badge-red",
+};
+
+export const PAYMENT_STATUS_BADGES: Record<string, string> = {
+  unpaid: "badge badge-red",
+  partial: "badge badge-yellow",
+  paid: "badge badge-green",
+};
+
+export function badgeFor(map: Record<string, string>, code: string | null | undefined): string {
+  if (!code) return "badge badge-gray";
+  return map[code] ?? "badge badge-gray";
+}
+
 // Trạng thái của một dòng payment.
 export const PAYMENT_RECORD_LABELS: Record<string, string> = {
   active: "Đang hoạt động",

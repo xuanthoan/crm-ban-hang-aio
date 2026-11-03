@@ -263,48 +263,48 @@ export default function SuppliersPage({
         đều bị chặn ở backend và báo rõ nhà cung cấp đã có số đó. Một số vừa là khách hàng vừa là nhà cung cấp là hợp lệ,
         không bị chặn. Mã số thuế nếu nhập thì phải duy nhất.
       </p>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
-      {info && <p className="rounded border border-green-300 bg-green-50 p-3 text-green-800">{info}</p>}
+      {error && <p className="alert-error">{error}</p>}
+      {info && <p className="alert-success">{info}</p>}
 
       {view === "list" && (
         <>
           <div className="flex flex-wrap items-end gap-2">
             <label className="block">
               Tìm theo tên hoặc số
-              <input className="mt-1 w-full rounded border p-2" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên, 0987…, +84…" />
+              <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên, 0987…, +84…" />
             </label>
             <label className="block">
               Trạng thái
-              <select className="mt-1 rounded border p-2" value={status} onChange={(e) => setStatus(e.target.value)}>
+              <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="">Tất cả</option>
                 <option value="active">Đang hợp tác</option>
                 <option value="inactive">Ngừng hợp tác</option>
               </select>
             </label>
-            <button onClick={() => loadSuppliers(1)} className="rounded bg-blue-600 px-4 py-2 text-white">Tìm</button>
+            <button onClick={() => loadSuppliers(1)} className="btn btn-primary">Tìm</button>
             {canCreate && (
-              <button onClick={openCreate} className="rounded border px-4 py-2">+ Tạo nhà cung cấp</button>
+              <button onClick={openCreate} className="btn btn-secondary">+ Tạo nhà cung cấp</button>
             )}
           </div>
           {loading && <p>Đang tải…</p>}
           <p className="text-sm text-gray-500">Tổng: {total} nhà cung cấp · Trang {page}/{totalPages}</p>
           <ul className="space-y-2">
             {suppliers.map((s) => (
-              <li key={s.id} className="rounded border p-3">
+              <li key={s.id} className="card-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <strong>{s.name || "(chưa có tên)"}</strong>
                     {s.primaryPhone && <span> — {s.primaryPhone}</span>}
-                    <span className="text-gray-500"> · {s.phoneCount} số · {s.status === "active" ? "Đang hợp tác" : "Ngừng hợp tác"}</span>
+                    <span className="text-gray-500"> · {s.phoneCount} số · </span><span className={s.status === "active" ? "badge badge-green" : "badge badge-gray"}>{s.status === "active" ? "Đang hợp tác" : "Ngừng hợp tác"}</span>
                     <div className="text-sm text-gray-500">
                       {s.taxCode ? `Mã số thuế: ${s.taxCode}` : "Chưa có mã số thuế"}
                       {s.email ? ` · ${s.email}` : ""}
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => openDetail(s.id)} className="rounded border px-3 py-1">Xem</button>
+                    <button onClick={() => openDetail(s.id)} className="btn btn-sm btn-secondary">Xem</button>
                     {canDeactivate && s.status === "active" && (
-                      <button onClick={() => handleDeactivate(s.id)} className="rounded border px-3 py-1">Ngừng hợp tác</button>
+                      <button onClick={() => handleDeactivate(s.id)} className="btn btn-sm btn-secondary">Ngừng hợp tác</button>
                     )}
                   </div>
                 </div>
@@ -313,36 +313,36 @@ export default function SuppliersPage({
             {suppliers.length === 0 && !loading && <li className="text-gray-500">Chưa có nhà cung cấp nào khớp bộ lọc.</li>}
           </ul>
           <div className="flex gap-2">
-            <button disabled={page <= 1} onClick={() => loadSuppliers(page - 1)} className="rounded border px-4 py-2 disabled:opacity-50">Trang trước</button>
-            <button disabled={page >= totalPages} onClick={() => loadSuppliers(page + 1)} className="rounded border px-4 py-2 disabled:opacity-50">Trang sau</button>
+            <button disabled={page <= 1} onClick={() => loadSuppliers(page - 1)} className="btn btn-secondary disabled:opacity-50">Trang trước</button>
+            <button disabled={page >= totalPages} onClick={() => loadSuppliers(page + 1)} className="btn btn-secondary disabled:opacity-50">Trang sau</button>
           </div>
         </>
       )}
 
       {view === "detail" && detail && (
         <div className="space-y-4">
-          <button onClick={() => { setView("list"); loadSuppliers(page); }} className="rounded border px-3 py-1">← Về danh sách</button>
-          <div className="rounded border p-4">
+          <button onClick={() => { setView("list"); loadSuppliers(page); }} className="btn btn-sm btn-secondary">← Về danh sách</button>
+          <div className="card">
             <h3 className="text-lg font-semibold">{detail.name || "(chưa có tên)"}</h3>
             <p className="text-sm text-gray-600">
               {detail.taxCode ? `Mã số thuế: ${detail.taxCode} · ` : ""}
               {detail.email ? `Email: ${detail.email} · ` : ""}
               {detail.address ? `Địa chỉ: ${detail.address} · ` : ""}
-              Trạng thái: {detail.status === "active" ? "Đang hợp tác" : "Ngừng hợp tác"}
+              Trạng thái: <span className={detail.status === "active" ? "badge badge-green" : "badge badge-gray"}>{detail.status === "active" ? "Đang hợp tác" : "Ngừng hợp tác"}</span>
             </p>
             {detail.note && <p className="mt-2 text-sm">Ghi chú: {detail.note}</p>}
             <div className="mt-3 flex gap-2">
-              {canUpdate && <button onClick={() => openEdit(detail)} className="rounded bg-blue-600 px-4 py-2 text-white">Sửa</button>}
+              {canUpdate && <button onClick={() => openEdit(detail)} className="btn btn-primary">Sửa</button>}
               {canDeactivate && detail.status === "active" && (
-                <button onClick={() => handleDeactivate(detail.id)} className="rounded border px-4 py-2">Ngừng hợp tác</button>
+                <button onClick={() => handleDeactivate(detail.id)} className="btn btn-secondary">Ngừng hợp tác</button>
               )}
               {canHardDelete && (
-                <button onClick={() => handleHardDelete(detail.id)} className="rounded border px-4 py-2 text-red-700">Xóa cứng (chỉ khi chưa có đơn nhập)</button>
+                <button onClick={() => handleHardDelete(detail.id)} className="btn btn-secondary text-red-700">Xóa cứng (chỉ khi chưa có đơn nhập)</button>
               )}
             </div>
           </div>
 
-          <div className="rounded border p-4">
+          <div className="card">
             <h4 className="font-semibold">Số điện thoại ({detail.phones.length})</h4>
             <ul className="mt-2 space-y-2">
               {detail.phones.map((p) => (
@@ -351,10 +351,10 @@ export default function SuppliersPage({
                   {p.label && <span className="text-gray-500">({p.label})</span>}
                   {p.isPrimary && <strong className="text-blue-700">[Số chính]</strong>}
                   {canUpdate && !p.isPrimary && (
-                    <button onClick={() => handleMakePrimary(p)} className="rounded border px-2 py-1 text-sm">Đặt làm số chính</button>
+                    <button onClick={() => handleMakePrimary(p)} className="btn btn-sm btn-secondary text-sm">Đặt làm số chính</button>
                   )}
                   {canUpdate && (
-                    <button onClick={() => handleDeletePhone(p)} className="rounded border px-2 py-1 text-sm">Xóa số</button>
+                    <button onClick={() => handleDeletePhone(p)} className="btn btn-sm btn-secondary text-sm">Xóa số</button>
                   )}
                 </li>
               ))}
@@ -369,18 +369,18 @@ export default function SuppliersPage({
       )}
 
       {view === "form" && (
-        <form onSubmit={handleSubmit} className="space-y-4 rounded border p-4">
+        <form onSubmit={handleSubmit} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa nhà cung cấp" : "Tạo nhà cung cấp mới"}</h3>
           <p className="text-sm text-gray-500">Tên nhà cung cấp là bắt buộc. Số điện thoại không bắt buộc nhưng nếu nhập thì phải hợp lệ và không trùng với nhà cung cấp khác.</p>
-          <label className="block">Tên nhà cung cấp<input className="mt-1 w-full rounded border p-2" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+          <label className="block">Tên nhà cung cấp<input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="block">Mã số thuế<input className="mt-1 w-full rounded border p-2" value={form.taxCode} onChange={(e) => setForm({ ...form, taxCode: e.target.value })} placeholder="Để trống nếu không có" /></label>
-            <label className="block">Email<input className="mt-1 w-full rounded border p-2" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+            <label className="block">Mã số thuế<input className="input" value={form.taxCode} onChange={(e) => setForm({ ...form, taxCode: e.target.value })} placeholder="Để trống nếu không có" /></label>
+            <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
           </div>
-          <label className="block">Địa chỉ<input className="mt-1 w-full rounded border p-2" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
-          <label className="block">Ghi chú<textarea className="mt-1 w-full rounded border p-2" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
+          <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
+          <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
           <label className="block">Trạng thái
-            <select className="mt-1 w-full rounded border p-2" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
               <option value="active">Đang hợp tác</option>
               <option value="inactive">Ngừng hợp tác</option>
             </select>
@@ -390,20 +390,20 @@ export default function SuppliersPage({
             <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
             {form.phones.map((p, i) => (
               <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
-                <input className="rounded border p-2" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
-                <input className="rounded border p-2" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: kế toán, kho…" />
+                <input className="input" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
+                <input className="input" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: kế toán, kho…" />
                 <label className="flex items-center gap-1">
                   <input type="radio" name="primary-phone" checked={p.isPrimary} onChange={() => setPrimary(i)} /> Số chính
                 </label>
-                <button type="button" onClick={() => removePhone(i)} className="rounded border px-2 py-1">Xóa số</button>
+                <button type="button" onClick={() => removePhone(i)} className="btn btn-sm btn-secondary">Xóa số</button>
               </div>
             ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 rounded border px-3 py-1">+ Thêm số điện thoại</button>
+            <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm số điện thoại</button>
           </div>
 
           <div className="flex gap-2">
-            <button className="rounded bg-blue-600 px-4 py-2 text-white">{formId ? "Lưu thay đổi" : "Tạo nhà cung cấp"}</button>
-            <button type="button" onClick={() => setView("list")} className="rounded border px-4 py-2">Hủy</button>
+            <button className="btn btn-primary">{formId ? "Lưu thay đổi" : "Tạo nhà cung cấp"}</button>
+            <button type="button" onClick={() => setView("list")} className="btn btn-secondary">Hủy</button>
           </div>
         </form>
       )}

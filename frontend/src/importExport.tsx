@@ -141,19 +141,19 @@ export default function ImportExportPage({ token, permissions }: { token: string
         Import luôn qua 2 bước: preview (chỉ kiểm tra, chưa ghi dữ liệu) rồi xác nhận mới nhập các dòng hợp lệ.
         File tối đa 1000 dòng và 5MB. Định dạng .xlsx thật là tồn đọng sau này, sprint này chỉ làm CSV.
       </p>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
-      {result && <p className="rounded border border-green-300 bg-green-50 p-3 text-green-800">{result}</p>}
+      {error && <p className="alert-error">{error}</p>}
+      {result && <p className="alert-success">{result}</p>}
 
       {(canImportCustomers || canImportProducts || canImportSuppliers) && (
-        <div className="space-y-3 rounded border p-4">
+        <div className="space-y-3 card">
           <h3 className="font-semibold">Import</h3>
           <div className="flex flex-wrap items-center gap-2">
-            <select className="rounded border p-2" value={importEntity} onChange={(e) => { setImportEntity(e.target.value as "customers" | "products" | "suppliers"); setPreview(null); }}>
+            <select className="field" value={importEntity} onChange={(e) => { setImportEntity(e.target.value as "customers" | "products" | "suppliers"); setPreview(null); }}>
               {canImportCustomers && <option value="customers">Khách hàng</option>}
               {canImportProducts && <option value="products">Sản phẩm / SKU</option>}
               {canImportSuppliers && <option value="suppliers">Nhà cung cấp</option>}
             </select>
-            <button type="button" onClick={handleTemplate} className="rounded border px-4 py-2">Tải file mẫu</button>
+            <button type="button" onClick={handleTemplate} className="btn btn-secondary">Tải file mẫu</button>
           </div>
           {importEntity === "customers" && (
             <p className="text-sm text-gray-600">
@@ -178,7 +178,7 @@ export default function ImportExportPage({ token, permissions }: { token: string
           )}
           <form onSubmit={handlePreview} className="flex flex-wrap items-center gap-2">
             <input type="file" accept=".csv" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-            <button disabled={busy} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">
+            <button disabled={busy} className="btn btn-primary disabled:opacity-50">
               {busy ? "Đang kiểm tra…" : "Preview"}
             </button>
           </form>
@@ -188,25 +188,25 @@ export default function ImportExportPage({ token, permissions }: { token: string
                 Preview: tổng {preview.total_rows} dòng — hợp lệ {preview.valid_count}, không hợp lệ {preview.invalid_count}.
                 Chỉ các dòng hợp lệ mới được nhập khi bạn xác nhận.
               </p>
-              <table className="mt-2 w-full border-collapse border text-sm">
+              <table className="table mt-2">
                 <thead>
                   <tr>
-                    <th className="border p-2 text-left">Dòng</th>
-                    <th className="border p-2 text-left">Trạng thái</th>
-                    <th className="border p-2 text-left">Lỗi / dữ liệu</th>
+                    <th>Dòng</th>
+                    <th>Trạng thái</th>
+                    <th>Lỗi / dữ liệu</th>
                   </tr>
                 </thead>
                 <tbody>
                   {preview.rows.map((row) => (
                     <tr key={row.row_number}>
-                      <td className="border p-2">{row.row_number}</td>
-                      <td className="border p-2">{row.valid ? "Hợp lệ" : "Không hợp lệ"}</td>
-                      <td className="border p-2">{row.valid ? JSON.stringify(row.data) : row.errors.join("; ")}</td>
+                      <td>{row.row_number}</td>
+                      <td>{row.valid ? "Hợp lệ" : "Không hợp lệ"}</td>
+                      <td>{row.valid ? JSON.stringify(row.data) : row.errors.join("; ")}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <button disabled={busy || preview.valid_count === 0} onClick={handleConfirm} className="mt-3 rounded bg-green-600 px-4 py-2 text-white disabled:opacity-50">
+              <button disabled={busy || preview.valid_count === 0} onClick={handleConfirm} className="mt-3 btn btn-success disabled:opacity-50">
                 Xác nhận nhập {preview.valid_count} dòng hợp lệ
               </button>
             </div>
@@ -214,7 +214,7 @@ export default function ImportExportPage({ token, permissions }: { token: string
         </div>
       )}
 
-      <div className="space-y-3 rounded border p-4">
+      <div className="space-y-3 card">
         <h3 className="font-semibold">Export</h3>
         <p className="text-sm text-gray-600">
           Các cột nhạy cảm được lọc ở backend theo quyền của bạn: không có quyền xem giá nhập thì file sản phẩm không có cột
@@ -223,7 +223,7 @@ export default function ImportExportPage({ token, permissions }: { token: string
           file nhà cung cấp gồm tên, số điện thoại, email, địa chỉ, mã số thuế, trạng thái, ghi chú.
         </p>
         <div className="flex flex-wrap items-center gap-2">
-          <select className="rounded border p-2" value={exportEntity} onChange={(e) => setExportEntity(e.target.value as typeof exportEntity)}>
+          <select className="field" value={exportEntity} onChange={(e) => setExportEntity(e.target.value as typeof exportEntity)}>
             {canExportCustomers && <option value="customers">Khách hàng</option>}
             {canExportProducts && <option value="products">Sản phẩm / SKU</option>}
             {canExportOrders && <option value="orders">Đơn hàng</option>}
@@ -231,8 +231,8 @@ export default function ImportExportPage({ token, permissions }: { token: string
             {canExportSuppliers && <option value="suppliers">Nhà cung cấp</option>}
             {canExportPurchaseOrders && <option value="purchase-orders">Đơn nhập hàng</option>}
           </select>
-          <input className="rounded border p-2" placeholder="Từ khóa tìm kiếm (tên/SKU)" value={exportQ} onChange={(e) => setExportQ(e.target.value)} />
-          <button type="button" onClick={handleExport} className="rounded bg-blue-600 px-4 py-2 text-white">Tải CSV</button>
+          <input className="field" placeholder="Từ khóa tìm kiếm (tên/SKU)" value={exportQ} onChange={(e) => setExportQ(e.target.value)} />
+          <button type="button" onClick={handleExport} className="btn btn-primary">Tải CSV</button>
         </div>
       </div>
     </section>

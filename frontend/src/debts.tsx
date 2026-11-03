@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { PAYMENT_RECORD_LABELS, PAYMENT_STATUS_LABELS, isoToVnDate, labelFor } from "./labels";
+import { PAYMENT_RECORD_LABELS, PAYMENT_STATUS_BADGES, PAYMENT_STATUS_LABELS, badgeFor, isoToVnDate, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -100,12 +100,12 @@ export default function DebtsPage({ token, permissions }: { token: string; permi
       <p className="text-sm font-semibold">Tổng nợ đang hiển thị (theo bộ lọc): {totalDebt.toLocaleString("vi-VN")} · {total} đơn</p>
       <div className="flex flex-wrap gap-2">
         <input
-          className="rounded border p-2"
+          className="field"
           placeholder="Tìm mã đơn / tên khách"
           value={q}
           onChange={(e) => { setQ(e.target.value); setPage(1); }}
         />
-        <select className="rounded border p-2" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
+        <select className="field" value={statusFilter} onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}>
           <option value="">Tất cả trạng thái thanh toán</option>
           <option value="unpaid">Chưa thanh toán</option>
           <option value="partial">Thanh toán một phần</option>
@@ -115,49 +115,49 @@ export default function DebtsPage({ token, permissions }: { token: string; permi
           <input type="checkbox" checked={sortDebt} onChange={(e) => setSortDebt(e.target.checked)} /> Nợ lớn lên trước
         </label>
       </div>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
-      <table className="w-full border-collapse text-sm">
+      {error && <p className="alert-error">{error}</p>}
+      <table className="table">
         <thead>
           <tr className="border-b text-left">
-            <th className="p-2">Mã đơn</th>
-            <th className="p-2">Khách hàng</th>
-            <th className="p-2">Tổng đơn</th>
-            <th className="p-2">Đã thu</th>
-            <th className="p-2">Còn nợ</th>
-            <th className="p-2">Thanh toán</th>
-            <th className="p-2"></th>
+            <th>Mã đơn</th>
+            <th>Khách hàng</th>
+            <th>Tổng đơn</th>
+            <th>Đã thu</th>
+            <th>Còn nợ</th>
+            <th>Thanh toán</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {debts.map((d) => (
             <tr key={d.id} className="border-b">
-              <td className="p-2">{d.orderCode}</td>
-              <td className="p-2">{d.customerName ?? ""}</td>
-              <td className="p-2">{d.grandTotal.toLocaleString("vi-VN")}</td>
-              <td className="p-2">{d.paidTotal.toLocaleString("vi-VN")}</td>
-              <td className="p-2">{d.debtTotal.toLocaleString("vi-VN")}</td>
-              <td className="p-2">{labelFor(PAYMENT_STATUS_LABELS, d.paymentStatus)}</td>
-              <td className="p-2">
+              <td>{d.orderCode}</td>
+              <td>{d.customerName ?? ""}</td>
+              <td>{d.grandTotal.toLocaleString("vi-VN")}</td>
+              <td>{d.paidTotal.toLocaleString("vi-VN")}</td>
+              <td>{d.debtTotal.toLocaleString("vi-VN")}</td>
+              <td><span className={badgeFor(PAYMENT_STATUS_BADGES, d.paymentStatus)}>{labelFor(PAYMENT_STATUS_LABELS, d.paymentStatus)}</span></td>
+              <td>
                 {canViewPayments && (
-                  <button onClick={() => openPayments(d.id)} className="rounded border px-2 py-1">Xem payment</button>
+                  <button onClick={() => openPayments(d.id)} className="btn btn-sm btn-secondary">Xem payment</button>
                 )}
               </td>
             </tr>
           ))}
           {debts.length === 0 && (
             <tr>
-              <td className="p-2 text-gray-500" colSpan={7}>Không có đơn nào còn nợ theo bộ lọc hiện tại.</td>
+              <td className="text-gray-500" colSpan={7}>Không có đơn nào còn nợ theo bộ lọc hiện tại.</td>
             </tr>
           )}
         </tbody>
       </table>
       <div className="flex gap-2">
-        <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border px-3 py-1 disabled:opacity-50">Trang trước</button>
+        <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang trước</button>
         <span className="py-1 text-sm">Trang {page} / {Math.max(1, Math.ceil(total / 20))} ({total} đơn)</span>
-        <button disabled={page >= Math.ceil(total / 20)} onClick={() => setPage(page + 1)} className="rounded border px-3 py-1 disabled:opacity-50">Trang sau</button>
+        <button disabled={page >= Math.ceil(total / 20)} onClick={() => setPage(page + 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang sau</button>
       </div>
       {detailOrderId && (
-        <div className="rounded border p-4">
+        <div className="card">
           <h3 className="font-semibold">Payment của đơn đã chọn</h3>
           <ul className="mt-2 space-y-2 text-sm">
             {detailPayments.map((p) => (

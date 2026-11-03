@@ -263,34 +263,38 @@ export default function App() {
   // mã riêng của nó (user.create / user.update / user.lock /
   // user.reset_password / user.set_permissions).
   const canViewAdmin = user?.permissions.includes("user.view");
+  // Class mục nav: mục đang mở tô xanh để biết đang ở đâu.
+  const navCls = (s: string) => (section === s ? "nav-item nav-item-active" : "nav-item");
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <h1 className="text-2xl font-bold">CRM_Ban_Hang</h1>
-      <p className="mt-2 text-gray-600">
-        Trạng thái backend:{" "}
-        <strong>
-          {health === "loading" && "Đang kiểm tra…"}
-          {health === "connected" && "Đã kết nối (/api/health trả về ok)"}
-          {health === "not-connected" && "Chưa kết nối — hãy chạy backend rồi tải lại trang"}
-        </strong>
-      </p>
+    <div className="min-h-screen bg-gray-100 text-gray-900">
+      {!user && (
+        <main className="mx-auto max-w-md px-4 py-10">
+          <h1 className="text-center text-2xl font-bold">CRM_Ban_Hang</h1>
+          <p className="mt-2 text-center text-sm text-gray-500">
+            Trạng thái backend:{" "}
+            <strong>
+              {health === "loading" && "Đang kiểm tra…"}
+              {health === "connected" && "Đã kết nối (/api/health trả về ok)"}
+              {health === "not-connected" && "Chưa kết nối — hãy chạy backend rồi tải lại trang"}
+            </strong>
+          </p>
 
-      {error && <p className="mt-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
-      {info && <p className="mt-4 rounded border border-green-300 bg-green-50 p-3 text-green-800">{info}</p>}
+          {error && <p className="alert-error mt-4">{error}</p>}
+          {info && <p className="alert-success mt-4">{info}</p>}
 
       {!user && step === "login" && (
-        <form onSubmit={handleLogin} className="mt-6 space-y-3 rounded border p-4">
+        <form onSubmit={handleLogin} className="mt-6 space-y-3 card">
           <h2 className="text-lg font-semibold">Đăng nhập</h2>
           <label className="block">
             Tên đăng nhập hoặc email
-            <input className="mt-1 w-full rounded border p-2" value={username} onChange={(e) => { clearCustomValidity(e); setUsername(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tên đăng nhập hoặc email." }))} required />
+            <input className="input" value={username} onChange={(e) => { clearCustomValidity(e); setUsername(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tên đăng nhập hoặc email." }))} required />
           </label>
           <label className="block">
             Mật khẩu
-            <input type="password" className="mt-1 w-full rounded border p-2" value={password} onChange={(e) => { clearCustomValidity(e); setPassword(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mật khẩu." }))} required />
+            <input type="password" className="input" value={password} onChange={(e) => { clearCustomValidity(e); setPassword(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mật khẩu." }))} required />
           </label>
-          <button disabled={busy} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">
+          <button disabled={busy} className="btn btn-primary disabled:opacity-50">
             {busy ? "Đang đăng nhập…" : "Đăng nhập"}
           </button>
           <p className="text-sm text-gray-500">
@@ -300,80 +304,106 @@ export default function App() {
       )}
 
       {!user && step === "otp" && (
-        <form onSubmit={handleVerifyOtp} className="mt-6 space-y-3 rounded border p-4">
+        <form onSubmit={handleVerifyOtp} className="mt-6 space-y-3 card">
           <h2 className="text-lg font-semibold">Nhập mã OTP qua email</h2>
           <p className="text-sm text-gray-600">Mã đã gửi tới {maskedEmail}. Mã gồm 6 số, hết hạn sau 5 phút, sai quá 5 lần phải đăng nhập lại.</p>
           <label className="block">
             Mã OTP
-            <input className="mt-1 w-full rounded border p-2 tracking-widest" value={otpCode} onChange={(e) => { clearCustomValidity(e); setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6)); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mã OTP." }))} required />
+            <input className="input tracking-widest" value={otpCode} onChange={(e) => { clearCustomValidity(e); setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6)); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mã OTP." }))} required />
           </label>
           <div className="flex gap-2">
-            <button disabled={busy} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">Xác nhận mã</button>
-            <button type="button" onClick={handleResendOtp} className="rounded border px-4 py-2">Gửi lại mã</button>
-            <button type="button" onClick={() => { setStep("login"); setError(""); }} className="rounded border px-4 py-2">Quay lại đăng nhập</button>
+            <button disabled={busy} className="btn btn-primary disabled:opacity-50">Xác nhận mã</button>
+            <button type="button" onClick={handleResendOtp} className="btn btn-secondary">Gửi lại mã</button>
+            <button type="button" onClick={() => { setStep("login"); setError(""); }} className="btn btn-secondary">Quay lại đăng nhập</button>
           </div>
         </form>
       )}
 
+        </main>
+      )}
       {user && (
-        <section className="mt-6 space-y-4">
-          <div className="rounded border p-4">
-            <p>
-              Xin chào <strong>{user.fullName}</strong> ({user.username}) — vai trò: <strong>{user.roleName ?? user.role}</strong>
-            </p>
-            <p className="text-sm text-gray-500">Email: {user.email} · Yêu cầu OTP riêng: {user.requireOtp === null ? "Theo hệ thống" : user.requireOtp ? "Luôn yêu cầu" : "Không yêu cầu"}</p>
-            <button onClick={handleLogout} className="mt-3 rounded border px-4 py-2">Đăng xuất</button>
-          </div>
-
-          <div className="flex gap-2">
-            <button onClick={() => setSection("home")} className="rounded border px-4 py-2">Tổng quan</button>
-            {canViewCustomers && (
-              <button onClick={() => setSection("customers")} className="rounded border px-4 py-2">Khách hàng</button>
-            )}
-            {canViewSuppliers && (
-              <button onClick={() => setSection("suppliers")} className="rounded border px-4 py-2">Nhà cung cấp</button>
-            )}
-            {canViewPurchases && (
-              <button onClick={() => setSection("purchases")} className="rounded border px-4 py-2">Đơn nhập hàng</button>
-            )}
-            {canViewProducts && (
-              <button onClick={() => setSection("products")} className="rounded border px-4 py-2">Sản phẩm / SKU</button>
-            )}
-            {canViewInventory && (
-              <button onClick={() => setSection("inventory")} className="rounded border px-4 py-2">Kho</button>
-            )}
-            {canViewOrders && (
-              <button onClick={() => setSection("orders")} className="rounded border px-4 py-2">Đơn hàng</button>
-            )}
-            {canViewDebts && (
-              <button onClick={() => setSection("debts")} className="rounded border px-4 py-2">Công nợ</button>
-            )}
-            {canViewSupplierDebts && (
-              <button onClick={() => setSection("supplierDebts")} className="rounded border px-4 py-2">Công nợ NCC</button>
-            )}
-            {canViewReminders && (
-              <button onClick={() => setSection("reminders")} className="rounded border px-4 py-2">Nhắc việc</button>
-            )}
-            {canViewSegments && (
-              <button onClick={() => setSection("segments")} className="rounded border px-4 py-2">Phân đoạn</button>
-            )}
-            {canViewReports && (
-              <button onClick={() => setSection("dashboard")} className="rounded border px-4 py-2">Dashboard</button>
-            )}
-            {canViewReports && (
-              <button onClick={() => setSection("reports")} className="rounded border px-4 py-2">Báo cáo</button>
-            )}
-            {canViewImportExport && (
-              <button onClick={() => setSection("importExport")} className="rounded border px-4 py-2">Import / Export</button>
-            )}
-            {canViewAudit && (
-              <button onClick={() => setSection("audit")} className="rounded border px-4 py-2">Nhật ký Audit</button>
-            )}
-            {canViewAdmin && (
-              <button onClick={() => setSection("admin")} className="rounded border px-4 py-2">Quản trị</button>
-            )}
-          </div>
-
+        <div className="flex min-h-screen flex-col md:flex-row">
+          <aside className="w-full shrink-0 border-b border-gray-200 bg-white md:sticky md:top-0 md:flex md:h-screen md:w-64 md:flex-col md:border-b-0 md:border-r">
+            <div className="px-4 pb-2 pt-4 md:pb-4">
+              <h1 className="text-xl font-bold">CRM_Ban_Hang</h1>
+              <p className="mt-1 text-xs text-gray-500">
+                Backend:{" "}
+                <strong>
+                  {health === "loading" && "Đang kiểm tra…"}
+                  {health === "connected" && "Đã kết nối"}
+                  {health === "not-connected" && "Chưa kết nối"}
+                </strong>
+              </p>
+            </div>
+            <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:gap-0 md:overflow-visible md:px-2 md:pb-2">
+              <button onClick={() => setSection("home")} className={navCls("home")}>Tổng quan</button>
+              {canViewCustomers && (
+                <button onClick={() => setSection("customers")} className={navCls("customers")}>Khách hàng</button>
+              )}
+              {canViewSuppliers && (
+                <button onClick={() => setSection("suppliers")} className={navCls("suppliers")}>Nhà cung cấp</button>
+              )}
+              {canViewPurchases && (
+                <button onClick={() => setSection("purchases")} className={navCls("purchases")}>Đơn nhập hàng</button>
+              )}
+              {canViewProducts && (
+                <button onClick={() => setSection("products")} className={navCls("products")}>Sản phẩm / SKU</button>
+              )}
+              {canViewInventory && (
+                <button onClick={() => setSection("inventory")} className={navCls("inventory")}>Kho</button>
+              )}
+              {canViewOrders && (
+                <button onClick={() => setSection("orders")} className={navCls("orders")}>Đơn hàng</button>
+              )}
+              {canViewDebts && (
+                <button onClick={() => setSection("debts")} className={navCls("debts")}>Công nợ</button>
+              )}
+              {canViewSupplierDebts && (
+                <button onClick={() => setSection("supplierDebts")} className={navCls("supplierDebts")}>Công nợ NCC</button>
+              )}
+              {canViewReminders && (
+                <button onClick={() => setSection("reminders")} className={navCls("reminders")}>Nhắc việc</button>
+              )}
+              {canViewSegments && (
+                <button onClick={() => setSection("segments")} className={navCls("segments")}>Phân đoạn</button>
+              )}
+              {canViewReports && (
+                <button onClick={() => setSection("dashboard")} className={navCls("dashboard")}>Dashboard</button>
+              )}
+              {canViewReports && (
+                <button onClick={() => setSection("reports")} className={navCls("reports")}>Báo cáo</button>
+              )}
+              {canViewImportExport && (
+                <button onClick={() => setSection("importExport")} className={navCls("importExport")}>Import / Export</button>
+              )}
+              {canViewAudit && (
+                <button onClick={() => setSection("audit")} className={navCls("audit")}>Nhật ký Audit</button>
+              )}
+              {canViewAdmin && (
+                <button onClick={() => setSection("admin")} className={navCls("admin")}>Quản trị</button>
+              )}
+            </nav>
+            <div className="mt-auto hidden p-4 md:block">
+              <div className="card-sm">
+                <p className="text-sm">
+                  Xin chào <strong>{user.fullName}</strong> ({user.username})
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Vai trò: {user.roleName ?? user.role} · {user.email}
+                </p>
+                <button onClick={handleLogout} className="btn btn-secondary mt-3 w-full">Đăng xuất</button>
+              </div>
+            </div>
+          </aside>
+          <main className="min-w-0 flex-1 px-4 py-6 md:px-8">
+            {error && <p className="alert-error mb-4">{error}</p>}
+            {info && <p className="alert-success mb-4">{info}</p>}
+            <div className="mb-4 flex items-center justify-between gap-2 md:hidden">
+              <p className="text-sm">
+                Xin chào <strong>{user.fullName}</strong> ({user.username})
+              </p>
+              <button onClick={handleLogout} className="btn btn-sm btn-secondary">Đăng xuất</button>
+            </div>
           {section === "dashboard" && canViewReports ? (
             <DashboardPage token={token ?? ""} />
           ) : section === "reports" && canViewReports ? (
@@ -407,7 +437,7 @@ export default function App() {
           ) : (
             <>
           {canViewSettings && (
-            <div className="rounded border p-4">
+            <div className="card">
               <h2 className="text-lg font-semibold">Cấu hình OTP (dành cho admin)</h2>
               <p className="text-sm text-gray-600">
                 Chế độ hiện tại: <strong>{otpMode === "email" ? "Bắt buộc OTP qua email" : "Tắt — chỉ cần mật khẩu"}</strong>
@@ -422,7 +452,7 @@ export default function App() {
                   <label className="flex items-center gap-2">
                     <input type="radio" name="otp_mode" value="email" checked={otpModeDraft === "email"} onChange={() => setOtpModeDraft("email")} /> OTP qua email
                   </label>
-                  <button className="rounded bg-blue-600 px-4 py-2 text-white">Lưu</button>
+                  <button className="btn btn-primary">Lưu</button>
                 </form>
               )}
               <p className="mt-2 text-sm text-gray-500">
@@ -432,12 +462,12 @@ export default function App() {
             </div>
           )}
 
-          <form onSubmit={handleChangePassword} className="space-y-3 rounded border p-4">
+          <form onSubmit={handleChangePassword} className="space-y-3 card">
             <h2 className="text-lg font-semibold">Đổi mật khẩu</h2>
-            <label className="block">Mật khẩu hiện tại<input type="password" name="current_password" className="mt-1 w-full rounded border p-2" onChange={clearCustomValidity} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mật khẩu hiện tại." }))} required /></label>
-            <label className="block">Mật khẩu mới (ít nhất 8 ký tự)<input type="password" name="new_password" className="mt-1 w-full rounded border p-2" onChange={clearCustomValidity} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mật khẩu mới." }))} required /></label>
-            <label className="block">Nhập lại mật khẩu mới<input type="password" name="confirm_password" className="mt-1 w-full rounded border p-2" onChange={clearCustomValidity} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập lại mật khẩu mới." }))} required /></label>
-            <button className="rounded bg-blue-600 px-4 py-2 text-white">Đổi mật khẩu</button>
+            <label className="block">Mật khẩu hiện tại<input type="password" name="current_password" className="input" onChange={clearCustomValidity} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mật khẩu hiện tại." }))} required /></label>
+            <label className="block">Mật khẩu mới (ít nhất 8 ký tự)<input type="password" name="new_password" className="input" onChange={clearCustomValidity} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập mật khẩu mới." }))} required /></label>
+            <label className="block">Nhập lại mật khẩu mới<input type="password" name="confirm_password" className="input" onChange={clearCustomValidity} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập lại mật khẩu mới." }))} required /></label>
+            <button className="btn btn-primary">Đổi mật khẩu</button>
           </form>
 
           <div>
@@ -445,7 +475,7 @@ export default function App() {
             <p className="text-sm text-gray-500">Menu dưới đây chỉ là giao diện — mọi quyền vẫn do backend kiểm tra (quy tắc chốt cứng §6).</p>
             <ul className="mt-2 space-y-2">
               {MODULES.map((m) => (
-                <li key={m.name} className="rounded border p-3">
+                <li key={m.name} className="card-sm">
                   <strong>{m.name}</strong>
                   <span className="text-gray-500"> — {m.note}</span>
                 </li>
@@ -454,8 +484,9 @@ export default function App() {
           </div>
             </>
           )}
-        </section>
+        </main>
+      </div>
       )}
-    </main>
+    </div>
   );
 }

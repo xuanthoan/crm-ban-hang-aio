@@ -40,7 +40,7 @@ function PeriodPicker(p: {
     <div className="flex flex-wrap items-center gap-2">
       <label className="flex items-center gap-2">
         Khoảng thời gian
-        <select className="rounded border p-2" value={p.preset} onChange={(e) => p.setPreset(e.target.value)}>
+        <select className="field" value={p.preset} onChange={(e) => p.setPreset(e.target.value)}>
           <option value="today">Hôm nay</option>
           <option value="7d">7 ngày qua</option>
           <option value="30d">30 ngày qua</option>
@@ -50,8 +50,8 @@ function PeriodPicker(p: {
       </label>
       {p.preset === "custom" && (
         <>
-          <label className="flex items-center gap-2">Từ <input type="date" className="rounded border p-2" value={p.from} onChange={(e) => p.setFrom(e.target.value)} /></label>
-          <label className="flex items-center gap-2">Đến <input type="date" className="rounded border p-2" value={p.to} onChange={(e) => p.setTo(e.target.value)} /></label>
+          <label className="flex items-center gap-2">Từ <input type="date" className="field" value={p.from} onChange={(e) => p.setFrom(e.target.value)} /></label>
+          <label className="flex items-center gap-2">Đến <input type="date" className="field" value={p.to} onChange={(e) => p.setTo(e.target.value)} /></label>
         </>
       )}
     </div>
@@ -96,8 +96,8 @@ export function DashboardPage({ token }: { token: string }) {
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Dashboard tổng quan</h2>
       <PeriodPicker preset={preset} setPreset={setPreset} from={from} setFrom={setFrom} to={to} setTo={setTo} />
-      <button onClick={load} className="rounded bg-blue-600 px-4 py-2 text-white">Xem</button>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
+      <button onClick={load} className="btn btn-primary">Xem</button>
+      {error && <p className="alert-error">{error}</p>}
       {summary && (
         <>
           <p className="text-sm text-gray-500">
@@ -107,21 +107,21 @@ export function DashboardPage({ token }: { token: string }) {
           <div className="grid gap-3 md:grid-cols-3">
             {sales && (
               <>
-                <div className="rounded border p-3"><p className="text-sm text-gray-500">Doanh thu (đơn đã xác nhận/hoàn thành)</p><p className="text-xl font-bold">{fmt(sales.salesTotal)}</p></div>
-                <div className="rounded border p-3"><p className="text-sm text-gray-500">Tiền đã thu (theo đơn trong khoảng)</p><p className="text-xl font-bold">{fmt(sales.paidTotal)}</p></div>
-                <div className="rounded border p-3"><p className="text-sm text-gray-500">Công nợ trong khoảng</p><p className="text-xl font-bold">{fmt(sales.debtTotal)}</p></div>
-                <div className="rounded border p-3"><p className="text-sm text-gray-500">Giá trị đơn trung bình</p><p className="text-xl font-bold">{fmt(sales.averageOrderValue)}</p></div>
+                <div className="stat-card"><p className="text-sm text-gray-500">Doanh thu (đơn đã xác nhận/hoàn thành)</p><p className="text-xl font-bold">{fmt(sales.salesTotal)}</p></div>
+                <div className="stat-card"><p className="text-sm text-gray-500">Tiền đã thu (theo đơn trong khoảng)</p><p className="text-xl font-bold">{fmt(sales.paidTotal)}</p></div>
+                <div className="stat-card"><p className="text-sm text-gray-500">Công nợ trong khoảng</p><p className="text-xl font-bold">{fmt(sales.debtTotal)}</p></div>
+                <div className="stat-card"><p className="text-sm text-gray-500">Giá trị đơn trung bình</p><p className="text-xl font-bold">{fmt(sales.averageOrderValue)}</p></div>
               </>
             )}
-            <div className="rounded border p-3"><p className="text-sm text-gray-500">Số đơn (đã xác nhận/hoàn thành)</p><p className="text-xl font-bold">{summary.orders?.count ?? 0}</p><p className="text-sm text-gray-500">Nháp: {summary.orders?.draftCount ?? 0} · Đã hủy: {summary.orders?.cancelledCount ?? 0}</p></div>
-            <div className="rounded border p-3"><p className="text-sm text-gray-500">Công nợ còn lại (toàn thời gian, trong phạm vi)</p><p className="text-xl font-bold">{fmt(summary.debt?.debtInScopeOwing)}</p><p className="text-sm text-gray-500">Tiền thừa cần hoàn: {fmt(summary.debt?.debtInScopeCredit)} · Số đơn còn nợ: {summary.debt?.debtOrderCount ?? 0}</p></div>
-            <div className="rounded border p-3"><p className="text-sm text-gray-500">Khách hàng</p><p className="text-xl font-bold">Tổng {summary.customers?.total ?? 0} · Mới trong khoảng {summary.customers?.newInPeriod ?? 0}</p></div>
-            <div className="rounded border p-3"><p className="text-sm text-gray-500">Tồn kho</p><p className="text-xl font-bold">Tổng tồn {summary.inventory?.totalQuantity ?? 0} · Tồn thấp {summary.inventory?.lowStockCount ?? 0} · Hết hàng {summary.inventory?.outOfStockCount ?? 0}</p>{summary.inventory?.inventoryValueEstimate !== undefined && summary.inventory?.inventoryValueEstimate !== null && (<p className="text-sm text-gray-500">Giá trị tồn ước tính: {fmt(summary.inventory.inventoryValueEstimate)}</p>)}</div>
-            <div className="rounded border p-3"><p className="text-sm text-gray-500">Nhắc việc</p><p className="text-xl font-bold">Quá hạn {summary.reminders?.overdueCount ?? 0} · Hôm nay {summary.reminders?.dueTodayCount ?? 0}</p></div>
+            <div className="stat-card"><p className="text-sm text-gray-500">Số đơn (đã xác nhận/hoàn thành)</p><p className="text-xl font-bold">{summary.orders?.count ?? 0}</p><p className="text-sm text-gray-500">Nháp: {summary.orders?.draftCount ?? 0} · Đã hủy: {summary.orders?.cancelledCount ?? 0}</p></div>
+            <div className="stat-card"><p className="text-sm text-gray-500">Công nợ còn lại (toàn thời gian, trong phạm vi)</p><p className="text-xl font-bold">{fmt(summary.debt?.debtInScopeOwing)}</p><p className="text-sm text-gray-500">Tiền thừa cần hoàn: {fmt(summary.debt?.debtInScopeCredit)} · Số đơn còn nợ: {summary.debt?.debtOrderCount ?? 0}</p></div>
+            <div className="stat-card"><p className="text-sm text-gray-500">Khách hàng</p><p className="text-xl font-bold">Tổng {summary.customers?.total ?? 0} · Mới trong khoảng {summary.customers?.newInPeriod ?? 0}</p></div>
+            <div className="stat-card"><p className="text-sm text-gray-500">Tồn kho</p><p className="text-xl font-bold">Tổng tồn {summary.inventory?.totalQuantity ?? 0} · Tồn thấp {summary.inventory?.lowStockCount ?? 0} · Hết hàng {summary.inventory?.outOfStockCount ?? 0}</p>{summary.inventory?.inventoryValueEstimate !== undefined && summary.inventory?.inventoryValueEstimate !== null && (<p className="text-sm text-gray-500">Giá trị tồn ước tính: {fmt(summary.inventory.inventoryValueEstimate)}</p>)}</div>
+            <div className="stat-card"><p className="text-sm text-gray-500">Nhắc việc</p><p className="text-xl font-bold">Quá hạn {summary.reminders?.overdueCount ?? 0} · Hôm nay {summary.reminders?.dueTodayCount ?? 0}</p></div>
           </div>
 
           {days.length > 0 && (
-            <div className="rounded border p-4">
+            <div className="card">
               <h3 className="font-semibold">Doanh thu theo ngày (theo ngày tạo đơn, ngày UTC)</h3>
               <div className="mt-3 space-y-2">
                 {days.map((d) => (
@@ -136,7 +136,7 @@ export function DashboardPage({ token }: { token: string }) {
           )}
 
           <div className="grid gap-3 md:grid-cols-2">
-            <div className="rounded border p-4">
+            <div className="card">
               <h3 className="font-semibold">Top SKU bán chạy</h3>
               <table className="mt-2 w-full text-sm">
                 <tbody>
@@ -150,7 +150,7 @@ export function DashboardPage({ token }: { token: string }) {
                 </tbody>
               </table>
             </div>
-            <div className="rounded border p-4">
+            <div className="card">
               <h3 className="font-semibold">Top khách hàng</h3>
               <table className="mt-2 w-full text-sm">
                 <tbody>
@@ -219,10 +219,10 @@ export function ReportsPage({ token }: { token: string }) {
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Báo cáo</h2>
       <PeriodPicker preset={preset} setPreset={setPreset} from={from} setFrom={setFrom} to={to} setTo={setTo} />
-      <button onClick={load} className="rounded bg-blue-600 px-4 py-2 text-white">Xem</button>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
+      <button onClick={load} className="btn btn-primary">Xem</button>
+      {error && <p className="alert-error">{error}</p>}
 
-      <div className="rounded border p-4">
+      <div className="card">
         <h3 className="font-semibold">Tiền thu theo phương thức (payment active, theo ngày tạo payment)</h3>
         <table className="mt-2 w-full text-sm">
           <tbody>
@@ -238,7 +238,7 @@ export function ReportsPage({ token }: { token: string }) {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded border p-4">
+        <div className="card">
           <h3 className="font-semibold">Top SKU</h3>
           <table className="mt-2 w-full text-sm">
             <tbody>
@@ -253,7 +253,7 @@ export function ReportsPage({ token }: { token: string }) {
           </table>
           <p className="mt-2 text-xs text-gray-500">Lãi gộp là ước tính theo giá nhập hiện tại, không phải lãi chính xác theo lô.</p>
         </div>
-        <div className="rounded border p-4">
+        <div className="card">
           <h3 className="font-semibold">Top khách hàng</h3>
           <table className="mt-2 w-full text-sm">
             <tbody>
@@ -270,7 +270,7 @@ export function ReportsPage({ token }: { token: string }) {
       </div>
 
       {debt && (
-        <div className="rounded border p-4">
+        <div className="card">
           <h3 className="font-semibold">Báo cáo công nợ</h3>
           <p className="text-sm">Trong khoảng: nợ {fmt(debt.inPeriod?.totalDebtOwing)} · {debt.inPeriod?.debtOrderCount ?? 0} đơn còn nợ · {debt.inPeriod?.debtCustomerCount ?? 0} khách còn nợ · Tiền thừa {fmt(debt.inPeriod?.totalCredit)}</p>
           {debt.totalDebtAllTime !== undefined && <p className="text-sm">Tổng nợ toàn thời gian: {fmt(debt.totalDebtAllTime)}</p>}
@@ -288,7 +288,7 @@ export function ReportsPage({ token }: { token: string }) {
       )}
 
       {supplierDebt && (
-        <div className="rounded border p-4">
+        <div className="card">
           <h3 className="font-semibold">Báo cáo công nợ nhà cung cấp</h3>
           <p className="text-sm">Trong khoảng: tiền nhập {fmt(supplierDebt.totals?.purchaseTotal)} · {supplierDebt.totals?.poCount ?? 0} đơn nhập (đã xác nhận/hoàn thành) · Đã trả {fmt(supplierDebt.totals?.paidTotal)} · Còn nợ {fmt(supplierDebt.totals?.debtOwing)} · Tiền thừa {fmt(supplierDebt.totals?.credit)} · Nợ ròng {fmt(supplierDebt.totals?.netDebt)}</p>
           <p className="text-sm text-gray-500">Chỉ tính đơn nhập confirmed/completed tạo trong khoảng; đơn nháp và đơn hủy không tính. Nợ là tổng các debtTotal dương, tiền thừa báo riêng và không trừ vào nợ.</p>
@@ -307,7 +307,7 @@ export function ReportsPage({ token }: { token: string }) {
       )}
 
       {inventory && (
-        <div className="rounded border p-4">
+        <div className="card">
           <h3 className="font-semibold">Báo cáo tồn kho</h3>
           <p className="text-sm">Tổng SKU {inventory.summary?.totalSkuCount ?? 0} · Tổng tồn {inventory.summary?.totalQuantity ?? 0} · Tồn thấp {inventory.summary?.lowStockCount ?? 0} · Hết hàng {inventory.summary?.outOfStockCount ?? 0}{inventory.summary?.inventoryValueEstimate !== null && inventory.summary?.inventoryValueEstimate !== undefined ? ` · Giá trị tồn ước tính ${fmt(inventory.summary.inventoryValueEstimate)}` : ""}</p>
           <table className="mt-2 w-full text-sm">

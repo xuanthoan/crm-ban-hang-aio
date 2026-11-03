@@ -351,7 +351,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
   };
 
   if (!canView) {
-    return <p className="mt-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">Bạn không có quyền xem trang quản trị.</p>;
+    return <p className="mt-4 alert-error">Bạn không có quyền xem trang quản trị.</p>;
   }
 
   const editingUser = formTarget && formTarget !== "new" ? users.find((u) => u.id === formTarget) : undefined;
@@ -408,17 +408,17 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
         Không đổi vai trò hay khóa admin đang hoạt động duy nhất.
       </p>
 
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
-      {info && <p className="rounded border border-green-300 bg-green-50 p-3 text-green-800">{info}</p>}
+      {error && <p className="alert-error">{error}</p>}
+      {info && <p className="alert-success">{info}</p>}
 
       <div className="flex flex-wrap items-center gap-2">
         <input
-          className="rounded border p-2"
+          className="field"
           placeholder="Tìm tên, tên đăng nhập, email"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select className="rounded border p-2" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+        <select className="field" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
           <option value="">Tất cả vai trò</option>
           {roles.map((r) => (
             <option key={r.code} value={r.code}>
@@ -426,60 +426,60 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
             </option>
           ))}
         </select>
-        <select className="rounded border p-2" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+        <select className="field" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="">Tất cả trạng thái</option>
           <option value="active">Đang hoạt động</option>
           <option value="locked">Bị khóa</option>
           <option value="inactive">Ngừng</option>
         </select>
         {canCreate && (
-          <button className="rounded bg-blue-600 px-4 py-2 text-white" onClick={openCreate}>
+          <button className="btn btn-primary" onClick={openCreate}>
             + Tạo nhân viên
           </button>
         )}
       </div>
 
-      <table className="w-full border-collapse text-sm">
+      <table className="table">
         <thead>
           <tr className="border-b">
-            <th className="px-2 py-1 text-left">Họ tên</th>
-            <th className="px-2 py-1 text-left">Tên đăng nhập</th>
-            <th className="px-2 py-1 text-left">Email</th>
-            <th className="px-2 py-1 text-left">Vai trò</th>
-            <th className="px-2 py-1 text-left">Trạng thái</th>
-            <th className="px-2 py-1 text-left">Đăng nhập cuối</th>
-            <th className="px-2 py-1 text-left">Thao tác</th>
+            <th>Họ tên</th>
+            <th>Tên đăng nhập</th>
+            <th>Email</th>
+            <th>Vai trò</th>
+            <th>Trạng thái</th>
+            <th>Đăng nhập cuối</th>
+            <th>Thao tác</th>
           </tr>
         </thead>
         <tbody>
           {users.map((u) => (
             <tr key={u.id} className="border-b">
-              <td className="px-2 py-1">{u.fullName}</td>
-              <td className="px-2 py-1">{u.username}</td>
-              <td className="px-2 py-1">{u.email}</td>
-              <td className="px-2 py-1">{u.roleName ?? u.role ?? "—"}</td>
-              <td className="px-2 py-1">{STATUS_LABELS[u.status] ?? u.status}</td>
-              <td className="px-2 py-1">{fmtDate(u.lastLoginAt)}</td>
-              <td className="px-2 py-1">
+              <td>{u.fullName}</td>
+              <td>{u.username}</td>
+              <td>{u.email}</td>
+              <td>{u.roleName ?? u.role ?? "—"}</td>
+              <td><span className={u.status === "active" ? "badge badge-green" : u.status === "locked" ? "badge badge-red" : "badge badge-gray"}>{STATUS_LABELS[u.status] ?? u.status}</span></td>
+              <td>{fmtDate(u.lastLoginAt)}</td>
+              <td>
                 <div className="flex flex-wrap gap-1">
                   {canUpdate && (
-                    <button className="rounded border px-2 py-1" onClick={() => openEdit(u)}>
+                    <button className="btn btn-sm btn-secondary" onClick={() => openEdit(u)}>
                       Sửa
                     </button>
                   )}
                   {canSetPerms && (
-                    <button className="rounded border px-2 py-1" onClick={() => openPermEditor(u)}>
+                    <button className="btn btn-sm btn-secondary" onClick={() => openPermEditor(u)}>
                       Quyền riêng
                     </button>
                   )}
                   {canLock && (
-                    <button className="rounded border px-2 py-1" onClick={() => handleLockToggle(u)}>
+                    <button className="btn btn-sm btn-secondary" onClick={() => handleLockToggle(u)}>
                       {u.status === "locked" ? "Mở khóa" : "Khóa"}
                     </button>
                   )}
                   {canReset && (
                     <button
-                      className="rounded border px-2 py-1"
+                      className="btn btn-sm btn-secondary"
                       onClick={() => {
                         setResetFor(u.id);
                         setResetPw("");
@@ -498,13 +498,13 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
       </table>
 
       {resetFor && (
-        <form onSubmit={handleResetPassword} className="space-y-3 rounded border p-4">
+        <form onSubmit={handleResetPassword} className="space-y-3 card">
           <h3 className="font-semibold">Đặt lại mật khẩu cho {users.find((u) => u.id === resetFor)?.username}</h3>
           <label className="block">
             Mật khẩu mới (ít nhất 8 ký tự)
             <input
               type="password"
-              className="mt-1 w-full rounded border p-2"
+              className="input"
               value={resetPw}
               onChange={(e) => {
                 clearCustomValidity(e);
@@ -517,8 +517,8 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
             />
           </label>
           <div className="flex gap-2">
-            <button className="rounded bg-blue-600 px-4 py-2 text-white">Đặt lại</button>
-            <button type="button" className="rounded border px-4 py-2" onClick={() => setResetFor(null)}>
+            <button className="btn btn-primary">Đặt lại</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setResetFor(null)}>
               Đóng
             </button>
           </div>
@@ -527,12 +527,12 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
       )}
 
       {formTarget && (
-        <form onSubmit={handleSubmitUser} className="space-y-3 rounded border p-4">
+        <form onSubmit={handleSubmitUser} className="space-y-3 card">
           <h3 className="font-semibold">{formTarget === "new" ? "Tạo nhân viên" : `Sửa nhân viên ${editingUser?.username}`}</h3>
           <label className="block">
             Họ tên
             <input
-              className="mt-1 w-full rounded border p-2"
+              className="input"
               value={form.fullName}
               onChange={(e) => {
                 clearCustomValidity(e);
@@ -545,7 +545,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
           <label className="block">
             Tên đăng nhập {formTarget !== "new" && <span className="text-gray-500">(không sửa được sau khi tạo)</span>}
             <input
-              className="mt-1 w-full rounded border p-2"
+              className="input"
               value={form.username}
               disabled={formTarget !== "new"}
               onChange={(e) => {
@@ -562,7 +562,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
             Email {formTarget !== "new" && <span className="text-gray-500">(không sửa được sau khi tạo)</span>}
             <input
               type="email"
-              className="mt-1 w-full rounded border p-2"
+              className="input"
               value={form.email}
               disabled={formTarget !== "new"}
               onChange={(e) => {
@@ -579,11 +579,11 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
           </label>
           <label className="block">
             Số điện thoại
-            <input className="mt-1 w-full rounded border p-2" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <input className="input" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </label>
           <label className="block">
             Vai trò
-            <select className="mt-1 w-full rounded border p-2" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            <select className="input" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
               {roles.map((r) => (
                 <option key={r.code} value={r.code}>
                   {r.name} — {r.description ?? ""}
@@ -594,7 +594,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
           {formTarget !== "new" && (
             <label className="block">
               Trạng thái
-              <select className="mt-1 w-full rounded border p-2" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                 <option value="active">Đang hoạt động</option>
                 <option value="locked">Bị khóa</option>
                 <option value="inactive">Ngừng</option>
@@ -605,7 +605,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
             <label className="block">
               Yêu cầu OTP riêng
               <select
-                className="mt-1 w-full rounded border p-2"
+                className="input"
                 value={form.requireOtp}
                 onChange={(e) => setForm({ ...form, requireOtp: e.target.value })}
               >
@@ -620,7 +620,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
               Mật khẩu ban đầu (ít nhất 8 ký tự)
               <input
                 type="password"
-                className="mt-1 w-full rounded border p-2"
+                className="input"
                 value={form.password}
                 onChange={(e) => {
                   clearCustomValidity(e);
@@ -646,8 +646,8 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
             </div>
           )}
           <div className="flex gap-2">
-            <button className="rounded bg-blue-600 px-4 py-2 text-white">Lưu</button>
-            <button type="button" className="rounded border px-4 py-2" onClick={() => setFormTarget(null)}>
+            <button className="btn btn-primary">Lưu</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setFormTarget(null)}>
               Đóng
             </button>
           </div>
@@ -655,7 +655,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
       )}
 
       {permEditorFor && editorUser && (
-        <div className="space-y-4 rounded border p-4">
+        <div className="space-y-4 card">
           <h3 className="font-semibold">
             Quyền riêng của {editorUser.fullName} ({editorUser.username}) — vai trò {editorUser.roleName ?? editorUser.role}
           </h3>
@@ -673,13 +673,13 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
             grouped.map((g) => (
               <div key={g.module}>
                 <h4 className="mt-3 font-semibold">{MODULE_LABELS[g.module] ?? g.module}</h4>
-                <table className="w-full border-collapse text-sm">
+                <table className="table">
                   <thead>
                     <tr className="border-b">
-                      <th className="px-2 py-1 text-left">Quyền</th>
-                      <th className="px-2 py-1 text-left">Vai trò có</th>
-                      <th className="px-2 py-1 text-left">Tùy chỉnh</th>
-                      <th className="px-2 py-1 text-left">Hiệu lực</th>
+                      <th>Quyền</th>
+                      <th>Vai trò có</th>
+                      <th>Tùy chỉnh</th>
+                      <th>Hiệu lực</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -689,9 +689,9 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
                       const eff = previewEffective(p.code);
                       return (
                         <tr key={p.code} className="border-b">
-                          <td className="px-2 py-1">{p.description}</td>
-                          <td className="px-2 py-1">{roleHas ? "Có" : "—"}</td>
-                          <td className="px-2 py-1">
+                          <td>{p.description}</td>
+                          <td>{roleHas ? "Có" : "—"}</td>
+                          <td>
                             <select
                               className="rounded border p-1"
                               value={v}
@@ -702,7 +702,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
                               <option value="deny">Luôn chặn</option>
                             </select>
                           </td>
-                          <td className="px-2 py-1">
+                          <td>
                             <span className={eff ? "text-green-700" : "text-gray-400"}>{eff ? "✓ Có" : "— Không"}</span>
                           </td>
                         </tr>
@@ -716,20 +716,20 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
             <p className="text-sm text-gray-500">Đang tải quyền hiện tại…</p>
           )}
           <div className="flex flex-wrap gap-2">
-            <button className="rounded bg-blue-600 px-4 py-2 text-white" disabled={savingPerms} onClick={() => handleSavePerms(false)}>
+            <button className="btn btn-primary" disabled={savingPerms} onClick={() => handleSavePerms(false)}>
               {savingPerms ? "Đang lưu…" : "Lưu quyền riêng"}
             </button>
-            <button className="rounded border px-4 py-2" disabled={savingPerms} onClick={() => handleSavePerms(true)}>
+            <button className="btn btn-secondary" disabled={savingPerms} onClick={() => handleSavePerms(true)}>
               Xóa hết quyền riêng
             </button>
-            <button className="rounded border px-4 py-2" onClick={() => setPermEditorFor(null)}>
+            <button className="btn btn-secondary" onClick={() => setPermEditorFor(null)}>
               Đóng
             </button>
           </div>
         </div>
       )}
 
-      <div className="space-y-4 rounded border p-4">
+      <div className="space-y-4 card">
         <h3 className="font-semibold">Ma trận quyền theo vai trò (chỉ xem)</h3>
         <p className="text-sm text-gray-600">
           Bộ quyền mặc định của mỗi vai trò do hệ thống định sẵn. Muốn khác mặc định cho một người cụ thể thì dùng Quyền riêng ở
@@ -738,12 +738,12 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
         {grouped.map((g) => (
           <div key={g.module}>
             <h4 className="mt-3 font-semibold">{MODULE_LABELS[g.module] ?? g.module}</h4>
-            <table className="w-full border-collapse text-sm">
+            <table className="table">
               <thead>
                 <tr className="border-b">
-                  <th className="px-2 py-1 text-left">Quyền</th>
+                  <th>Quyền</th>
                   {orderedRoles.map((r) => (
-                    <th key={r.code} className="px-2 py-1 text-left">
+                    <th key={r.code}>
                       {r.name}
                     </th>
                   ))}
@@ -752,9 +752,9 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
               <tbody>
                 {g.perms.map((p) => (
                   <tr key={p.code} className="border-b">
-                    <td className="px-2 py-1">{p.description}</td>
+                    <td>{p.description}</td>
                     {orderedRoles.map((r) => (
-                      <td key={r.code} className="px-2 py-1">
+                      <td key={r.code}>
                         {r.permissions.includes(p.code) ? "✓" : "—"}
                       </td>
                     ))}

@@ -196,18 +196,18 @@ export default function InventoryPage({ token, permissions }: { token: string; p
         hàng loạt lỗi ở 1 SKU thì hủy toàn bộ, không áp dụng một phần. SKU ngừng bán không được nhập/xuất kho, chỉ
         được điều chỉnh kiểm kê kèm lý do.
       </p>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
-      {info && <p className="rounded border border-green-300 bg-green-50 p-3 text-green-800">{info}</p>}
+      {error && <p className="alert-error">{error}</p>}
+      {info && <p className="alert-success">{info}</p>}
 
       <div className="flex flex-wrap gap-2">
-        <input className="rounded border p-2" placeholder="Tìm SKU / tên sản phẩm / biến thể" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
-        <select className="rounded border p-2" value={variantStatus} onChange={(e) => { setVariantStatus(e.target.value); setPage(1); }}>
+        <input className="field" placeholder="Tìm SKU / tên sản phẩm / biến thể" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
+        <select className="field" value={variantStatus} onChange={(e) => { setVariantStatus(e.target.value); setPage(1); }}>
           <option value="">Mọi trạng thái SKU</option>
           <option value="active">SKU đang bán</option>
           <option value="inactive">SKU ngừng bán</option>
         </select>
-        <input className="rounded border p-2" type="number" min={0} placeholder="Tồn tối đa (vd 5)" value={maxQuantity} onChange={(e) => { setMaxQuantity(e.target.value); setPage(1); }} />
-        <select className="rounded border p-2" value={sort} onChange={(e) => setSort(e.target.value)}>
+        <input className="field" type="number" min={0} placeholder="Tồn tối đa (vd 5)" value={maxQuantity} onChange={(e) => { setMaxQuantity(e.target.value); setPage(1); }} />
+        <select className="field" value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="">Sắp xếp theo SKU</option>
           <option value="low_stock">Tồn thấp lên trước</option>
           <option value="high_stock">Tồn cao lên trước</option>
@@ -217,82 +217,82 @@ export default function InventoryPage({ token, permissions }: { token: string; p
       <table className="w-full border text-sm">
         <thead>
           <tr className="bg-gray-50">
-            <th className="border p-2 text-left">SKU</th>
-            <th className="border p-2 text-left">Sản phẩm / Biến thể</th>
-            <th className="border p-2 text-right">Tồn</th>
-            <th className="border p-2 text-left">Trạng thái</th>
-            <th className="border p-2 text-left">Thao tác</th>
+            <th>SKU</th>
+            <th>Sản phẩm / Biến thể</th>
+            <th>Tồn</th>
+            <th>Trạng thái</th>
+            <th>Thao tác</th>
           </tr>
         </thead>
         <tbody>
           {items.map((it) => (
             <tr key={it.variantId}>
-              <td className="border p-2 font-mono">{it.sku}</td>
-              <td className="border p-2">{it.productName} — {it.variantName}</td>
-              <td className="border p-2 text-right font-semibold">{it.quantity}</td>
-              <td className="border p-2">{it.isSellable ? "Đang bán" : "Ngừng bán"}</td>
-              <td className="border p-2">
+              <td className="font-mono">{it.sku}</td>
+              <td>{it.productName} — {it.variantName}</td>
+              <td className="font-semibold">{it.quantity}</td>
+              <td>{it.isSellable ? "Đang bán" : "Ngừng bán"}</td>
+              <td>
                 <div className="flex flex-wrap gap-1">
-                  {canViewTx && <button className="rounded border px-2 py-1" onClick={() => loadHistory(it)}>Lịch sử</button>}
-                  {canImport && <button className="rounded border px-2 py-1" onClick={() => startOp("initial", it)}>Tồn ban đầu</button>}
-                  {canImport && <button className="rounded border px-2 py-1" onClick={() => startOp("import", it)}>Nhập</button>}
-                  {canExport && <button className="rounded border px-2 py-1" onClick={() => startOp("export", it)}>Xuất</button>}
-                  {canAdjust && <button className="rounded border px-2 py-1" onClick={() => startOp("adjust", it)}>Điều chỉnh</button>}
+                  {canViewTx && <button className="btn btn-sm btn-secondary" onClick={() => loadHistory(it)}>Lịch sử</button>}
+                  {canImport && <button className="btn btn-sm btn-secondary" onClick={() => startOp("initial", it)}>Tồn ban đầu</button>}
+                  {canImport && <button className="btn btn-sm btn-secondary" onClick={() => startOp("import", it)}>Nhập</button>}
+                  {canExport && <button className="btn btn-sm btn-secondary" onClick={() => startOp("export", it)}>Xuất</button>}
+                  {canAdjust && <button className="btn btn-sm btn-secondary" onClick={() => startOp("adjust", it)}>Điều chỉnh</button>}
                 </div>
               </td>
             </tr>
           ))}
           {items.length === 0 && (
-            <tr><td className="border p-2" colSpan={5}>Chưa có SKU nào có dòng tồn, hoặc không khớp bộ lọc.</td></tr>
+            <tr><td colSpan={5}>Chưa có SKU nào có dòng tồn, hoặc không khớp bộ lọc.</td></tr>
           )}
         </tbody>
       </table>
       <div className="flex items-center gap-2">
-        <button className="rounded border px-3 py-1 disabled:opacity-50" disabled={page <= 1} onClick={() => setPage(page - 1)}>Trước</button>
+        <button className="btn btn-sm btn-secondary disabled:opacity-50" disabled={page <= 1} onClick={() => setPage(page - 1)}>Trước</button>
         <span>Trang {page} — tổng {total} dòng tồn</span>
-        <button className="rounded border px-3 py-1 disabled:opacity-50" disabled={items.length < 20} onClick={() => setPage(page + 1)}>Sau</button>
+        <button className="btn btn-sm btn-secondary disabled:opacity-50" disabled={items.length < 20} onClick={() => setPage(page + 1)}>Sau</button>
       </div>
 
       {historyVariant && (
-        <div className="rounded border p-4">
+        <div className="card">
           <h3 className="font-semibold">Lịch sử kho — {historyVariant.sku} ({historyVariant.productName} — {historyVariant.variantName})</h3>
           <p className="text-sm text-gray-500">Lịch sử bất biến, không sửa/xóa được.</p>
           <table className="mt-2 w-full border text-sm">
             <thead>
               <tr className="bg-gray-50">
-                <th className="border p-2 text-left">Thời gian</th>
-                <th className="border p-2 text-left">Loại</th>
-                <th className="border p-2 text-right">Trước</th>
-                <th className="border p-2 text-right">Thay đổi</th>
-                <th className="border p-2 text-right">Sau</th>
-                <th className="border p-2 text-left">Lý do</th>
+                <th>Thời gian</th>
+                <th>Loại</th>
+                <th>Trước</th>
+                <th>Thay đổi</th>
+                <th>Sau</th>
+                <th>Lý do</th>
               </tr>
             </thead>
             <tbody>
               {history.map((t) => (
                 <tr key={t.id}>
-                  <td className="border p-2">{isoToVnDateTime(t.createdAt)}</td>
-                  <td className="border p-2">{labelFor(INVENTORY_TX_LABELS, t.transactionType)}</td>
-                  <td className="border p-2 text-right">{t.quantityBefore}</td>
-                  <td className="border p-2 text-right">{t.quantityChanged >= 0 ? "+" : ""}{t.quantityChanged}</td>
-                  <td className="border p-2 text-right font-semibold">{t.quantityAfter}</td>
-                  <td className="border p-2">{t.reason}</td>
+                  <td>{isoToVnDateTime(t.createdAt)}</td>
+                  <td>{labelFor(INVENTORY_TX_LABELS, t.transactionType)}</td>
+                  <td>{t.quantityBefore}</td>
+                  <td>{t.quantityChanged >= 0 ? "+" : ""}{t.quantityChanged}</td>
+                  <td className="font-semibold">{t.quantityAfter}</td>
+                  <td>{t.reason}</td>
                 </tr>
               ))}
-              {history.length === 0 && <tr><td className="border p-2" colSpan={6}>Chưa có transaction nào cho SKU này.</td></tr>}
+              {history.length === 0 && <tr><td colSpan={6}>Chưa có transaction nào cho SKU này.</td></tr>}
             </tbody>
           </table>
-          <button className="mt-2 rounded border px-3 py-1" onClick={() => { setHistoryVariant(null); setHistory([]); }}>Đóng lịch sử</button>
+          <button className="mt-2 btn btn-sm btn-secondary" onClick={() => { setHistoryVariant(null); setHistory([]); }}>Đóng lịch sử</button>
         </div>
       )}
 
       {canOperate && (
-        <form onSubmit={submitOp} className="space-y-3 rounded border p-4">
+        <form onSubmit={submitOp} className="space-y-3 card">
           <h3 className="font-semibold">Thao tác kho (một hoặc nhiều SKU — lỗi ở 1 dòng thì hủy toàn bộ)</h3>
           <div className="flex flex-wrap gap-2">
             <label className="flex items-center gap-2">
               Thao tác
-              <select className="rounded border p-2" value={op} onChange={(e) => setOp(e.target.value as typeof op)}>
+              <select className="input" value={op} onChange={(e) => setOp(e.target.value as typeof op)}>
                 {canImport && <option value="initial">Nhập tồn ban đầu (chỉ lần đầu)</option>}
                 {canImport && <option value="import">Nhập kho</option>}
                 {canExport && <option value="export">Xuất kho</option>}
@@ -302,7 +302,7 @@ export default function InventoryPage({ token, permissions }: { token: string; p
             {op === "adjust" && (
               <label className="flex items-center gap-2">
                 Kiểu điều chỉnh
-                <select className="rounded border p-2" value={adjustMode} onChange={(e) => setAdjustMode(e.target.value as typeof adjustMode)}>
+                <select className="input" value={adjustMode} onChange={(e) => setAdjustMode(e.target.value as typeof adjustMode)}>
                   <option value="increase">Tăng</option>
                   <option value="decrease">Giảm</option>
                   <option value="set">Đặt về số tuyệt đối</option>
@@ -312,13 +312,13 @@ export default function InventoryPage({ token, permissions }: { token: string; p
           </div>
           <label className="block">
             Lý do {op === "initial" ? "(không bắt buộc cho tồn ban đầu)" : "(bắt buộc)"}
-            <input className="mt-1 w-full rounded border p-2" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="VD: Nhập hàng đợt 1 từ NCC An Phát, phiếu NH-001" />
+            <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="VD: Nhập hàng đợt 1 từ NCC An Phát, phiếu NH-001" />
           </label>
           {lines.map((line, idx) => (
-            <div key={idx} className="flex flex-wrap items-end gap-2 rounded border p-2">
+            <div key={idx} className="flex flex-wrap items-end gap-2 card-sm">
               <label className="block">
                 SKU
-                <select className="mt-1 rounded border p-2" value={line.variantId} onChange={(e) => {
+                <select className="input" value={line.variantId} onChange={(e) => {
                   const next = [...lines]; next[idx] = { ...next[idx], variantId: e.target.value }; setLines(next);
                 }}>
                   <option value="">— Chọn SKU trong danh sách —</option>
@@ -330,7 +330,7 @@ export default function InventoryPage({ token, permissions }: { token: string; p
               {op === "adjust" && adjustMode === "set" ? (
                 <label className="block">
                   Đặt về
-                  <input type="number" min={0} className="mt-1 rounded border p-2" value={line.setTo} onChange={(e) => {
+                  <input type="number" min={0} className="input" value={line.setTo} onChange={(e) => {
                     clearCustomValidity(e);
                     const next = [...lines]; next[idx] = { ...next[idx], setTo: e.target.value }; setLines(next);
                   }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập số tồn muốn đặt.", underflow: "Số tồn muốn đặt không được nhỏ hơn 0.", badInput: "Số tồn phải là số nguyên." }))} required />
@@ -338,18 +338,18 @@ export default function InventoryPage({ token, permissions }: { token: string; p
               ) : (
                 <label className="block">
                   Số lượng
-                  <input type="number" min={1} className="mt-1 rounded border p-2" value={line.quantity} onChange={(e) => {
+                  <input type="number" min={1} className="input" value={line.quantity} onChange={(e) => {
                     clearCustomValidity(e);
                     const next = [...lines]; next[idx] = { ...next[idx], quantity: e.target.value }; setLines(next);
                   }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập số lượng.", underflow: "Số lượng phải từ 1 trở lên.", badInput: "Số lượng phải là số nguyên." }))} required />
                 </label>
               )}
-              <button type="button" className="rounded border px-3 py-2" disabled={lines.length <= 1} onClick={() => setLines(lines.filter((_, i) => i !== idx))}>Xóa dòng</button>
+              <button type="button" className="btn btn-secondary" disabled={lines.length <= 1} onClick={() => setLines(lines.filter((_, i) => i !== idx))}>Xóa dòng</button>
             </div>
           ))}
           <div className="flex gap-2">
-            <button type="button" className="rounded border px-4 py-2" onClick={() => setLines([...lines, { variantId: "", quantity: "", setTo: "" }])}>+ Thêm dòng SKU</button>
-            <button disabled={busy} className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50">{busy ? "Đang lưu…" : "Lưu thao tác kho"}</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setLines([...lines, { variantId: "", quantity: "", setTo: "" }])}>+ Thêm dòng SKU</button>
+            <button disabled={busy} className="btn btn-primary disabled:opacity-50">{busy ? "Đang lưu…" : "Lưu thao tác kho"}</button>
           </div>
           <p className="text-sm text-gray-500">
             Lưu ý: nút ở giao diện chỉ để tiện dùng — backend vẫn kiểm tra quyền, lý do và tồn âm. SKU ngừng bán không

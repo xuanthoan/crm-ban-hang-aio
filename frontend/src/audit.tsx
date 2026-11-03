@@ -103,8 +103,8 @@ export function EntityAuditTimeline({ token, entityType, entityId }: { token: st
   }, [token, entityType, entityId]);
 
   return (
-    <div className="mt-4 rounded border p-3">
-      <button type="button" onClick={() => { setOpen(!open); if (!open) void load(); }} className="rounded border px-3 py-1">
+    <div className="mt-4 card-sm">
+      <button type="button" onClick={() => { setOpen(!open); if (!open) void load(); }} className="btn btn-sm btn-secondary">
         {open ? "Ẩn lịch sử audit" : "Xem lịch sử audit của hồ sơ này"}
       </button>
       {open && (
@@ -112,7 +112,7 @@ export function EntityAuditTimeline({ token, entityType, entityId }: { token: st
           {error && <p className="text-sm text-red-700">{error}</p>}
           {rows.length === 0 && !error && <p className="text-sm text-gray-500">Chưa có dòng audit nào cho thực thể này (hoặc bạn chỉ xem được audit do chính mình thực hiện).</p>}
           {rows.map((r) => (
-            <div key={r.id} className="rounded border p-2 text-sm">
+            <div key={r.id} className="card-sm text-sm">
               <button type="button" onClick={() => setSelectedId(selectedId === r.id ? null : r.id)} className="font-semibold text-left">
                 {new Date(r.createdAt).toLocaleString("vi-VN")} — {labelFor(AUDIT_ACTION_LABELS, r.action)} — {r.actorName ?? r.actorUsername ?? "(hệ thống)"}
               </button>
@@ -196,11 +196,11 @@ export default function AuditPage({ token }: { token: string }) {
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         <label className="block text-sm">
           Người thực hiện
-          <input className="mt-1 w-full rounded border p-2" value={actorId} onChange={(e) => { setActorId(e.target.value); setPage(1); }} placeholder="vd: tên đăng nhập (admin) hoặc mã người dùng" />
+          <input className="input" value={actorId} onChange={(e) => { setActorId(e.target.value); setPage(1); }} placeholder="vd: tên đăng nhập (admin) hoặc mã người dùng" />
         </label>
         <label className="block text-sm">
           Hành động
-          <select className="mt-1 w-full rounded border p-2" value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
+          <select className="input" value={action} onChange={(e) => { setAction(e.target.value); setPage(1); }}>
             <option value="">Tất cả hành động</option>
             {Object.entries(AUDIT_ACTION_LABELS).map(([code, label]) => (
               <option key={code} value={code}>{label}</option>
@@ -209,7 +209,7 @@ export default function AuditPage({ token }: { token: string }) {
         </label>
         <label className="block text-sm">
           Loại thực thể
-          <select className="mt-1 w-full rounded border p-2" value={entityType} onChange={(e) => { setEntityType(e.target.value); setPage(1); }}>
+          <select className="input" value={entityType} onChange={(e) => { setEntityType(e.target.value); setPage(1); }}>
             <option value="">Tất cả loại</option>
             {Object.entries(ENTITY_TYPE_LABELS).map(([code, label]) => (
               <option key={code} value={code}>{label}</option>
@@ -218,26 +218,26 @@ export default function AuditPage({ token }: { token: string }) {
         </label>
         <label className="block text-sm">
           Mã thực thể
-          <input className="mt-1 w-full rounded border p-2" value={entityId} onChange={(e) => { setEntityId(e.target.value); setPage(1); }} placeholder="vd: customers, hoặc mã cm... sau dấu /" />
+          <input className="input" value={entityId} onChange={(e) => { setEntityId(e.target.value); setPage(1); }} placeholder="vd: customers, hoặc mã cm... sau dấu /" />
         </label>
         <label className="block text-sm">
           Tìm kiếm
-          <input className="mt-1 w-full rounded border p-2" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="vd: khách hàng, export, tên đăng nhập" />
+          <input className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="vd: khách hàng, export, tên đăng nhập" />
         </label>
         <label className="block text-sm">
           Từ ngày
-          <input type="date" className="mt-1 w-full rounded border p-2" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
+          <input type="date" className="input" value={from} onChange={(e) => { setFrom(e.target.value); setPage(1); }} />
         </label>
         <label className="block text-sm">
           Đến ngày
-          <input type="date" className="mt-1 w-full rounded border p-2" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
+          <input type="date" className="input" value={to} onChange={(e) => { setTo(e.target.value); setPage(1); }} />
         </label>
       </div>
-      {error && <p className="rounded border border-red-300 bg-red-50 p-3 text-red-800">{error}</p>}
+      {error && <p className="alert-error">{error}</p>}
       <p className="text-sm text-gray-500">Tổng: {total} dòng · Trang {page}</p>
       <ul className="space-y-2">
         {rows.map((r) => (
-          <li key={r.id} className="rounded border p-3 text-sm">
+          <li key={r.id} className="card-sm text-sm">
             <button type="button" onClick={() => setSelectedId(selectedId === r.id ? null : r.id)} className="text-left">
               <strong>{new Date(r.createdAt).toLocaleString("vi-VN")}</strong> — {labelFor(AUDIT_ACTION_LABELS, r.action)} — {labelFor(ENTITY_TYPE_LABELS, r.entityType)}/{r.entityId} —{" "}
               {r.actorName ?? r.actorUsername ?? "(hệ thống)"}
@@ -248,8 +248,8 @@ export default function AuditPage({ token }: { token: string }) {
         {rows.length === 0 && !error && <li className="text-gray-500">Chưa có dòng audit nào khớp bộ lọc.</li>}
       </ul>
       <div className="flex gap-2">
-        <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="rounded border px-3 py-1 disabled:opacity-50">Trang trước</button>
-        <button disabled={rows.length < 20} onClick={() => setPage(page + 1)} className="rounded border px-3 py-1 disabled:opacity-50">Trang sau</button>
+        <button disabled={page <= 1} onClick={() => setPage(page - 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang trước</button>
+        <button disabled={rows.length < 20} onClick={() => setPage(page + 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang sau</button>
       </div>
     </div>
   );
