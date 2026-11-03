@@ -491,6 +491,7 @@ model Product {
 
   category Category?        @relation(fields: [categoryId], references: [id])
   variants ProductVariant[]
+  images   ProductImage[]
 }
 
 model ProductVariant {
@@ -520,6 +521,30 @@ model ProductVariant {
   inventoryTransactions InventoryTransaction[]
   orderItems            OrderItem[]
   purchaseOrderItems    PurchaseOrderItem[]
+  images                ProductImage[]
+}
+
+// Ảnh sản phẩm: ảnh chung của sản phẩm (variantId null — gallery, ảnh đầu
+// tiên theo sortOrder là ảnh chính) hoặc thumbnail riêng của một SKU
+// (variantId có giá trị — mỗi SKU tối đa 1 ảnh riêng, service xóa ảnh cũ
+// khi đặt thumbnail mới). Người tạo ảnh đã có trong audit log nên bảng
+// này không giữ createdById. Ảnh không phải dữ liệu giao dịch nên xóa
+// ảnh là xóa thật cả dòng lẫn file, không qua soft-delete.
+// File vật lý nằm trong thư mục uploads của backend, tên file sinh bằng
+// uuid (không dùng tên gốc) để không lộ đường dẫn và tránh traversal.
+model ProductImage {
+  id           String   @id @default(cuid())
+  productId    String
+  variantId    String?
+  fileName     String
+  originalName String?
+  mimeType     String
+  size         Int
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  product Product         @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
 }
 
 // ---------- Inventory ----------

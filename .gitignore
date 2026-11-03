@@ -6,4 +6,5 @@ dist/
 .DS_Store
 frontend/dist/
 backend/dist/
+uploads/
 *.tsbuildinfo

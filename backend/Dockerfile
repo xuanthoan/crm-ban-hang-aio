@@ -36,6 +36,10 @@ COPY --from=builder /app/package.json ./package.json
 # /app/node_modules/@prisma/engines" and new migrations cannot be written
 # to /app/prisma. The production image contains dist/ only (no src/), so
 # seed runs as `node dist/seed.js`, never `npm run seed` (ts-node src/).
+# /app/uploads is created here (node-owned) so the named uploads volume
+# in docker-compose.override.yml starts with writable ownership and the
+# app can write uploaded product images into it.
+RUN mkdir -p /app/uploads
 RUN chown -R node:node /app
 USER node
 EXPOSE 3001

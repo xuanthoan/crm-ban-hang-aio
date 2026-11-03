@@ -1,0 +1,18 @@
+# Ảnh sản phẩm — volume riêng cho backend.
+#
+# File upload (ảnh sản phẩm / thumbnail SKU) được backend ghi vào
+# /app/uploads. Không có volume thì mỗi lần `docker compose up --build`
+# tạo lại container sẽ xóa sạch ảnh. Volume đặt tên uploads_data này giữ
+# ảnh lại qua các lần rebuild; lần đầu tạo volume, Docker chép thư mục
+# /app/uploads (đã chown node:node trong Dockerfile) nên app ghi được.
+#
+# File này CHỈ thêm volume, không đổi cổng hay biến môi trường, nên nó
+# không xung đột với sửa cổng local trong docker-compose.yml. Compose tự
+# động nạp file override này khi chạy `docker compose up`.
+services:
+  backend:
+    volumes:
+      - uploads_data:/app/uploads
+
+volumes:
+  uploads_data:

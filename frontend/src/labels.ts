@@ -240,6 +240,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "inventory.import": "Nhập kho",
   "inventory.export": "Xuất kho",
   "inventory.adjust": "Điều chỉnh kho",
+  "product_image.uploaded": "Tải ảnh sản phẩm",
+  "product_thumbnail.set": "Đặt thumbnail SKU",
+  "product_image.deleted": "Xóa ảnh sản phẩm",
 };
 
 // Loại thực thể trong audit (entityType).

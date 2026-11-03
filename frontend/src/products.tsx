@@ -9,6 +9,16 @@ interface Category {
   productCount?: number;
 }
 
+interface ProductImageItem {
+  id: string;
+  productId: string;
+  variantId: string | null;
+  mimeType: string;
+  size: number;
+  sortOrder: number;
+  createdAt: string;
+}
+
 interface VariantRow {
   id?: string;
   sku: string;
@@ -21,6 +31,7 @@ interface VariantRow {
   status: string;
   isSellable?: boolean;
   stockQuantity?: number;
+  thumbnailImageId?: string | null;
 }
 
 interface ProductListItem {
@@ -34,6 +45,8 @@ interface ProductListItem {
   activeVariantCount: number;
   totalStock: number;
   variants: VariantRow[];
+  images: ProductImageItem[];
+  thumbnailImageId: string | null;
   createdAt: string;
 }
 
@@ -95,6 +108,41 @@ function PriceInput({ value, onChange, placeholder, className, disabled }: {
   );
 }
 
+/** Ảnh sản phẩm tải qua API có kèm token (thẻ <img> không gửi được
+ *  Authorization header) rồi hiển thị bằng blob URL. URL blob được cache
+ *  theo id ảnh trong phiên làm việc để không tải lại khi render lại. */
+const imageBlobCache = new Map<string, string>();
+
+function ProductImg({ token, imageId, className }: { token: string; imageId: string; className?: string }) {
+  const [src, setSrc] = useState<string | undefined>(() => imageBlobCache.get(imageId));
+  useEffect(() => {
+    const cached = imageBlobCache.get(imageId);
+    if (cached) {
+      setSrc(cached);
+      return;
+    }
+    let alive = true;
+    fetch(`${API_BASE}/api/product-images/${imageId}/file`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Lỗi ${res.status}`);
+        return res.blob();
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        imageBlobCache.set(imageId, url);
+        if (alive) setSrc(url);
+      })
+      .catch(() => { /* giữ khung chờ, không vỡ giao diện */ });
+    return () => { alive = false; };
+  }, [token, imageId]);
+  if (!src) {
+    return <div className={`${className ?? ""} flex items-center justify-center bg-gray-100 text-xs text-gray-400`}>…</div>;
+  }
+  return <img src={src} alt="Ảnh sản phẩm" className={className} />;
+}
+
 /** Local cartesian product (preview only — the backend re-generates authoritatively on save). */
 function cartesian(groups: { name: string; values: string[] }[]): { name: string; value: string }[][] {
   let combos: { name: string; value: string }[][] = [[]];
@@ -139,6 +187,9 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+
+  // Ảnh chung của sản phẩm đang mở (variantId null); thumbnail riêng của SKU nằm ở từng dòng biến thể.
+  const detailCommonImages = detail ? (detail.images ?? []).filter((i) => !i.variantId) : [];
 
   const canView = permissions.includes("product.view");
   const canCreate = permissions.includes("product.create");
@@ -333,6 +384,51 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
     }
   }
 
+  /** Tải ảnh lên: ảnh chung của sản phẩm (không variantId) hoặc thumbnail riêng của một SKU. */
+  async function uploadImageFile(file: File, variantId?: string) {
+    if (!detail) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("Chỉ nhận ảnh jpg, png hoặc webp.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Mỗi ảnh tối đa 5MB.");
+      return;
+    }
+    const form = new FormData();
+    form.append("image", file);
+    const path = variantId
+      ? `/api/products/${detail.id}/variants/${variantId}/thumbnail`
+      : `/api/products/${detail.id}/images`;
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { message?: string }).message || `Lỗi ${res.status}`);
+      setInfo(variantId ? "Đã đặt thumbnail cho SKU." : "Đã tải ảnh lên.");
+      await openDetail(detail.id);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Tải ảnh thất bại.");
+    }
+  }
+
+  async function handleDeleteImage(imageId: string) {
+    if (!detail) return;
+    if (!window.confirm("Xóa ảnh này?")) return;
+    try {
+      await api(`/api/product-images/${imageId}`, token, "DELETE");
+      setInfo("Đã xóa ảnh.");
+      await openDetail(detail.id);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xóa ảnh thất bại.");
+    }
+  }
+
   if (!canView) return <p>Bạn không có quyền xem sản phẩm.</p>;
 
   return (
@@ -369,9 +465,12 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                 {products.map((p) => (
                   <li key={p.id} className="card-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <button onClick={() => openDetail(p.id)} className="text-left font-semibold text-blue-700">
-                        {p.name} <span className="font-normal text-gray-500">({p.category?.name ?? "Chưa có danh mục"})</span>
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {p.thumbnailImageId ? <ProductImg token={token} imageId={p.thumbnailImageId} className="h-14 w-14 shrink-0 rounded-lg border object-cover" /> : null}
+                        <button onClick={() => openDetail(p.id)} className="text-left font-semibold text-blue-700">
+                          {p.name} <span className="font-normal text-gray-500">({p.category?.name ?? "Chưa có danh mục"})</span>
+                        </button>
+                      </div>
                       <span className="text-sm text-gray-500">
                         <span className={p.status === "active" ? "badge badge-green" : "badge badge-gray"}>{p.status === "active" ? "Đang bán" : "Ngừng bán"}</span> · {p.variantCount} SKU · Tồn: {p.totalStock}
                       </span>
@@ -413,8 +512,33 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
           </p>
           {detail.description && <p>{detail.description}</p>}
           <p className="text-sm text-gray-500">Tồn kho ban đầu được nhập ở Sprint Kho. Biến thể mới luôn bắt đầu với tồn 0 và chưa có transaction kho.</p>
-          <table className="w-full text-sm">
-            <thead><tr className="text-left">
+          <div>
+            <h4 className="font-semibold">Ảnh sản phẩm</h4>
+            {detailCommonImages.length === 0 ? (
+              <p className="text-sm text-gray-500">Chưa có ảnh.</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {detailCommonImages.map((img) => (
+                  <div key={img.id}>
+                    <ProductImg token={token} imageId={img.id} className="h-24 w-24 rounded-lg border object-cover" />
+                    {canUpdate && <button type="button" onClick={() => handleDeleteImage(img.id)} className="btn btn-sm btn-secondary mt-1 block w-full">Xóa ảnh</button>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {canUpdate && (
+              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                <label className="btn btn-sm btn-secondary cursor-pointer">
+                  Tải ảnh lên
+                  <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImageFile(f); e.target.value = ""; }} />
+                </label>
+                <span className="text-xs text-gray-500">Chỉ nhận jpg, png, webp — mỗi ảnh tối đa 5MB, tối đa 10 ảnh chung.</span>
+              </p>
+            )}
+          </div>
+          <table className="table">
+            <thead><tr>
+              <th>Ảnh</th>
               <th>SKU</th><th>Biến thể</th>
               <th>Giá bán</th>
               {canViewCost && <th>Giá nhập</th>}
@@ -423,6 +547,19 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
             <tbody>
               {detail.variants.map((v) => (
                 <tr key={v.id ?? v.sku}>
+                  <td>
+                    {v.thumbnailImageId ? (
+                      <ProductImg token={token} imageId={v.thumbnailImageId} className="h-12 w-12 rounded border object-cover" />
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                    {canUpdate && v.id && (
+                      <label className="btn btn-sm btn-secondary mt-1 block w-max cursor-pointer">
+                        {v.thumbnailImageId ? "Đổi ảnh" : "Thêm ảnh"}
+                        <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImageFile(f, v.id); e.target.value = ""; }} />
+                      </label>
+                    )}
+                  </td>
                   <td>{v.sku}</td>
                   <td>{v.variantName}{v.isDefault ? " (Mặc định)" : ""}</td>
                   <td>{v.sellingPrice.toLocaleString("vi-VN")}đ</td>

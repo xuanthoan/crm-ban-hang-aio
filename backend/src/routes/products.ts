@@ -41,9 +41,13 @@
  *    has active/inactive, so this sprint accepts only those two.
  */
 
-import { Router } from "express";
+import crypto from "crypto";
+import express, { Router } from "express";
+import fs from "fs";
+import path from "path";
 import { authenticate, authorize } from "../middleware/auth";
 import { writeAudit } from "../lib/audit";
+import { MultipartError, parseMultipart } from "../lib/multipart";
 import {
   combinationKey,
   combinationName,
@@ -113,6 +117,35 @@ class BadRequest extends Error {}
 /* Serialization                                                       */
 /* ------------------------------------------------------------------ */
 
+function serializeImage(img: any) {
+  return {
+    id: img.id,
+    productId: img.productId,
+    variantId: img.variantId ?? null,
+    mimeType: img.mimeType,
+    size: img.size,
+    sortOrder: img.sortOrder,
+    createdAt: img.createdAt,
+  };
+}
+
+/** Thứ tự ảnh: sortOrder rồi createdAt. */
+function sortImages(images: any[]): any[] {
+  return [...images].sort((a, b) => (a.sortOrder - b.sortOrder) || (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+}
+
+/** Thumbnail của một SKU: ảnh riêng của SKU, nếu không có thì ảnh chung đầu tiên của sản phẩm. */
+function resolveVariantThumbnail(images: any[], variantId: string): string | null {
+  const sorted = sortImages(images);
+  return (sorted.find((i) => i.variantId === variantId) ?? sorted.find((i) => !i.variantId))?.id ?? null;
+}
+
+/** Thumbnail của sản phẩm: ảnh chung đầu tiên, nếu không có thì ảnh riêng đầu tiên của bất kỳ SKU nào. */
+function resolveProductThumbnail(images: any[]): string | null {
+  const sorted = sortImages(images);
+  return (sorted.find((i) => !i.variantId) ?? sorted[0])?.id ?? null;
+}
+
 function serializeVariant(v: any, canCost: boolean, product?: any) {
   const parent = product ?? v.product;
   const out: Record<string, unknown> = {
@@ -131,6 +164,7 @@ function serializeVariant(v: any, canCost: boolean, product?: any) {
     // The Order sprint must re-check this server-side before selling.
     isSellable: v.status === "active" && parent?.status === "active" && !parent?.deletedAt,
     stockQuantity: v.inventoryItem?.quantity ?? 0,
+    thumbnailImageId: resolveVariantThumbnail(parent?.images ?? [], v.id),
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   };
@@ -154,6 +188,8 @@ function serializeProduct(p: any, canCost: boolean) {
     defaultVariantCount: variants.filter((v: any) => v.isDefault).length,
     totalStock,
     variants: variants.map((v: any) => serializeVariant(v, canCost, p)),
+    images: (p.images ?? []).map(serializeImage),
+    thumbnailImageId: resolveProductThumbnail(p.images ?? []),
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
   };
@@ -163,6 +199,7 @@ const variantInclude = { inventoryItem: true };
 const productInclude = {
   category: true,
   variants: { where: { deletedAt: null }, orderBy: { createdAt: "asc" as const }, include: variantInclude },
+  images: { orderBy: [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }] },
 };
 
 /* ------------------------------------------------------------------ */
@@ -1324,6 +1361,208 @@ router.get("/variants", authorize("product.view"), async (req, res) => {
       totalPages: Math.max(1, Math.ceil(total / pageSize)),
       variants: variants.map((v: any) => serializeVariant(v, canCost)),
     });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* Product images                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Ảnh sản phẩm: gallery ảnh chung + thumbnail riêng từng SKU.
+ *
+ * Lưu trữ: file vật lý trong thư mục uploads của backend
+ * (UPLOADS_DIR, mặc định ./uploads — trong Docker là volume uploads_data
+ * mount vào /app/uploads nên không mất khi rebuild). Tên file sinh bằng
+ * uuid, không dùng tên gốc, để không lộ đường dẫn và tránh traversal.
+ * Chỉ trả file qua route có xác thực bên dưới — không có thư mục public.
+ *
+ * Upload tái dùng parser multipart sẵn có của Import (in-memory, giới
+ * hạn toàn bộ body 5MB qua express.raw). Frontend tự kiểm tra loại +
+ * dung lượng trước khi gửi để báo lỗi tiếng Việt sớm.
+ */
+const rawImage = express.raw({ type: "multipart/form-data", limit: "5mb" });
+
+const IMAGE_MIME_TO_EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+const MAX_PRODUCT_IMAGES = 10;
+
+function uploadsDir(): string {
+  return process.env.UPLOADS_DIR ?? path.join(process.cwd(), "uploads");
+}
+
+function imageFilePath(fileName: string): string {
+  return path.join(uploadsDir(), fileName);
+}
+
+async function auditImage(req: AnyReq, action: string, productId: string, newValue: unknown) {
+  await writeAudit(getPrisma(), {
+    actorId: req.user!.id,
+    action,
+    entityType: "product",
+    entityId: productId,
+    newValue,
+    ipAddress: req.ip ?? null,
+  });
+}
+
+/** Lấy file ảnh duy nhất từ multipart (field "image"), kiểm tra loại. */
+function extractImageFile(req: AnyReq): { content: Buffer; mimeType: string; originalName: string } {
+  let files: ReturnType<typeof parseMultipart>;
+  try {
+    files = parseMultipart(req.body as Buffer, req.headers["content-type"]);
+  } catch (err) {
+    if (err instanceof MultipartError) throw new BadRequest(err.message);
+    throw err;
+  }
+  const file = files.find((f) => f.fieldName === "image");
+  if (!file) throw new BadRequest("Không nhận được file ảnh. Hãy gửi ảnh qua form multipart (field: image).");
+  if (!IMAGE_MIME_TO_EXT[file.contentType]) {
+    throw new BadRequest("Chỉ nhận ảnh jpg, png hoặc webp.");
+  }
+  return { content: file.content, mimeType: file.contentType, originalName: file.filename };
+}
+
+/** POST /api/products/:id/images — tải ảnh chung lên sản phẩm. */
+router.post("/products/:id/images", authorize("product.update"), rawImage, async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const product = await prisma.product.findUnique({ where: { id: req.params.id, deletedAt: null } });
+    if (!product) {
+      res.status(404).json({ status: "error", message: "Không tìm thấy sản phẩm." });
+      return;
+    }
+    const file = extractImageFile(req);
+    const commonCount = await prisma.productImage.count({ where: { productId: product.id, variantId: null } });
+    if (commonCount >= MAX_PRODUCT_IMAGES) {
+      res.status(400).json({ status: "error", message: `Một sản phẩm tối đa ${MAX_PRODUCT_IMAGES} ảnh chung.` });
+      return;
+    }
+    const fileName = `${crypto.randomUUID()}.${IMAGE_MIME_TO_EXT[file.mimeType]}`;
+    fs.mkdirSync(uploadsDir(), { recursive: true });
+    fs.writeFileSync(imageFilePath(fileName), file.content);
+    try {
+      const image = await prisma.productImage.create({
+        data: {
+          productId: product.id,
+          variantId: null,
+          fileName,
+          originalName: file.originalName || null,
+          mimeType: file.mimeType,
+          size: file.content.length,
+          sortOrder: commonCount,
+        },
+      });
+      await auditImage(req, "product_image.uploaded", product.id, { imageId: image.id, mimeType: file.mimeType, size: file.content.length });
+      res.json({ status: "ok", image: serializeImage(image) });
+    } catch (err) {
+      // Dòng DB tạo lỗi thì xóa file vừa ghi để không còn file mồ côi.
+      try { fs.unlinkSync(imageFilePath(fileName)); } catch { /* file chưa kịp ghi */ }
+      throw err;
+    }
+  } catch (err) {
+    if (err instanceof BadRequest) {
+      res.status(400).json({ status: "error", message: err.message });
+      return;
+    }
+    dbUnavailable(res, err);
+  }
+});
+
+/** POST /api/products/:id/variants/:variantId/thumbnail — đặt thumbnail riêng cho SKU (thay thế ảnh cũ). */
+router.post("/products/:id/variants/:variantId/thumbnail", authorize("product.update"), rawImage, async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const product = await prisma.product.findUnique({ where: { id: req.params.id, deletedAt: null } });
+    if (!product) {
+      res.status(404).json({ status: "error", message: "Không tìm thấy sản phẩm." });
+      return;
+    }
+    const variant = await prisma.productVariant.findUnique({ where: { id: req.params.variantId } });
+    if (!variant || variant.productId !== product.id || variant.deletedAt) {
+      res.status(404).json({ status: "error", message: "Không tìm thấy SKU của sản phẩm này." });
+      return;
+    }
+    const file = extractImageFile(req);
+    const fileName = `${crypto.randomUUID()}.${IMAGE_MIME_TO_EXT[file.mimeType]}`;
+    fs.mkdirSync(uploadsDir(), { recursive: true });
+    fs.writeFileSync(imageFilePath(fileName), file.content);
+    try {
+      // Mỗi SKU tối đa 1 ảnh riêng: xóa ảnh cũ (dòng + file) trước khi tạo mới.
+      const old = await prisma.productImage.findMany({ where: { variantId: variant.id } });
+      await prisma.productImage.deleteMany({ where: { variantId: variant.id } });
+      for (const row of old) {
+        try { fs.unlinkSync(imageFilePath(row.fileName)); } catch { /* file có thể đã mất */ }
+      }
+      const image = await prisma.productImage.create({
+        data: {
+          productId: product.id,
+          variantId: variant.id,
+          fileName,
+          originalName: file.originalName || null,
+          mimeType: file.mimeType,
+          size: file.content.length,
+          sortOrder: 0,
+        },
+      });
+      await auditImage(req, "product_thumbnail.set", product.id, { imageId: image.id, variantId: variant.id, sku: variant.sku });
+      res.json({ status: "ok", image: serializeImage(image) });
+    } catch (err) {
+      try { fs.unlinkSync(imageFilePath(fileName)); } catch { /* file chưa kịp ghi */ }
+      throw err;
+    }
+  } catch (err) {
+    if (err instanceof BadRequest) {
+      res.status(400).json({ status: "error", message: err.message });
+      return;
+    }
+    dbUnavailable(res, err);
+  }
+});
+
+/** GET /api/product-images/:id/file — trả file ảnh (cần quyền xem sản phẩm; frontend tải bằng token rồi hiển thị qua blob URL vì thẻ <img> không gửi được Authorization header). */
+router.get("/product-images/:id/file", authorize("product.view"), async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const image = await prisma.productImage.findUnique({
+      where: { id: req.params.id },
+      include: { product: true },
+    });
+    if (!image || image.product.deletedAt) {
+      res.status(404).json({ status: "error", message: "Không tìm thấy ảnh." });
+      return;
+    }
+    const filePath = imageFilePath(image.fileName);
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ status: "error", message: "File ảnh không còn trên máy chủ." });
+      return;
+    }
+    res.setHeader("Content-Type", image.mimeType);
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.sendFile(filePath);
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/** DELETE /api/product-images/:id — xóa ảnh (dòng + file). Ảnh không phải dữ liệu giao dịch nên xóa thật được. */
+router.delete("/product-images/:id", authorize("product.update"), async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const image = await prisma.productImage.findUnique({ where: { id: req.params.id } });
+    if (!image) {
+      res.status(404).json({ status: "error", message: "Không tìm thấy ảnh." });
+      return;
+    }
+    await prisma.productImage.delete({ where: { id: image.id } });
+    try { fs.unlinkSync(imageFilePath(image.fileName)); } catch { /* file có thể đã mất */ }
+    await auditImage(req, "product_image.deleted", image.productId, { imageId: image.id, variantId: image.variantId });
+    res.json({ status: "ok" });
   } catch (err) {
     dbUnavailable(res, err);
   }

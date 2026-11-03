@@ -1,15 +1,17 @@
 /**
- * Minimal in-memory multipart/form-data parser — Sprint Import/Export.
+ * Minimal in-memory multipart/form-data parser — Sprint Import/Export,
+ * later reused by product image uploads.
  *
  * The backend deliberately has no multer dependency in MVP, so this
- * small parser covers exactly what import needs: one file field from a
- * standard browser FormData upload. It is NOT a general-purpose
- * multipart implementation and must not be used for other uploads.
+ * small parser covers exactly what these two uploads need: one file
+ * field from a standard browser FormData upload. It is NOT a
+ * general-purpose multipart implementation.
  *
  * Safety: the caller enforces the size limit (the route reads the raw
- * body with express.raw({ limit: "5mb" }) before this parser runs),
- * and the file content is never written to disk — it stays in memory
- * for preview/confirm and is dropped when the preview expires.
+ * body with express.raw({ limit: "5mb" }) before this parser runs).
+ * Import keeps the content in memory only (preview/confirm, dropped
+ * when the preview expires); the product image route is the one caller
+ * that writes the parsed buffer to disk, into the uploads directory.
  */
 
 export interface UploadedFile {
