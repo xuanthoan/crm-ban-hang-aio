@@ -28,19 +28,6 @@ interface UserInfo {
   permissions: string[];
 }
 
-const MODULES = [
-  { name: "Khách hàng", note: "Nhiều số điện thoại, 1 số chính — theo quy tắc chốt cứng 4.1" },
-  { name: "Nhà cung cấp", note: "Danh bạ nhà cung cấp, nhiều số điện thoại, 1 số chính (Sprint NCC-1)" },
-  { name: "Đơn nhập hàng", note: "Đơn nhập từ nhà cung cấp, nhận hàng tăng kho, trả hàng NCC (Sprint NCC-2)" },
-  { name: "Công nợ NCC", note: "Đơn nhập confirmed/completed còn nợ, tổng nợ theo từng NCC (Sprint NCC-3)" },
-  { name: "Sản phẩm / SKU", note: "SKU là đơn vị bán và trừ kho duy nhất" },
-  { name: "Kho", note: "Mọi thay đổi kho đều có transaction, không tồn âm ở MVP" },
-  { name: "Đơn hàng", note: "Dòng đơn bắt buộc có SKU + snapshot tại thời điểm bán" },
-  { name: "Thanh toán / Công nợ", note: "paid_total tính từ payment đang active, không sửa tay" },
-  { name: "Chăm sóc", note: "Nhắc việc, lịch sử chăm sóc khách hàng" },
-  { name: "Báo cáo", note: "Dashboard và báo cáo theo SKU, đơn, công nợ" },
-];
-
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 const TOKEN_KEY = "crm_token";
 
@@ -470,18 +457,6 @@ export default function App() {
             <button className="btn btn-primary">Đổi mật khẩu</button>
           </form>
 
-          <div>
-            <h2 className="mt-2 text-lg font-semibold">Các module sẽ làm</h2>
-            <p className="text-sm text-gray-500">Menu dưới đây chỉ là giao diện — mọi quyền vẫn do backend kiểm tra (quy tắc chốt cứng §6).</p>
-            <ul className="mt-2 space-y-2">
-              {MODULES.map((m) => (
-                <li key={m.name} className="card-sm">
-                  <strong>{m.name}</strong>
-                  <span className="text-gray-500"> — {m.note}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
             </>
           )}
         </main>
