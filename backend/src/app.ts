@@ -53,6 +53,13 @@ app.use("/api", supplierPaymentsRouter);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);
+    // express.raw() (upload ảnh, import CSV) ném lỗi entity.too.large khi
+    // body vượt giới hạn. Trả 413 với thông báo tiếng Việt để frontend
+    // báo rõ lý do thay vì "Internal server error" chung chung.
+    if ((err as { type?: string }).type === "entity.too.large") {
+      res.status(413).json({ status: "error", message: "File gửi lên quá lớn (giới hạn 5MB)." });
+      return;
+    }
     res.status(500).json({ status: "error", message: "Internal server error" });
   });
 

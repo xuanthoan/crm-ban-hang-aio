@@ -1383,7 +1383,11 @@ router.get("/variants", authorize("product.view"), async (req, res) => {
  * hạn toàn bộ body 5MB qua express.raw). Frontend tự kiểm tra loại +
  * dung lượng trước khi gửi để báo lỗi tiếng Việt sớm.
  */
-const rawImage = express.raw({ type: "multipart/form-data", limit: "5mb" });
+// "5mib" = 5 * 1024 * 1024, khớp với giới hạn trình duyệt kiểm tra trước
+// khi gửi (checkImageFile). Dùng "5mb" trước đây chỉ là 5.000.000 byte
+// nên ảnh trong khoảng 5.000.000–5.242.880 byte qua được trình duyệt rồi
+// vẫn bị máy chủ từ chối với lỗi chung chung.
+const rawImage = express.raw({ type: "multipart/form-data", limit: "5mib" });
 
 const IMAGE_MIME_TO_EXT: Record<string, string> = {
   "image/jpeg": "jpg",

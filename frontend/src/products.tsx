@@ -416,9 +416,12 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
         return null;
       };
 
+      // Ghi rõ lý do lỗi của từng file (VD: file quá lớn) thay vì chỉ ghi
+      // tên file — trước đây người dùng nhìn banner không biết vì sao lỗi.
+      const reason = (err: unknown) => (err instanceof Error ? err.message : "không rõ lý do");
       for (const p of pendingImages) {
         try { await postImageFile(saved.id, p.file); }
-        catch { failures.push(`ảnh "${p.file.name}"`); }
+        catch (err) { failures.push(`ảnh "${p.file.name}" (${reason(err)})`); }
       }
       for (const row of thumbRows) {
         if (!row.pendingThumbnail) continue;
@@ -428,11 +431,11 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
           continue;
         }
         try { await postImageFile(saved.id, row.pendingThumbnail, variantId); }
-        catch { failures.push(`thumbnail của "${row.variantName || row.sku}"`); }
+        catch (err) { failures.push(`thumbnail của "${row.variantName || row.sku}" (${reason(err)})`); }
       }
       for (const imageId of stagedDeleteImageIds) {
         try { await api(`/api/product-images/${imageId}`, token, "DELETE"); }
-        catch { failures.push("xóa 1 ảnh cũ"); }
+        catch (err) { failures.push(`xóa 1 ảnh cũ (${reason(err)})`); }
       }
 
       resetForm();
