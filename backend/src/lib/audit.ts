@@ -44,8 +44,10 @@ export function sanitizeAuditValue(value: unknown): unknown {
 
 // Cost data is not a credential, but it is permission-gated (locked
 // rules §6). Audit readers without product.view_cost must not see
-// import prices hiding inside an oldValue/newValue snapshot.
-const COST_KEYS = new Set(["importprice", "import_price", "importcost"]);
+// import prices hiding inside an oldValue/newValue snapshot. PO line
+// unit costs are the same class of snapshot (a purchase price), so
+// unitCost/unit_cost is stripped the same way.
+const COST_KEYS = new Set(["importprice", "import_price", "importcost", "unitcost", "unit_cost"]);
 
 export function sanitizeAuditValueForViewer(value: unknown, canViewCost: boolean): unknown {
   const cleaned = sanitizeAuditValue(value);

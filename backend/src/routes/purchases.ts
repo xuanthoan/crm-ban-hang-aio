@@ -104,6 +104,22 @@ function canView(req: AnyReq): boolean {
   return canViewAll(req) || req.user!.permissions.includes("purchase.view_own");
 }
 
+/**
+ * Who may receive per-line unit costs in PO payloads. Mirrors how
+ * products.ts treats importPrice (omitted without product.view_cost),
+ * with one deliberate exception: purchase.create holders MUST round-trip
+ * line costs through the draft-edit form — they enter costs when
+ * creating a PO, so stripping would break draft editing (the form would
+ * load empty costs and fail save validation). Pure viewers without
+ * view_cost (Warehouse confirm-only, Accountant view-only) get costs
+ * stripped. The detail table itself is gated on product.view_cost alone
+ * in the frontend, so even create holders do not SEE the column unless
+ * they may see costs.
+ */
+function canSeeCosts(req: AnyReq): boolean {
+  return req.user!.permissions.includes("product.view_cost") || req.user!.permissions.includes("purchase.create");
+}
+
 function scopeWhere(req: AnyReq): Record<string, unknown> {
   if (canViewAll(req)) return {};
   return { createdById: req.user!.id };
@@ -132,8 +148,8 @@ function skuLabel(variant: any, fallbackId?: string): string {
   return fallbackId ? `SKU ${fallbackId}` : "SKU này";
 }
 
-function serializeItem(item: any) {
-  return {
+function serializeItem(item: any, canCost: boolean) {
+  const out: Record<string, unknown> = {
     id: item.id,
     purchaseOrderId: item.purchaseOrderId,
     variantId: item.variantId,
@@ -144,14 +160,17 @@ function serializeItem(item: any) {
     productName: item.variant?.product?.name ?? item.productNameSnapshot,
     variantName: item.variant?.variantName ?? item.variantNameSnapshot,
     quantity: item.quantity,
-    unitCost: item.unitCost,
     returnedQuantity: item.returnedQuantity ?? 0,
     remainingQuantity: item.quantity - (item.returnedQuantity ?? 0),
     lineTotal: item.lineTotal,
   };
+  // unitCost is omitted entirely (not null) for viewers who must not see
+  // costs, mirroring the importPrice rule in products.ts.
+  if (canCost) out.unitCost = item.unitCost;
+  return out;
 }
 
-function serializePO(po: any, includeItems: boolean) {
+function serializePO(po: any, includeItems: boolean, canCost: boolean) {
   const base: Record<string, unknown> = {
     id: po.id,
     code: po.code,
@@ -175,7 +194,7 @@ function serializePO(po: any, includeItems: boolean) {
     updatedAt: po.updatedAt,
   };
   if (includeItems) {
-    base.items = (po.items ?? []).map(serializeItem);
+    base.items = (po.items ?? []).map((it: any) => serializeItem(it, canCost));
     // Payments are included only when the query fetched them (every
     // detail-returning route below does). List responses omit the key.
     if (po.payments !== undefined) {
@@ -380,7 +399,7 @@ router.get("/purchase-orders", async (req, res) => {
         include: { supplier: { select: { name: true, taxCode: true, status: true } }, _count: { select: { items: true } } },
       }),
     ]);
-    res.json({ status: "ok", data: rows.map((o: any) => serializePO(o, false)), page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
+    res.json({ status: "ok", data: rows.map((o: any) => serializePO(o, false, canSeeCosts(req))), page, pageSize, total, totalPages: Math.ceil(total / pageSize) });
   } catch (err) {
     handleError(res, err);
   }
@@ -412,7 +431,7 @@ router.get("/purchase-orders/:id", async (req, res) => {
       res.status(403).json({ status: "error", message: "Đơn nhập này không thuộc phạm vi của bạn." });
       return;
     }
-    res.json({ status: "ok", data: serializePO(po, true) });
+    res.json({ status: "ok", data: serializePO(po, true, canSeeCosts(req)) });
   } catch (err) {
     handleError(res, err);
   }
@@ -515,7 +534,7 @@ router.post("/purchase-orders", authorize("purchase.create"), async (req, res) =
       res.status(500).json({ status: "error", message: "Không tạo được mã đơn nhập sau nhiều lần thử. Vui lòng thử lại." });
       return;
     }
-    res.status(201).json({ status: "ok", data: serializePO(created, true) });
+    res.status(201).json({ status: "ok", data: serializePO(created, true, canSeeCosts(req)) });
   } catch (err) {
     handleError(res, err);
   }
@@ -621,7 +640,7 @@ router.patch("/purchase-orders/:id", authorize("purchase.create"), async (req, r
       });
       return saved;
     });
-    res.json({ status: "ok", data: serializePO(updated, true) });
+    res.json({ status: "ok", data: serializePO(updated, true, canSeeCosts(req)) });
   } catch (err) {
     handleError(res, err);
   }
@@ -691,7 +710,7 @@ router.post("/purchase-orders/:id/confirm", authorize("purchase.confirm"), async
       });
       return saved;
     });
-    res.json({ status: "ok", data: serializePO(updated, true) });
+    res.json({ status: "ok", data: serializePO(updated, true, canSeeCosts(req)) });
   } catch (err) {
     handleError(res, err);
   }
@@ -727,7 +746,7 @@ router.post("/purchase-orders/:id/complete", authorize("purchase.complete"), asy
       });
       return saved;
     });
-    res.json({ status: "ok", data: serializePO(updated, true) });
+    res.json({ status: "ok", data: serializePO(updated, true, canSeeCosts(req)) });
   } catch (err) {
     handleError(res, err);
   }
@@ -763,7 +782,7 @@ router.post("/purchase-orders/:id/cancel", authorize("purchase.cancel"), async (
       where: { id: (updated as any).id },
       include: { supplier: { select: { name: true, taxCode: true, status: true } }, items: { include: { variant: { include: { product: true } } } }, payments: { include: { createdBy: { select: { fullName: true } }, cancelledBy: { select: { fullName: true } } }, orderBy: { createdAt: "desc" } } },
     });
-    res.json({ status: "ok", data: serializePO(full, true) });
+    res.json({ status: "ok", data: serializePO(full, true, canSeeCosts(req)) });
   } catch (err) {
     handleError(res, err);
   }
@@ -907,7 +926,7 @@ router.post("/purchase-orders/:id/return", authorize("purchase.return"), async (
       });
       return saved;
     });
-    res.json({ status: "ok", data: serializePO(updated, true) });
+    res.json({ status: "ok", data: serializePO(updated, true, canSeeCosts(req)) });
   } catch (err) {
     handleError(res, err);
   }

@@ -50,7 +50,11 @@ interface PurchaseOrderItem {
   productName: string;
   variantName: string;
   quantity: number;
-  unitCost: number;
+  // Optional: the backend omits unitCost for viewers without
+  // product.view_cost (and without purchase.create). The detail column
+  // is gated on canViewCost, and formatMoney already tolerates
+  // undefined, so stripped items render safely.
+  unitCost?: number;
   returnedQuantity: number;
   remainingQuantity: number;
   lineTotal: number;
@@ -180,6 +184,12 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
   const [payBusy, setPayBusy] = useState(false);
 
   const canCreate = permissions.includes("purchase.create");
+  // Same rule as the product import-price column: the PO detail unit-cost
+  // column shows only to viewers with product.view_cost. The create/edit
+  // FORM keeps its cost inputs for purchase.create holders (they must
+  // enter costs to do their job); only the read-only detail column is
+  // gated here, and the backend omits unitCost for pure viewers.
+  const canViewCost = permissions.includes("product.view_cost");
   const canConfirm = permissions.includes("purchase.confirm");
   const canComplete = permissions.includes("purchase.complete");
   const canCancel = permissions.includes("purchase.cancel");
@@ -708,7 +718,7 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
                 <th className="px-2 py-1 text-left">Số lượng</th>
                 <th className="px-2 py-1 text-left">Đã trả</th>
                 <th className="px-2 py-1 text-left">Còn trả được</th>
-                <th className="px-2 py-1 text-left">Đơn giá nhập</th>
+                {canViewCost && <th className="px-2 py-1 text-left">Đơn giá nhập</th>}
                 <th className="px-2 py-1 text-left">Thành tiền</th>
               </tr>
             </thead>
@@ -720,7 +730,7 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
                   <td className="px-2 py-1">{i.quantity}</td>
                   <td className="px-2 py-1">{i.returnedQuantity}</td>
                   <td className="px-2 py-1">{i.remainingQuantity}</td>
-                  <td className="px-2 py-1">{formatMoney(i.unitCost)}đ</td>
+                  {canViewCost && <td className="px-2 py-1">{formatMoney(i.unitCost)}đ</td>}
                   <td className="px-2 py-1">{formatMoney(i.lineTotal)}đ</td>
                 </tr>
               ))}
