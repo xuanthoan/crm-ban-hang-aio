@@ -855,7 +855,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                       <span className="text-xs font-medium text-gray-600">Các giá trị (cách nhau bằng dấu phẩy)</span>
                       <input className="field mt-1 w-full" placeholder="VD: Đen, Trắng" value={g.valuesText} onChange={(e) => setOptionGroups(optionGroups.map((x, j) => j === i ? { ...x, valuesText: e.target.value } : x))} />
                     </label>
-                    <button type="button" onClick={() => setOptionGroups(optionGroups.filter((_, j) => j !== i))} className="btn btn-sm btn-secondary">Xóa</button>
+                    <button type="button" onClick={() => setOptionGroups(optionGroups.filter((_, j) => j !== i))} className="btn btn-secondary">Xóa</button>
                   </div>
                 ))}
                 {optionGroups.length < 3 && (
@@ -870,7 +870,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                   <div className="flex gap-2">
                     <input type="text" inputMode="numeric" className="field flex-1" placeholder="Giá bán áp dụng tất cả" value={bulkSelling} onChange={(e) => { const n = parseMoney(e.target.value); setBulkSelling(n === null ? "" : formatMoney(n)); }} />
                     {canViewCost && <input type="text" inputMode="numeric" className="field flex-1" placeholder="Giá nhập áp dụng tất cả" value={bulkImport} onChange={(e) => { const n = parseMoney(e.target.value); setBulkImport(n === null ? "" : formatMoney(n)); }} />}
-                    <button type="button" onClick={applyBulk} className="btn btn-sm btn-secondary">Áp dụng cho tất cả</button>
+                    <button type="button" onClick={applyBulk} className="btn btn-secondary">Áp dụng cho tất cả</button>
                   </div>
                   {manualVariants.map((v, i) => (
                     <div key={i} className="flex flex-wrap gap-2 card-sm">
