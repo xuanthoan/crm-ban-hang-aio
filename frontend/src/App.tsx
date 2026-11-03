@@ -12,6 +12,7 @@ import AuditPage from "./audit";
 import SuppliersPage from "./suppliers";
 import PurchasesPage from "./purchases";
 import SupplierDebtsPage from "./supplierDebts";
+import { AdminPage } from "./admin";
 
 type HealthState = "loading" | "connected" | "not-connected";
 
@@ -73,7 +74,7 @@ export default function App() {
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const [otpMode, setOtpMode] = useState("");
-  const [section, setSection] = useState<"home" | "customers" | "suppliers" | "purchases" | "supplierDebts" | "products" | "inventory" | "orders" | "debts" | "reminders" | "segments" | "dashboard" | "reports" | "importExport" | "audit">("home");
+  const [section, setSection] = useState<"home" | "customers" | "suppliers" | "purchases" | "supplierDebts" | "products" | "inventory" | "orders" | "debts" | "reminders" | "segments" | "dashboard" | "reports" | "importExport" | "audit" | "admin">("home");
   const [otpModeDraft, setOtpModeDraft] = useState("off");
   const [smtpConfigured, setSmtpConfigured] = useState(false);
   const [otpDevLog, setOtpDevLog] = useState(false);
@@ -258,6 +259,10 @@ export default function App() {
     user?.permissions.includes("inventory.view");
   const canViewAudit =
     user?.permissions.includes("audit.view_all") || user?.permissions.includes("audit.view_own");
+  // Trang Quản trị chỉ cần user.view để mở; từng nút bên trong tự kiểm tra
+  // mã riêng của nó (user.create / user.update / user.lock /
+  // user.reset_password / user.set_permissions).
+  const canViewAdmin = user?.permissions.includes("user.view");
 
   return (
     <main className="mx-auto max-w-3xl p-6">
@@ -364,6 +369,9 @@ export default function App() {
             {canViewAudit && (
               <button onClick={() => setSection("audit")} className="rounded border px-4 py-2">Nhật ký Audit</button>
             )}
+            {canViewAdmin && (
+              <button onClick={() => setSection("admin")} className="rounded border px-4 py-2">Quản trị</button>
+            )}
           </div>
 
           {section === "dashboard" && canViewReports ? (
@@ -394,6 +402,8 @@ export default function App() {
             <PurchasesPage token={token ?? ""} permissions={user.permissions} />
           ) : section === "customers" && canViewCustomers ? (
             <CustomersPage token={token ?? ""} permissions={user.permissions} />
+          ) : section === "admin" && canViewAdmin ? (
+            <AdminPage token={token ?? ""} permissions={user.permissions} />
           ) : (
             <>
           {canViewSettings && (

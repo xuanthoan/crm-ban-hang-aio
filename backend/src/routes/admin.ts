@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { hashPassword } from "../lib/auth";
-import { authenticate, authorize, publicUser } from "../middleware/auth";
+import { authenticate, authorize, loadEffectivePermissions, publicUser } from "../middleware/auth";
+import { PERMISSIONS, type PermissionCode } from "../lib/permissions";
 import { writeAudit } from "../lib/audit";
 import { isOtpDevLogEnabled, isSmtpConfigured } from "../lib/config";
 import { getPrisma } from "../lib/prisma";
@@ -227,6 +228,122 @@ router.post("/users/:id/reset-password", authorize("user.reset_password"), async
   }
 });
 
+/**
+ * GET /api/admin/users/:id/permissions — one user's permission picture:
+ * role codes, per-user overrides, effective codes, plus the full code
+ * catalogue (code/module/Vietnamese description) so the Admin page can
+ * render labels without duplicating the PERMISSIONS table in frontend.
+ */
+router.get("/users/:id/permissions", authorize("user.view"), async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const target = await prisma.user.findUnique({ where: { id: req.params.id }, include: { role: true } });
+    if (!target || target.deletedAt) {
+      res.status(404).json({ status: "error", message: "Người dùng không tồn tại." });
+      return;
+    }
+    const roleRows = await prisma.rolePermission.findMany({
+      where: { roleId: target.roleId },
+      include: { permission: true },
+    });
+    const rolePermissions = roleRows.map((r: { permission: { code: string } }) => r.permission.code);
+    const overrideRows = await prisma.userPermissionOverride.findMany({
+      where: { userId: target.id },
+      include: { permission: true },
+    });
+    const overrides = overrideRows.map((o: { permission: { code: string }; effect: string }) => ({ code: o.permission.code, effect: o.effect }));
+    const effective = await loadEffectivePermissions(prisma, target.id, target.roleId);
+    res.json({
+      status: "ok",
+      user: publicUser(target),
+      role: target.role.code,
+      rolePermissions,
+      overrides,
+      effective,
+      allPermissions: PERMISSIONS.map((p) => ({ code: p.code, module: p.module, description: p.description })),
+    });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/**
+ * PUT /api/admin/users/:id/permissions — replace the user's overrides
+ * wholesale with { allow: string[], deny: string[] }. A code may appear
+ * in at most one list; unknown codes are rejected naming the code.
+ * Clearing all overrides (both lists empty) is always allowed — it
+ * restores pure role permissions. Setting any override on the sole
+ * active admin is blocked: a deny could strip administration itself and
+ * lock the system (same guard shape as demote/lock in PATCH / lock).
+ * Applied in one transaction; audit-logged as user_permissions_changed.
+ */
+router.put("/users/:id/permissions", authorize("user.set_permissions"), async (req, res) => {
+  try {
+    const { allow, deny } = req.body ?? {};
+    const allowList: unknown[] = Array.isArray(allow) ? allow : [];
+    const denyList: unknown[] = Array.isArray(deny) ? deny : [];
+    const known = new Set(PERMISSIONS.map((p) => p.code));
+    const bad = [...allowList, ...denyList].filter((c) => typeof c !== "string" || !known.has(c as PermissionCode));
+    if (bad.length > 0) {
+      res.status(400).json({ status: "error", message: `Mã quyền không tồn tại: ${bad.join(", ")}.` });
+      return;
+    }
+    const overlap = (allowList as string[]).filter((c) => (denyList as string[]).includes(c));
+    if (overlap.length > 0) {
+      res.status(400).json({ status: "error", message: `Một quyền không thể vừa cho phép vừa chặn: ${overlap.join(", ")}.` });
+      return;
+    }
+    const prisma = getPrisma();
+    const target = await prisma.user.findUnique({ where: { id: req.params.id }, include: { role: true } });
+    if (!target || target.deletedAt) {
+      res.status(404).json({ status: "error", message: "Người dùng không tồn tại." });
+      return;
+    }
+    if (target.role.code === "admin" && target.status === "active" && (allowList.length > 0 || denyList.length > 0)) {
+      const otherAdmins = await prisma.user.count({
+        where: { role: { code: "admin" }, status: "active", deletedAt: null, id: { not: target.id } },
+      });
+      if (otherAdmins === 0) {
+        res.status(400).json({ status: "error", message: "Không thể tùy chỉnh quyền riêng của admin đang hoạt động duy nhất." });
+        return;
+      }
+    }
+    const oldRows = await prisma.userPermissionOverride.findMany({
+      where: { userId: target.id },
+      include: { permission: true },
+    });
+    const oldOverrides = oldRows.map((o: { permission: { code: string }; effect: string }) => ({ code: o.permission.code, effect: o.effect }));
+    const codes = [...new Set([...(allowList as string[]), ...(denyList as string[])])];
+    const perms = await prisma.permission.findMany({ where: { code: { in: codes } } });
+    const idByCode = new Map(perms.map((p: { code: string; id: string }) => [p.code, p.id]));
+    const newOverrides = [
+      ...(allowList as string[]).map((code) => ({ code, effect: "allow" })),
+      ...(denyList as string[]).map((code) => ({ code, effect: "deny" })),
+    ];
+    await prisma.$transaction([
+      prisma.userPermissionOverride.deleteMany({ where: { userId: target.id } }),
+      ...newOverrides.map((o) =>
+        prisma.userPermissionOverride.create({
+          data: { userId: target.id, permissionId: idByCode.get(o.code) as string, effect: o.effect, createdById: req.user!.id },
+        }),
+      ),
+    ]);
+    const effective = await loadEffectivePermissions(prisma, target.id, target.roleId);
+    await writeAudit(prisma, {
+      actorId: req.user!.id,
+      action: "user_permissions_changed",
+      entityType: "user",
+      entityId: target.id,
+      oldValue: { overrides: oldOverrides },
+      newValue: { overrides: newOverrides },
+      ipAddress: req.ip ?? null,
+    });
+    res.json({ status: "ok", overrides: newOverrides, effective });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
 /** GET /api/admin/roles — roles with their permission codes. */
 router.get("/roles", authorize("role.view"), async (req, res) => {
   try {
@@ -246,6 +363,9 @@ router.get("/roles", authorize("role.view"), async (req, res) => {
         isSystemRole: r.isSystemRole,
         permissions: r.permissions.map((p: { permission: { code: string } }) => p.permission.code),
       })),
+      // Full catalogue (additive): the role matrix renders Vietnamese
+      // labels from here instead of duplicating PERMISSIONS in frontend.
+      allPermissions: PERMISSIONS.map((p) => ({ code: p.code, module: p.module, description: p.description })),
     });
   } catch (err) {
     dbUnavailable(res, err);

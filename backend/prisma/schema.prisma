@@ -135,6 +135,7 @@ model Permission {
   createdAt   DateTime @default(now())
 
   roles RolePermission[]
+  userOverrides UserPermissionOverride[]
 }
 
 model RolePermission {
@@ -147,6 +148,33 @@ model RolePermission {
   permission Permission @relation(fields: [permissionId], references: [id])
 
   @@unique([roleId, permissionId])
+}
+
+// Per-user permission overrides (Admin page: role + per-user customization).
+// Effective permissions = role permissions + allow overrides - deny
+// overrides (deny wins; a code can never be both allow and deny for one
+// user — enforced by @@unique([userId, permissionId]) plus API checks).
+// The override references Permission by id, mirroring RolePermission, so
+// only real system codes can be stored. Overrides live in their own table
+// and are NEVER touched by the role seed (seedRoles only upserts
+// Role/Permission/RolePermission), so re-seeding keeps them intact.
+model UserPermissionOverride {
+  id           String @id @default(cuid())
+  userId       String
+  permissionId String
+  // "allow": always granted even if the role lacks it.
+  // "deny": always revoked even if the role grants it.
+  effect       String
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user      User       @relation("OverrideTarget", fields: [userId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+  createdBy User       @relation("OverrideGranter", fields: [createdById], references: [id])
+
+  @@unique([userId, permissionId])
+  @@index([userId])
 }
 
 model User {
@@ -187,6 +215,8 @@ model User {
   completedReminders    Reminder[]             @relation("ReminderCompleter")
   otpChallenges         OtpChallenge[]
   updatedSettings       SystemSetting[]        @relation("SettingUpdater")
+  permissionOverrides   UserPermissionOverride[] @relation("OverrideTarget")
+  grantedOverrides      UserPermissionOverride[] @relation("OverrideGranter")
 }
 
 // One row per login OTP challenge. The 6-digit code itself is NEVER stored

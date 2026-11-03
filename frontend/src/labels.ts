@@ -157,6 +157,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   user_created: "Tạo người dùng",
   user_locked: "Khóa người dùng",
   user_unlocked: "Mở khóa người dùng",
+  role_changed: "Đổi vai trò",
+  user_permissions_changed: "Đổi quyền riêng của người dùng",
   settings_changed: "Đổi cài đặt hệ thống",
   customer_created: "Tạo khách hàng",
   customer_updated: "Cập nhật khách hàng",

@@ -14,6 +14,7 @@ export const PERMISSIONS = [
   { code: "user.lock", module: "user", description: "Khóa / mở khóa người dùng" },
   { code: "user.reset_password", module: "user", description: "Đặt lại mật khẩu cho người dùng" },
   { code: "user.set_require_otp", module: "user", description: "Đặt yêu cầu OTP cho từng người dùng" },
+  { code: "user.set_permissions", module: "user", description: "Tùy chỉnh quyền riêng cho từng người dùng" },
   { code: "role.view", module: "user", description: "Xem vai trò và quyền" },
   // System settings (Sprint Auth: otp_mode)
   { code: "settings.view", module: "settings", description: "Xem cấu hình hệ thống" },

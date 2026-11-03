@@ -54,12 +54,41 @@ export function publicUser(u: {
   };
 }
 
-async function loadPermissions(prisma: ReturnType<typeof getPrisma>, roleId: string): Promise<string[]> {
-  const rows = await prisma.rolePermission.findMany({
+/**
+ * Effective permissions for one user (Admin page: role + per-user
+ * customization). Role codes first, then overrides: an "allow" override
+ * grants a code the role lacks, a "deny" override revokes a code the role
+ * grants. Deny wins by construction: a user can hold at most one override
+ * row per code (@@unique([userId, permissionId])), so allow and deny can
+ * never collide for the same code.
+ *
+ * This is the single choke point for permission evaluation: authenticate()
+ * calls it on EVERY request, so an override takes effect immediately for
+ * API authorization (the frontend's own permission snapshot, loaded at
+ * login via /me, only refreshes after the user logs in again).
+ */
+export async function loadEffectivePermissions(
+  prisma: ReturnType<typeof getPrisma>,
+  userId: string,
+  roleId: string,
+): Promise<string[]> {
+  const roleRows = await prisma.rolePermission.findMany({
     where: { roleId },
     include: { permission: true },
   });
-  return rows.map((r: { permission: { code: string } }) => r.permission.code);
+  const effective = new Set<string>();
+  for (const r of roleRows as { permission: { code: string } }[]) {
+    effective.add(r.permission.code);
+  }
+  const overrideRows = await prisma.userPermissionOverride.findMany({
+    where: { userId },
+    include: { permission: true },
+  });
+  for (const o of overrideRows as { effect: string; permission: { code: string } }[]) {
+    if (o.effect === "allow") effective.add(o.permission.code);
+    else if (o.effect === "deny") effective.delete(o.permission.code);
+  }
+  return [...effective];
 }
 
 /**
@@ -94,7 +123,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       fullName: user.fullName,
       status: user.status,
       role: user.role.code,
-      permissions: await loadPermissions(prisma, user.roleId),
+      permissions: await loadEffectivePermissions(prisma, user.id, user.roleId),
     };
     next();
   } catch {
