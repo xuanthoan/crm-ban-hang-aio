@@ -32,6 +32,12 @@ interface VariantRow {
   isSellable?: boolean;
   stockQuantity?: number;
   thumbnailImageId?: string | null;
+  // Chỉ dùng trong form: thumbnail người dùng vừa chọn, CHƯA gửi lên máy
+  // chủ. Chỉ được gửi kèm khi bấm "Lưu sản phẩm"; bấm "Hủy" thì mất cùng
+  // form và không để lại gì trên máy chủ. handleSave không đưa 2 trường
+  // này vào body API nên không bao giờ lọt vào JSON gửi đi.
+  pendingThumbnail?: File | null;
+  pendingThumbnailUrl?: string;
 }
 
 interface ProductListItem {
@@ -176,6 +182,13 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
   const [defaultVariant, setDefaultVariant] = useState<VariantRow>(emptyVariant(true));
   const [optionGroups, setOptionGroups] = useState<OptionGroupDraft[]>([{ name: "", valuesText: "" }]);
   const [manualVariants, setManualVariants] = useState<VariantRow[]>([]);
+  // Ảnh trong form: tất cả đều là "chờ lưu" — chưa có byte nào rời trình
+  // duyệt cho tới khi bấm "Lưu sản phẩm". formImages = ảnh đã lưu của sản
+  // phẩm đang sửa; pendingImages = ảnh chung mới chọn; stagedDeleteImageIds
+  // = id ảnh cũ người dùng bấm xóa trong form (chỉ xóa thật khi lưu).
+  const [formImages, setFormImages] = useState<ProductImageItem[]>([]);
+  const [pendingImages, setPendingImages] = useState<{ file: File; url: string }[]>([]);
+  const [stagedDeleteImageIds, setStagedDeleteImageIds] = useState<string[]>([]);
   const [bulkSelling, setBulkSelling] = useState("");
   const [bulkImport, setBulkImport] = useState("");
   const [q, setQ] = useState("");
@@ -225,6 +238,16 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
   }, [canView, load]);
 
   function resetForm() {
+    // Thu hồi URL xem trước của ảnh chờ (tránh rò rỉ bộ nhớ) rồi xóa toàn
+    // bộ staging. Vì ảnh chờ chưa từng được gửi lên, Hủy/reset là coi như
+    // chưa từng chọn ảnh — không còn gì để dọn trên máy chủ.
+    for (const p of pendingImages) URL.revokeObjectURL(p.url);
+    for (const r of [defaultVariant, ...manualVariants]) {
+      if (r.pendingThumbnailUrl) URL.revokeObjectURL(r.pendingThumbnailUrl);
+    }
+    setFormImages([]);
+    setPendingImages([]);
+    setStagedDeleteImageIds([]);
     setFormId(null);
     setName("");
     setDescription("");
@@ -239,20 +262,23 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
     setInfo("");
   }
 
-  async function openDetail(id: string) {
+  async function openDetail(id: string): Promise<boolean> {
     setError("");
     try {
       const data = await api(`/api/products/${id}`, token);
       setDetail(data.product as ProductListItem);
       setView("detail");
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không mở được chi tiết sản phẩm.");
+      return false;
     }
   }
 
   function openEdit(p: ProductListItem) {
     resetForm();
     setFormId(p.id);
+    setFormImages(p.images ?? []);
     setName(p.name);
     setDescription(p.description ?? "");
     setCategoryId(p.categoryId ?? "");
@@ -358,16 +384,75 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
         body.variantOptions = groups;
         body.defaultSellingPrice = 0;
       }
-      if (formId) {
-        await api(`/api/products/${formId}`, token, "PATCH", body);
-        setInfo("Đã lưu sản phẩm.");
-      } else {
-        await api("/api/products", token, "POST", body);
-        setInfo("Đã tạo sản phẩm.");
+      // Lưu thông tin sản phẩm trước; chỉ khi đã có sản phẩm (id) thì ảnh
+      // chờ mới được gửi lên gắn vào. Ảnh nào gửi lỗi sẽ báo rõ tên file,
+      // sản phẩm thì vẫn đã lưu — người dùng tải lại ảnh lỗi ở trang chi tiết.
+      const savedData = formId
+        ? await api(`/api/products/${formId}`, token, "PATCH", body)
+        : await api("/api/products", token, "POST", body);
+      const saved = savedData.product as ProductListItem;
+
+      const thumbRows: VariantRow[] = mode === "simple" ? [defaultVariant] : manualVariants;
+      const hasImageOps = pendingImages.length > 0
+        || thumbRows.some((r) => r.pendingThumbnail)
+        || stagedDeleteImageIds.length > 0;
+      const failures: string[] = [];
+
+      // Đối chiếu dòng SKU trong form với SKU đã lưu để gắn thumbnail.
+      // Ưu tiên id (dòng đã tồn tại), rồi mã SKU, rồi tên biến thể. Nếu
+      // không đối chiếu được thì báo lỗi chứ không đoán bừa — người dùng
+      // gắn lại ở trang chi tiết. (Tên biến thể trùng nhau trong cùng 1
+      // sản phẩm là trường hợp hiếm: thumbnail sẽ rơi vào dòng trùng đầu
+      // tiên, dòng sau ghi đè — vẫn đúng 1 thumbnail/SKU.)
+      const resolveSavedVariantId = (row: VariantRow): string | null => {
+        if (row.id && saved.variants.some((v) => v.id === row.id)) return row.id;
+        const sku = row.sku.trim().toUpperCase();
+        if (sku) {
+          const bySku = saved.variants.find((v) => v.sku === sku);
+          if (bySku?.id) return bySku.id;
+        }
+        const byName = saved.variants.find((v) => v.variantName === row.variantName.trim());
+        if (byName?.id) return byName.id;
+        return null;
+      };
+
+      for (const p of pendingImages) {
+        try { await postImageFile(saved.id, p.file); }
+        catch { failures.push(`ảnh "${p.file.name}"`); }
       }
-      setView("list");
-      setPage(1);
-      load();
+      for (const row of thumbRows) {
+        if (!row.pendingThumbnail) continue;
+        const variantId = resolveSavedVariantId(row);
+        if (!variantId) {
+          failures.push(`thumbnail của "${row.variantName || row.sku || "SKU"}" (không đối chiếu được SKU sau khi lưu)`);
+          continue;
+        }
+        try { await postImageFile(saved.id, row.pendingThumbnail, variantId); }
+        catch { failures.push(`thumbnail của "${row.variantName || row.sku}"`); }
+      }
+      for (const imageId of stagedDeleteImageIds) {
+        try { await api(`/api/product-images/${imageId}`, token, "DELETE"); }
+        catch { failures.push("xóa 1 ảnh cũ"); }
+      }
+
+      resetForm();
+      if (hasImageOps) {
+        // Mở chi tiết để người dùng thấy ảnh vừa lưu (và thấy lỗi nếu có).
+        const opened = await openDetail(saved.id);
+        load();
+        if (!opened) {
+          // openDetail đã báo lỗi mở chi tiết; sản phẩm thì đã lưu.
+        } else if (failures.length > 0) {
+          setError(`Đã lưu sản phẩm nhưng chưa đồng bộ được: ${failures.join("; ")}. Bạn có thể tải lại các ảnh này ở trang chi tiết.`);
+        } else {
+          setInfo("Đã lưu sản phẩm và ảnh.");
+        }
+      } else {
+        setInfo(formId ? "Đã lưu sản phẩm." : "Đã tạo sản phẩm.");
+        setView("list");
+        setPage(1);
+        load();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lưu sản phẩm thất bại.");
     }
@@ -384,35 +469,107 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
     }
   }
 
-  /** Tải ảnh lên: ảnh chung của sản phẩm (không variantId) hoặc thumbnail riêng của một SKU. */
-  async function uploadImageFile(file: File, variantId?: string) {
-    if (!detail) return;
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setError("Chỉ nhận ảnh jpg, png hoặc webp.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Mỗi ảnh tối đa 5MB.");
-      return;
-    }
+  /** Kiểm tra file ảnh ở phía trình duyệt (máy chủ kiểm tra lại). */
+  function checkImageFile(file: File): string | null {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) return "Chỉ nhận ảnh jpg, png hoặc webp.";
+    if (file.size > 5 * 1024 * 1024) return "Mỗi ảnh tối đa 5MB.";
+    return null;
+  }
+
+  /** Gửi 1 file ảnh lên máy chủ (dùng chung cho trang chi tiết và form). Ném lỗi để caller báo rõ từng file. */
+  async function postImageFile(productId: string, file: File, variantId?: string) {
     const form = new FormData();
     form.append("image", file);
     const path = variantId
-      ? `/api/products/${detail.id}/variants/${variantId}/thumbnail`
-      : `/api/products/${detail.id}/images`;
+      ? `/api/products/${productId}/variants/${variantId}/thumbnail`
+      : `/api/products/${productId}/images`;
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data as { message?: string }).message || `Lỗi ${res.status}`);
+  }
+
+  /** Tải ảnh lên ngay (trang chi tiết — ở đây không có khái niệm "Hủy" nên tải ngay là đúng). */
+  async function uploadImageFile(file: File, variantId?: string) {
+    if (!detail) return;
+    const problem = checkImageFile(file);
+    if (problem) { setError(problem); return; }
     try {
-      const res = await fetch(`${API_BASE}${path}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { message?: string }).message || `Lỗi ${res.status}`);
+      await postImageFile(detail.id, file, variantId);
       setInfo(variantId ? "Đã đặt thumbnail cho SKU." : "Đã tải ảnh lên.");
       await openDetail(detail.id);
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tải ảnh thất bại.");
+    }
+  }
+
+  /* ---------------- Ảnh chờ trong form (chưa gửi lên cho tới khi Lưu) ---------------- */
+
+  /** Ảnh chung của sản phẩm đang sửa (chưa tính các ảnh đã bấm xóa chờ). */
+  const formVisibleCommonImages = formImages.filter((i) => !i.variantId && !stagedDeleteImageIds.includes(i.id));
+
+  /** Ảnh riêng đã lưu của một SKU trong form (không tính ảnh chờ, không fallback sang ảnh chung). */
+  function formOwnImageId(variantId?: string): string | null {
+    if (!variantId) return null;
+    return formImages.find((i) => i.variantId === variantId && !stagedDeleteImageIds.includes(i.id))?.id ?? null;
+  }
+
+  /** Chọn thêm ảnh chung vào form (chỉ xem trước local, chưa gửi lên). */
+  function addPendingImages(files: FileList | File[]) {
+    const room = 10 - formVisibleCommonImages.length - pendingImages.length;
+    const rejected: string[] = [];
+    const accepted: { file: File; url: string }[] = [];
+    for (const file of Array.from(files)) {
+      const problem = checkImageFile(file);
+      if (problem) { rejected.push(`${file.name} (${problem})`); continue; }
+      if (accepted.length >= room) { rejected.push(`${file.name} (vượt giới hạn 10 ảnh chung)`); continue; }
+      accepted.push({ file, url: URL.createObjectURL(file) });
+    }
+    if (accepted.length > 0) setPendingImages((prev) => [...prev, ...accepted]);
+    if (rejected.length > 0) setError(`Chưa thêm được: ${rejected.join("; ")}.`);
+    else setError("");
+  }
+
+  function removePendingImage(index: number) {
+    setPendingImages((prev) => {
+      const removed = prev[index];
+      if (removed) URL.revokeObjectURL(removed.url);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
+
+  /** Chọn thumbnail chờ cho SKU mặc định (simple) hoặc 1 dòng biến thể (variants). */
+  function stageRowThumbnail(file: File, target: "simple" | number) {
+    const problem = checkImageFile(file);
+    if (problem) { setError(problem); return; }
+    setError("");
+    const url = URL.createObjectURL(file);
+    if (target === "simple") {
+      if (defaultVariant.pendingThumbnailUrl) URL.revokeObjectURL(defaultVariant.pendingThumbnailUrl);
+      setDefaultVariant({ ...defaultVariant, pendingThumbnail: file, pendingThumbnailUrl: url });
+    } else {
+      setManualVariants(manualVariants.map((x, j) => {
+        if (j !== target) return x;
+        if (x.pendingThumbnailUrl) URL.revokeObjectURL(x.pendingThumbnailUrl);
+        return { ...x, pendingThumbnail: file, pendingThumbnailUrl: url };
+      }));
+    }
+  }
+
+  function clearRowThumbnail(target: "simple" | number) {
+    if (target === "simple") {
+      if (defaultVariant.pendingThumbnailUrl) URL.revokeObjectURL(defaultVariant.pendingThumbnailUrl);
+      setDefaultVariant({ ...defaultVariant, pendingThumbnail: null, pendingThumbnailUrl: undefined });
+    } else {
+      setManualVariants(manualVariants.map((x, j) => {
+        if (j !== target) return x;
+        if (x.pendingThumbnailUrl) URL.revokeObjectURL(x.pendingThumbnailUrl);
+        return { ...x, pendingThumbnail: null, pendingThumbnailUrl: undefined };
+      }));
     }
   }
 
@@ -604,6 +761,47 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
             </select>
           </label>
 
+          <div className="space-y-2 card-sm">
+            <h4 className="font-semibold">Ảnh sản phẩm</h4>
+            <p className="text-sm text-gray-500">Ảnh chọn ở đây chỉ được lưu khi bạn bấm "Lưu sản phẩm". Bấm "Hủy" thì ảnh đã chọn sẽ mất, ảnh cũ giữ nguyên.</p>
+            {(formVisibleCommonImages.length === 0 && pendingImages.length === 0) ? (
+              <p className="text-sm text-gray-500">Chưa có ảnh.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {formVisibleCommonImages.map((img) => (
+                  <div key={img.id}>
+                    <ProductImg token={token} imageId={img.id} className="h-24 w-24 rounded-lg border object-cover" />
+                    <button type="button" onClick={() => setStagedDeleteImageIds((ids) => [...ids, img.id])} className="btn btn-sm btn-secondary mt-1 block w-full">Xóa ảnh</button>
+                  </div>
+                ))}
+                {pendingImages.map((p, i) => (
+                  <div key={p.url}>
+                    <img src={p.url} alt="Ảnh mới chọn" className="h-24 w-24 rounded-lg border border-dashed object-cover" />
+                    <button type="button" onClick={() => removePendingImage(i)} className="btn btn-sm btn-secondary mt-1 block w-full">Bỏ ảnh này</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {stagedDeleteImageIds.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm text-yellow-700">{stagedDeleteImageIds.length} ảnh cũ sẽ bị xóa khi lưu:</p>
+                {formImages.filter((i) => stagedDeleteImageIds.includes(i.id)).map((img) => (
+                  <span key={img.id} className="flex items-center gap-1 text-sm">
+                    <ProductImg token={token} imageId={img.id} className="h-10 w-10 rounded border object-cover" />
+                    <button type="button" onClick={() => setStagedDeleteImageIds((ids) => ids.filter((id) => id !== img.id))} className="btn btn-sm btn-secondary">Hoàn tác</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="flex flex-wrap items-center gap-2 text-sm">
+              <label className="btn btn-sm btn-secondary cursor-pointer">
+                Chọn ảnh
+                <input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => { if (e.target.files) addPendingImages(e.target.files); e.target.value = ""; }} />
+              </label>
+              <span className="text-xs text-gray-500">jpg, png, webp — mỗi ảnh tối đa 5MB, tối đa 10 ảnh chung.</span>
+            </p>
+          </div>
+
           <div className="flex gap-2">
             <button type="button" onClick={() => setMode("simple")} className={`btn btn-sm btn-secondary ${mode === "simple" ? "bg-blue-100" : ""}`}>Không có biến thể (1 SKU mặc định)</button>
             <button type="button" onClick={() => setMode("variants")} className={`btn btn-sm btn-secondary ${mode === "variants" ? "bg-blue-100" : ""}`}>Có biến thể</button>
@@ -620,6 +818,26 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                 <label className="block">Giá nhập <PriceInput value={defaultVariant.importPrice} onChange={(v) => setDefaultVariant({ ...defaultVariant, importPrice: v })} /></label>
               )}
               <label className="block">Mã vạch <input className="input" value={defaultVariant.barcode} onChange={(e) => setDefaultVariant({ ...defaultVariant, barcode: e.target.value })} /></label>
+              <div>
+                <p className="text-sm font-medium">Thumbnail SKU</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  {defaultVariant.pendingThumbnailUrl ? (
+                    <img src={defaultVariant.pendingThumbnailUrl} alt="Thumbnail mới chọn" className="h-12 w-12 rounded border border-dashed object-cover" />
+                  ) : formOwnImageId(defaultVariant.id) ? (
+                    <ProductImg token={token} imageId={formOwnImageId(defaultVariant.id)!} className="h-12 w-12 rounded border object-cover" />
+                  ) : (
+                    <span className="text-sm text-gray-400">Chưa có thumbnail riêng (khi hiển thị sẽ dùng ảnh chung đầu tiên).</span>
+                  )}
+                  <label className="btn btn-sm btn-secondary cursor-pointer">
+                    {defaultVariant.pendingThumbnailUrl || formOwnImageId(defaultVariant.id) ? "Đổi ảnh" : "Thêm ảnh"}
+                    <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) stageRowThumbnail(f, "simple"); e.target.value = ""; }} />
+                  </label>
+                  {defaultVariant.pendingThumbnailUrl && (
+                    <button type="button" onClick={() => clearRowThumbnail("simple")} className="btn btn-sm btn-secondary">Bỏ ảnh mới chọn</button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">Ảnh này chỉ được lưu khi bấm "Lưu sản phẩm".</p>
+              </div>
             </fieldset>
           )}
 
@@ -658,6 +876,20 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                         <option value="active">Đang bán</option>
                         <option value="inactive">Ngừng bán</option>
                       </select>
+                      <span className="flex items-center gap-2">
+                        {v.pendingThumbnailUrl ? (
+                          <img src={v.pendingThumbnailUrl} alt="Thumbnail mới chọn" className="h-10 w-10 rounded border border-dashed object-cover" />
+                        ) : formOwnImageId(v.id) ? (
+                          <ProductImg token={token} imageId={formOwnImageId(v.id)!} className="h-10 w-10 rounded border object-cover" />
+                        ) : null}
+                        <label className="btn btn-sm btn-secondary cursor-pointer">
+                          {v.pendingThumbnailUrl || formOwnImageId(v.id) ? "Đổi ảnh" : "Thêm ảnh"}
+                          <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) stageRowThumbnail(f, i); e.target.value = ""; }} />
+                        </label>
+                        {v.pendingThumbnailUrl && (
+                          <button type="button" onClick={() => clearRowThumbnail(i)} className="btn btn-sm btn-secondary">Bỏ</button>
+                        )}
+                      </span>
                       <button type="button" onClick={() => setManualVariants(manualVariants.filter((_, j) => j !== i))} className="btn btn-sm btn-secondary">Xóa dòng</button>
                     </div>
                   ))}
@@ -668,7 +900,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
 
           <div className="flex gap-2">
             <button className="btn btn-primary">Lưu sản phẩm</button>
-            <button type="button" onClick={() => setView("list")} className="btn btn-secondary">Hủy</button>
+            <button type="button" onClick={() => { resetForm(); setView("list"); }} className="btn btn-secondary">Hủy</button>
           </div>
         </form>
       )}
