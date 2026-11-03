@@ -421,7 +421,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
       }
       // Lưu thông tin sản phẩm trước; chỉ khi đã có sản phẩm (id) thì ảnh
       // chờ mới được gửi lên gắn vào. Ảnh nào gửi lỗi sẽ báo rõ tên file,
-      // sản phẩm thì vẫn đã lưu — người dùng tải lại ảnh lỗi ở trang chi tiết.
+      // sản phẩm thì vẫn đã lưu — người dùng tải lại ảnh lỗi khi Sửa sản phẩm.
       const savedData = formId
         ? await api(`/api/products/${formId}`, token, "PATCH", body)
         : await api("/api/products", token, "POST", body);
@@ -436,7 +436,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
       // Đối chiếu dòng SKU trong form với SKU đã lưu để gắn thumbnail.
       // Ưu tiên id (dòng đã tồn tại), rồi mã SKU, rồi tên biến thể. Nếu
       // không đối chiếu được thì báo lỗi chứ không đoán bừa — người dùng
-      // gắn lại ở trang chi tiết. (Tên biến thể trùng nhau trong cùng 1
+      // gắn lại khi Sửa sản phẩm. (Tên biến thể trùng nhau trong cùng 1
       // sản phẩm là trường hợp hiếm: thumbnail sẽ rơi vào dòng trùng đầu
       // tiên, dòng sau ghi đè — vẫn đúng 1 thumbnail/SKU.)
       const resolveSavedVariantId = (row: VariantRow): string | null => {
@@ -481,7 +481,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
         if (!opened) {
           // openDetail đã báo lỗi mở chi tiết; sản phẩm thì đã lưu.
         } else if (failures.length > 0) {
-          setError(`Đã lưu sản phẩm nhưng chưa đồng bộ được: ${failures.join("; ")}. Bạn có thể tải lại các ảnh này ở trang chi tiết.`);
+          setError(`Đã lưu sản phẩm nhưng chưa đồng bộ được: ${failures.join("; ")}. Bạn có thể tải lại các ảnh này khi Sửa sản phẩm.`);
         } else {
           setInfo("Đã lưu sản phẩm và ảnh.");
         }
@@ -514,7 +514,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
     return null;
   }
 
-  /** Gửi 1 file ảnh lên máy chủ (dùng chung cho trang chi tiết và form). Ném lỗi để caller báo rõ từng file. */
+  /** Gửi 1 file ảnh lên máy chủ (form dùng khi đồng bộ ảnh chờ sau khi Lưu). Ném lỗi để caller báo rõ từng file. */
   async function postImageFile(productId: string, file: File, variantId?: string) {
     const form = new FormData();
     form.append("image", file);
@@ -528,21 +528,6 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error((data as { message?: string }).message || `Lỗi ${res.status}`);
-  }
-
-  /** Tải ảnh lên ngay (trang chi tiết — ở đây không có khái niệm "Hủy" nên tải ngay là đúng). */
-  async function uploadImageFile(file: File, variantId?: string) {
-    if (!detail) return;
-    const problem = checkImageFile(file);
-    if (problem) { setError(problem); return; }
-    try {
-      await postImageFile(detail.id, file, variantId);
-      setInfo(variantId ? "Đã đặt thumbnail cho SKU." : "Đã tải ảnh lên.");
-      await openDetail(detail.id);
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Tải ảnh thất bại.");
-    }
   }
 
   /* ---------------- Ảnh chờ trong form (chưa gửi lên cho tới khi Lưu) ---------------- */
@@ -608,19 +593,6 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
         if (x.pendingThumbnailUrl) URL.revokeObjectURL(x.pendingThumbnailUrl);
         return { ...x, pendingThumbnail: null, pendingThumbnailUrl: undefined };
       }));
-    }
-  }
-
-  async function handleDeleteImage(imageId: string) {
-    if (!detail) return;
-    if (!window.confirm("Xóa ảnh này?")) return;
-    try {
-      await api(`/api/product-images/${imageId}`, token, "DELETE");
-      setInfo("Đã xóa ảnh.");
-      await openDetail(detail.id);
-      load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Xóa ảnh thất bại.");
     }
   }
 
@@ -716,19 +688,9 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                 {detailCommonImages.map((img) => (
                   <div key={img.id}>
                     <ProductImg token={token} imageId={img.id} className="h-24 w-24 rounded-lg border object-cover" />
-                    {canUpdate && <button type="button" onClick={() => handleDeleteImage(img.id)} className="btn btn-sm btn-secondary mt-1 block w-full">Xóa ảnh</button>}
                   </div>
                 ))}
               </div>
-            )}
-            {canUpdate && (
-              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                <label className="btn btn-sm btn-secondary cursor-pointer">
-                  Tải ảnh lên
-                  <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImageFile(f); e.target.value = ""; }} />
-                </label>
-                <span className="text-xs text-gray-500">Chỉ nhận jpg, png, webp — mỗi ảnh tối đa 5MB, tối đa 10 ảnh chung.</span>
-              </p>
             )}
           </div>
           <table className="table">
@@ -747,12 +709,6 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                       <ProductImg token={token} imageId={v.thumbnailImageId} className="h-12 w-12 rounded border object-cover" />
                     ) : (
                       <span className="text-gray-400">—</span>
-                    )}
-                    {canUpdate && v.id && (
-                      <label className="btn btn-sm btn-secondary mt-1 block w-max cursor-pointer">
-                        {v.thumbnailImageId ? "Đổi ảnh" : "Thêm ảnh"}
-                        <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImageFile(f, v.id); e.target.value = ""; }} />
-                      </label>
                     )}
                   </td>
                   <td>{v.sku}</td>
