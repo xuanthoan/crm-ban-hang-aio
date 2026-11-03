@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { clearCustomValidity, invalidMessage } from "./validity";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -119,6 +119,41 @@ function PriceInput({ value, onChange, placeholder, className, disabled }: {
  *  theo id ảnh trong phiên làm việc để không tải lại khi render lại. */
 const imageBlobCache = new Map<string, string>();
 
+/** Khung ảnh có phóng to khi rê chuột: di chuột vào ảnh nhỏ thì hiện
+ *  thêm khung 500x500 bên phải ảnh (object-contain nên không méo hình),
+ *  dùng chung cho mọi chỗ hiển thị ảnh — danh sách, chi tiết, form.
+ *  Khung phóng to là một thẻ <img> riêng với kích thước 500px nên trình
+ *  duyệt giải mã đúng độ phân giải gốc, không bị mờ như phóng bằng
+ *  transform trên ảnh nhỏ. pointer-events-none để khung không chặn chuột
+ *  và tự ẩn ngay khi chuột rời khỏi ảnh nhỏ. */
+function Zoomable({ src, className, alt }: { src: string; className?: string; alt?: string }) {
+  const [zoom, setZoom] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+  }, []);
+  return (
+    <span
+      className="relative inline-block"
+      onMouseEnter={() => {
+        if (timer.current !== null) window.clearTimeout(timer.current);
+        timer.current = window.setTimeout(() => setZoom(true), 150);
+      }}
+      onMouseLeave={() => {
+        if (timer.current !== null) window.clearTimeout(timer.current);
+        setZoom(false);
+      }}
+    >
+      <img src={src} alt={alt ?? "Ảnh sản phẩm"} className={className} />
+      {zoom && (
+        <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 hidden -translate-y-1/2 rounded-lg border border-gray-300 bg-white p-2 shadow-xl md:block">
+          <img src={src} alt={alt ?? "Ảnh sản phẩm"} className="h-[500px] w-[500px] object-contain" />
+        </span>
+      )}
+    </span>
+  );
+}
+
 function ProductImg({ token, imageId, className }: { token: string; imageId: string; className?: string }) {
   const [src, setSrc] = useState<string | undefined>(() => imageBlobCache.get(imageId));
   useEffect(() => {
@@ -146,7 +181,7 @@ function ProductImg({ token, imageId, className }: { token: string; imageId: str
   if (!src) {
     return <div className={`${className ?? ""} flex items-center justify-center bg-gray-100 text-xs text-gray-400`}>…</div>;
   }
-  return <img src={src} alt="Ảnh sản phẩm" className={className} />;
+  return <Zoomable src={src} className={className} />;
 }
 
 /** Local cartesian product (preview only — the backend re-generates authoritatively on save). */
@@ -779,7 +814,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                 ))}
                 {pendingImages.map((p, i) => (
                   <div key={p.url}>
-                    <img src={p.url} alt="Ảnh mới chọn" className="h-24 w-24 rounded-lg border border-dashed object-cover" />
+                    <Zoomable src={p.url} alt="Ảnh mới chọn" className="h-24 w-24 rounded-lg border border-dashed object-cover" />
                     <button type="button" onClick={() => removePendingImage(i)} className="btn btn-sm btn-secondary mt-1 block w-full">Bỏ ảnh này</button>
                   </div>
                 ))}
@@ -825,7 +860,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                 <p className="text-sm font-medium">Thumbnail SKU</p>
                 <div className="mt-1 flex flex-wrap items-center gap-2">
                   {defaultVariant.pendingThumbnailUrl ? (
-                    <img src={defaultVariant.pendingThumbnailUrl} alt="Thumbnail mới chọn" className="h-12 w-12 rounded border border-dashed object-cover" />
+                    <Zoomable src={defaultVariant.pendingThumbnailUrl} alt="Thumbnail mới chọn" className="h-12 w-12 rounded border border-dashed object-cover" />
                   ) : formOwnImageId(defaultVariant.id) ? (
                     <ProductImg token={token} imageId={formOwnImageId(defaultVariant.id)!} className="h-12 w-12 rounded border object-cover" />
                   ) : (
@@ -887,7 +922,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
                       </select>
                       <span className="flex items-center gap-2">
                         {v.pendingThumbnailUrl ? (
-                          <img src={v.pendingThumbnailUrl} alt="Thumbnail mới chọn" className="h-10 w-10 rounded border border-dashed object-cover" />
+                          <Zoomable src={v.pendingThumbnailUrl} alt="Thumbnail mới chọn" className="h-10 w-10 rounded border border-dashed object-cover" />
                         ) : formOwnImageId(v.id) ? (
                           <ProductImg token={token} imageId={formOwnImageId(v.id)!} className="h-10 w-10 rounded border object-cover" />
                         ) : null}
