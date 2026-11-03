@@ -120,33 +120,62 @@ function PriceInput({ value, onChange, placeholder, className, disabled }: {
 const imageBlobCache = new Map<string, string>();
 
 /** Khung ảnh có phóng to khi rê chuột: di chuột vào ảnh nhỏ thì hiện
- *  thêm khung 500x500 bên phải ảnh (object-contain nên không méo hình),
+ *  thêm khung 500x500 bên cạnh ảnh (object-contain nên không méo hình),
  *  dùng chung cho mọi chỗ hiển thị ảnh — danh sách, chi tiết, form.
  *  Khung phóng to là một thẻ <img> riêng với kích thước 500px nên trình
  *  duyệt giải mã đúng độ phân giải gốc, không bị mờ như phóng bằng
  *  transform trên ảnh nhỏ. pointer-events-none để khung không chặn chuột
- *  và tự ẩn ngay khi chuột rời khỏi ảnh nhỏ. */
+ *  và tự ẩn ngay khi chuột rời khỏi ảnh nhỏ.
+ *  QUAN TRỌNG: khung phải dùng position:fixed với tọa độ tính từ
+ *  getBoundingClientRect, KHÔNG dùng absolute trong wrapper ảnh nhỏ.
+ *  Wrapper chỉ to bằng ảnh nhỏ (48–96px) nên nó là containing block
+ *  của popup absolute: với left:100% thì chiều rộng khả dụng còn ~0,
+ *  khung 500px bị bóp thành 1 đường dọc (lỗi đã gặp 2026-11-03). */
 function Zoomable({ src, className, alt }: { src: string; className?: string; alt?: string }) {
-  const [zoom, setZoom] = useState(false);
+  const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
+  const wrapRef = useRef<HTMLSpanElement | null>(null);
   const timer = useRef<number | null>(null);
   useEffect(() => () => {
     if (timer.current !== null) window.clearTimeout(timer.current);
   }, []);
+  // Cuộn trang trong lúc đang phóng to thì ẩn khung (tọa độ fixed sẽ lệch).
+  useEffect(() => {
+    if (!zoom) return;
+    const hide = () => setZoom(null);
+    window.addEventListener("scroll", hide, true);
+    return () => window.removeEventListener("scroll", hide, true);
+  }, [zoom]);
   return (
     <span
+      ref={wrapRef}
       className="relative inline-block"
       onMouseEnter={() => {
         if (timer.current !== null) window.clearTimeout(timer.current);
-        timer.current = window.setTimeout(() => setZoom(true), 150);
+        timer.current = window.setTimeout(() => {
+          const el = wrapRef.current;
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          const size = 518; // 500 ảnh + p-2 hai bên + border hai bên
+          const gap = 8;
+          // Ưu tiên hiện bên phải ảnh; không đủ chỗ thì lật sang bên trái;
+          // kẹp khung trong viewport để không tràn màn hình.
+          const toRight = r.right + gap + size <= window.innerWidth;
+          const x = toRight ? r.right + gap : Math.max(8, r.left - gap - size);
+          const y = Math.min(Math.max(8, r.top + r.height / 2 - size / 2), Math.max(8, window.innerHeight - size - 8));
+          setZoom({ x, y });
+        }, 150);
       }}
       onMouseLeave={() => {
         if (timer.current !== null) window.clearTimeout(timer.current);
-        setZoom(false);
+        setZoom(null);
       }}
     >
       <img src={src} alt={alt ?? "Ảnh sản phẩm"} className={className} />
       {zoom && (
-        <span className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 hidden -translate-y-1/2 rounded-lg border border-gray-300 bg-white p-2 shadow-xl md:block">
+        <span
+          className="pointer-events-none fixed z-50 hidden rounded-lg border border-gray-300 bg-white p-2 shadow-xl md:block"
+          style={{ left: zoom.x, top: zoom.y }}
+        >
           <img src={src} alt={alt ?? "Ảnh sản phẩm"} className="h-[500px] w-[500px] object-contain" />
         </span>
       )}
