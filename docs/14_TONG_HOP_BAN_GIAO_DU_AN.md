@@ -383,7 +383,7 @@ Tất cả bảng nằm trong `backend/prisma/schema.prisma`. Kiểu tiền: đ�
 - **Nhắc việc:** tạo (gắn khách hoặc không, gắn đơn hoặc không), sửa, hoàn thành (kèm ghi chú hoàn thành), hủy (kèm lý do) — chỉ nhắc việc `pending` mới được sửa/hoàn thành/hủy; hoàn thành hoặc hủy 2 lần → 409; không có xóa cứng. Trạng thái quá hạn/hôm nay/sắp tới tính **lúc đọc** (không lưu sẵn). Chỉ user có `reminder.view_all` mới được gán nhắc việc cho người khác.
 - **Remarketing (segments):** tính **trực tiếp lúc đọc, không lưu trữ**, và **không gửi bất kỳ tin nhắn nào** (không Zalo/SMS/Email trong MVP — phân đoạn chỉ là danh sách để nhân viên tự liên hệ). Các phân đoạn:
   - `birthday_customers`: khách đang hoạt động có sinh nhật trong N ngày tới (mặc định 7 ngày, theo ngày/tháng sinh nhật; 29/2 về 28/2 ở năm không nhuận).
-  - `birthday_children`: con của khách đang hoạt động có sinh nhật trong N ngày tới — **chỉ trả tên con, khách liên quan, ngày sinh nhật sắp tới và tuổi sắp tới; không trả ngày sinh gốc, ghi chú hay giới tính của con**.
+  - `birthday_children`: con của khách đang hoạt động có sinh nhật trong N ngày tới — **chỉ trả tên con, khách liên quan, ngày sinh nhật sắp tới và tuổi sắp tới; không trả ngày sinh gốc, ghi chú hay giới tính của con**. API trả kèm `customerId` của cha mẹ; giao diện cho bấm vào dòng sinh nhật con để mở hồ sơ khách (cha mẹ) trong **tab mới** qua deep link `?customer=<id>` (xem mục 8).
   - `inactive_customers`: khách đã từng mua (có đơn confirmed/completed) nhưng không có đơn nào trong X ngày qua (mặc định 90 ngày); khách chưa từng mua thuộc nhóm riêng.
   - `new_customers`: khách tạo trong 30 ngày qua (tham số `days` đổi được).
   - `no_purchase_customers`: khách đang hoạt động chưa từng có đơn confirmed/completed.
@@ -499,6 +499,7 @@ Tất cả bảng nằm trong `backend/prisma/schema.prisma`. Kiểu tiền: đ�
 - **Giới tính:** dùng select, không nhập tự do.
 - **Ảnh:** xem mục 6.4 (staged upload trong form, trang chi tiết thuần túy, phóng to 500×500 khi rê chuột).
 - **Trang Remarketing:** các thẻ filter (tiêu đề phân đoạn) và khối kết quả tách biệt rõ ràng — khối kết quả nằm trong khung riêng có viền đậm và nền xanh nhạt, kèm tiêu đề "Kết quả: \<tên phân đoạn\> (số lượng)"; thẻ filter đang được chọn cũng tô nền xanh nhạt để nhìn là biết kết quả thuộc về filter nào.
+- **Deep link khách hàng:** URL có tham số `?customer=<id>` thì mở thẳng hồ sơ khách đó (trang Khách hàng tự mở chi tiết khi nhận tham số lúc mount; điều hướng trong tab không bị tham số này ảnh hưởng). Trang Remarketing dùng cơ chế này: bấm dòng sinh nhật con thì mở hồ sơ cha mẹ trong tab mới, trang hiện tại giữ nguyên.
 - **Bài học CSS đã trả giá:** popup phóng to lớn không dùng `position: absolute` trong wrapper chỉ to bằng ảnh nhỏ (xem mục 6.4); nút nhỏ (`btn-sm`, ~26px) đặt cạnh ô nhập cao (~38px) sẽ lệch chiều cao — dùng đúng cỡ nút theo chiều cao ô bên cạnh; nút "Xóa" trong hàng nhóm thuộc tính và nút "Áp dụng cho tất cả" ở hàng giá hàng loạt dùng nút cỡ thường vì đứng cạnh ô `.field` cao.
 
 ---
