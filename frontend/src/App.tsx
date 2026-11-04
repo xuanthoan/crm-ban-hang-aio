@@ -61,7 +61,11 @@ export default function App() {
   const [info, setInfo] = useState("");
   const [busy, setBusy] = useState(false);
   const [otpMode, setOtpMode] = useState("");
-  const [section, setSection] = useState<"home" | "customers" | "suppliers" | "purchases" | "supplierDebts" | "products" | "inventory" | "orders" | "debts" | "reminders" | "segments" | "dashboard" | "reports" | "importExport" | "audit" | "admin">("home");
+  // Deep link khách hàng (?customer=<id>): tab mới mở từ trang
+  // Remarketing thì vào thẳng trang Khách hàng để CustomersPage mở hồ
+  // sơ khách đó; tab thường (không có tham số) vẫn vào Tổng quan.
+  const initialCustomerId = new URLSearchParams(window.location.search).get("customer") ?? undefined;
+  const [section, setSection] = useState<"home" | "customers" | "suppliers" | "purchases" | "supplierDebts" | "products" | "inventory" | "orders" | "debts" | "reminders" | "segments" | "dashboard" | "reports" | "importExport" | "audit" | "admin">(() => (initialCustomerId ? "customers" : "home"));
   const [otpModeDraft, setOtpModeDraft] = useState("off");
   const [smtpConfigured, setSmtpConfigured] = useState(false);
   const [otpDevLog, setOtpDevLog] = useState(false);
@@ -418,7 +422,7 @@ export default function App() {
           ) : section === "purchases" && canViewPurchases ? (
             <PurchasesPage token={token ?? ""} permissions={user.permissions} />
           ) : section === "customers" && canViewCustomers ? (
-            <CustomersPage token={token ?? ""} permissions={user.permissions} />
+            <CustomersPage token={token ?? ""} permissions={user.permissions} initialCustomerId={initialCustomerId} />
           ) : section === "admin" && canViewAdmin ? (
             <AdminPage token={token ?? ""} permissions={user.permissions} />
           ) : (

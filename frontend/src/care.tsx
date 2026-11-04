@@ -384,19 +384,44 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
           {items.length > 0 && <span> ({items.length})</span>}
         </h3>
         <ul className="mt-2 space-y-2">
-          {items.map((it, i) => (
-            <li key={i} className="card-sm text-sm">
-              <strong>{String(it.childName ?? it.fullName ?? "")}</strong>
-              {Boolean(it.customerName) && Boolean(it.childName) && <span> · Khách: {String(it.customerName)}</span>}
-              {Boolean(it.nextBirthday) && <span> · Sinh nhật sắp tới: {isoToVnDate(String(it.nextBirthday))} ({String(it.upcomingAge)} tuổi)</span>}
-              {/* Child-birthday rows already render nextBirthday/upcomingAge
-                  above; their reason repeats the same info verbatim, so
-                  showing it too prints the birthday twice. Other segments
-                  keep their reason, which carries distinct info. */}
-              {Boolean(it.reason) && !(Boolean(it.childName) && Boolean(it.nextBirthday)) && <span> · {String(it.reason)}</span>}
-              {Boolean(it.phone) && <span> · {String(it.phone)}</span>}
-            </li>
-          ))}
+          {items.map((it, i) => {
+            // Dòng sinh nhật con: API đã trả sẵn customerId của cha mẹ nên
+            // không cần sửa backend. Bấm vào dòng thì mở hồ sơ khách (cha
+            // mẹ) trong tab mới qua deep link ?customer=, trang hiện tại
+            // giữ nguyên. Các dòng phân đoạn khác không phải dòng con nên
+            // giữ nguyên dạng text, không bấm được.
+            const customerId = typeof it.customerId === "string" && it.customerId ? it.customerId : null;
+            const childRow = Boolean(it.childName) && customerId;
+            const content = (
+              <>
+                <strong>{String(it.childName ?? it.fullName ?? "")}</strong>
+                {Boolean(it.customerName) && Boolean(it.childName) && <span> · Khách: {String(it.customerName)}</span>}
+                {Boolean(it.nextBirthday) && <span> · Sinh nhật sắp tới: {isoToVnDate(String(it.nextBirthday))} ({String(it.upcomingAge)} tuổi)</span>}
+                {/* Child-birthday rows already render nextBirthday/upcomingAge
+                    above; their reason repeats the same info verbatim, so
+                    showing it too prints the birthday twice. Other segments
+                    keep their reason, which carries distinct info. */}
+                {Boolean(it.reason) && !(Boolean(it.childName) && Boolean(it.nextBirthday)) && <span> · {String(it.reason)}</span>}
+                {Boolean(it.phone) && <span> · {String(it.phone)}</span>}
+              </>
+            );
+            return (
+              <li key={i} className="card-sm text-sm">
+                {childRow ? (
+                  <button
+                    type="button"
+                    className="block w-full text-left"
+                    title="Mở hồ sơ khách hàng (cha mẹ) trong tab mới"
+                    onClick={() => {
+                      if (customerId) window.open(`${window.location.origin}${window.location.pathname}?customer=${encodeURIComponent(customerId)}`, "_blank", "noopener,noreferrer");
+                    }}
+                  >
+                    {content} <span className="text-xs text-blue-700">↗ Hồ sơ khách</span>
+                  </button>
+                ) : content}
+              </li>
+            );
+          })}
           {items.length === 0 && <li className="text-gray-500">Phân đoạn này hiện không có khách nào.</li>}
         </ul>
       </div>

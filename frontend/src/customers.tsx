@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CustomerCareTab } from "./care";
 import { isoToVnDate, labelFor, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "./labels";
 import { EntityAuditTimeline } from "./audit";
@@ -113,7 +113,7 @@ function emptyForm(): {
   };
 }
 
-export default function CustomersPage({ token, permissions }: { token: string; permissions: string[] }) {
+export default function CustomersPage({ token, permissions, initialCustomerId }: { token: string; permissions: string[]; initialCustomerId?: string }) {
   const [view, setView] = useState<"list" | "detail" | "form">("list");
   const [customers, setCustomers] = useState<CustomerListItem[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
@@ -215,6 +215,17 @@ export default function CustomersPage({ token, permissions }: { token: string; p
       setError(err instanceof Error ? err.message : "Không mở được hồ sơ khách hàng.");
     }
   }
+
+  // Deep link: tab mới mở bằng ?customer=<id> (VD: bấm dòng sinh nhật con
+  // ở trang Remarketing) thì mở thẳng hồ sơ khách đó ngay khi vào trang.
+  // Chỉ chạy 1 lần lúc mount; điều hướng trong tab không bị ảnh hưởng.
+  // Id sai hoặc không có quyền xem khách thì openDetail báo lỗi như thường.
+  const initialOpened = useRef(false);
+  useEffect(() => {
+    if (!initialCustomerId || initialOpened.current) return;
+    initialOpened.current = true;
+    openDetail(initialCustomerId);
+  }, [initialCustomerId]);
 
   function openCreate() {
     setFormId(null);
