@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CustomerCareTab } from "./care";
-import { isoToVnDate, labelFor, ORDER_STATUS_LABELS, PAYMENT_STATUS_LABELS } from "./labels";
+import { badgeFor, isoToVnDate, labelFor, ORDER_STATUS_BADGES, ORDER_STATUS_LABELS, PAYMENT_STATUS_BADGES, PAYMENT_STATUS_LABELS } from "./labels";
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: "Tiền mặt",
+  bank_transfer: "Chuyển khoản",
+  cod: "COD",
+  e_wallet: "Ví điện tử",
+};
 import { EntityAuditTimeline } from "./audit";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -147,6 +154,18 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
     totalOwing: number;
     totalCredit: number;
     orders: { orderCode: string; debtTotal: number; paymentStatus: string; status: string }[];
+    history: {
+      orderCode: string;
+      status: string;
+      paymentStatus: string;
+      grandTotal: number;
+      paidTotal: number;
+      debtTotal: number;
+      createdAt: string;
+      fullyReturned: boolean;
+      items: { sku: string; productName: string; variantName: string; quantity: number; returnedQuantity: number; unitPrice: number; discountAmount: number; lineTotal: number }[];
+      payments: { amount: number; paymentMethod: string; status: string; paidAt: string; cancelReason: string | null; cancelledAt: string | null }[];
+    }[];
   } | null>(null);
 
   const loadCustomerDebt = useCallback(
@@ -550,6 +569,48 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
                   {customerDebt.orders.length === 0 && <li className="text-gray-500">Khách này hiện không có đơn nào còn nợ.</li>}
                 </ul>
                 <p className="mt-2 text-sm text-gray-500">Số này tính trực tiếp từ các đơn của khách, phải khớp với tổng ở trang Công nợ. Đơn nháp và đơn đã hủy không tính là còn nợ.</p>
+                <h5 className="mt-4 font-semibold">Lịch sử mua hàng ({(customerDebt.history ?? []).length})</h5>
+                {(customerDebt.history ?? []).length === 0 && (
+                  <p className="mt-1 text-sm text-gray-500">Khách này chưa có đơn hàng nào.</p>
+                )}
+                <div className="mt-2 space-y-2">
+                  {(customerDebt.history ?? []).map((o) => (
+                    <div key={o.orderCode} className="card-sm">
+                      <p className="text-sm">
+                        <strong>{o.orderCode}</strong> · Ngày đặt {isoToVnDate(o.createdAt)} ·{" "}
+                        <span className={badgeFor(ORDER_STATUS_BADGES, o.status)}>{labelFor(ORDER_STATUS_LABELS, o.status)}</span>{" "}
+                        <span className={badgeFor(PAYMENT_STATUS_BADGES, o.paymentStatus)}>{labelFor(PAYMENT_STATUS_LABELS, o.paymentStatus)}</span>
+                        {o.fullyReturned && <span className="badge badge-gray">Đã trả hết hàng</span>}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        Tổng tiền {o.grandTotal.toLocaleString("vi-VN")} · Đã trả {o.paidTotal.toLocaleString("vi-VN")} · Còn nợ {o.debtTotal.toLocaleString("vi-VN")}
+                      </p>
+                      {o.items.length > 0 && (
+                        <ul className="mt-1 space-y-1 text-sm">
+                          {o.items.map((it, idx) => (
+                            <li key={idx}>
+                              {it.sku} — {it.productName}{it.variantName ? ` (${it.variantName})` : ""} × {it.quantity} · {it.lineTotal.toLocaleString("vi-VN")}
+                              {it.returnedQuantity > 0 && ` (đã trả ${it.returnedQuantity})`}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {o.payments.length > 0 ? (
+                        <ul className="mt-1 space-y-1 text-sm text-gray-600">
+                          {o.payments.map((p, idx) => (
+                            <li key={idx}>
+                              {p.status === "cancelled"
+                                ? `Đã hủy ${p.amount.toLocaleString("vi-VN")} · ${labelFor(PAYMENT_METHOD_LABELS, p.paymentMethod)}${p.cancelReason ? ` (lý do: ${p.cancelReason})` : ""}`
+                                : `Đã trả ${p.amount.toLocaleString("vi-VN")} · ${labelFor(PAYMENT_METHOD_LABELS, p.paymentMethod)} · ${isoToVnDate(p.paidAt)}`}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="mt-1 text-sm text-gray-500">Chưa có thanh toán nào.</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </>
             ) : (
               <p className="text-sm text-gray-500">{detail.ordersNote} Số liệu ở đây đang để trống, không phải số thật.</p>

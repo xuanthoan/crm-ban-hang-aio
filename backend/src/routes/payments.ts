@@ -466,6 +466,46 @@ router.get("/customers/:id/debt", async (req, res) => {
         totalCredit += -debt;
       }
     }
+    // Full purchase history for the customer profile: EVERY non-deleted
+    // order (draft and cancelled included, clearly badged by status),
+    // with its item snapshots and payment records. The debt totals above
+    // still come only from payable (confirmed/completed) orders, so this
+    // history can never drift the debt figures. Payment detail rides
+    // the same debt-view gate as the totals — debt viewers already see
+    // paid/debt amounts, the per-payment breakdown adds no new data
+    // class — while the order's own detail page keeps its stricter
+    // payment.view gate.
+    const historyOrders = await prisma.order.findMany({
+      where: { customerId: customer.id, deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      include: {
+        items: { orderBy: { createdAt: "asc" } },
+        payments: { orderBy: { createdAt: "asc" } },
+      },
+    });
+    const history = historyOrders.map((o: any) => ({
+      ...serializeOrderTotals(o),
+      createdAt: o.createdAt,
+      fullyReturned: o.fullyReturned ?? false,
+      items: (o.items ?? []).map((it: any) => ({
+        sku: it.skuSnapshot,
+        productName: it.productNameSnapshot,
+        variantName: it.variantNameSnapshot,
+        quantity: it.quantity,
+        returnedQuantity: it.returnedQuantity ?? 0,
+        unitPrice: dec(it.unitPrice),
+        discountAmount: dec(it.discountAmount),
+        lineTotal: dec(it.lineTotal),
+      })),
+      payments: (o.payments ?? []).map((p: any) => ({
+        amount: dec(p.amount),
+        paymentMethod: p.paymentMethod,
+        status: p.status,
+        paidAt: p.paidAt,
+        cancelReason: p.cancelReason ?? null,
+        cancelledAt: p.cancelledAt ?? null,
+      })),
+    }));
     res.json({
       status: "ok",
       data: {
@@ -479,6 +519,7 @@ router.get("/customers/:id/debt", async (req, res) => {
         orderCount: orders.length,
         owingOrderCount: owingOrders.length,
         orders: owingOrders,
+        history,
         note: "Công nợ tính trực tiếp từ các đơn confirmed/completed của khách (đơn nháp và đơn đã hủy không tính là còn nợ). Đơn trả thừa (debt âm) được tính là tiền thừa cần hoàn, không phải nợ.",
       },
     });

@@ -329,6 +329,7 @@ Tất cả bảng nằm trong `backend/prisma/schema.prisma`. Kiểu tiền: đ�
 - **Tìm kiếm:** theo tên, theo bất kỳ số điện thoại nào (kể cả dạng `+84` hoặc có khoảng trắng), theo tag.
 - **Xóa:** mặc định là ngừng hoạt động (soft); xóa cứng chỉ khi Admin, chưa có dữ liệu liên quan, và có audit log. Xóa khách có đơn/thanh toán/chăm sóc → chặn.
 - **Hoạt động chăm sóc:** xem mục 6.8.
+- **Lịch sử mua hàng (trang chi tiết, khung "Đơn hàng và công nợ"):** ngoài tổng công nợ và danh sách đơn còn nợ, trang còn hiện toàn bộ lịch sử đơn của khách — mỗi đơn gồm ngày đặt, trạng thái đơn, trạng thái thanh toán, tổng tiền / đã trả / còn nợ, từng dòng sản phẩm (SKU, tên sản phẩm, tên biến thể, số lượng, thành tiền, số lượng đã trả) và từng lần thanh toán (số tiền, phương thức, ngày trả; lần đã hủy ghi rõ lý do). Lịch sử gồm cả đơn nháp và đơn đã hủy (gắn nhãn trạng thái rõ ràng) nhưng tổng công nợ vẫn chỉ tính từ đơn đã xác nhận/hoàn thành, không đổi. Dữ liệu lấy từ `GET /api/customers/:id/debt` (trường `history` thêm vào, các trường cũ giữ nguyên); chi tiết thanh toán dùng chung cổng xem công nợ của trang này (người xem công nợ vốn đã thấy tổng đã trả/còn nợ), còn trang chi tiết đơn hàng vẫn giữ cổng `payment.view` riêng chặt hơn.
 
 ### 6.3. Sản phẩm và SKU
 
