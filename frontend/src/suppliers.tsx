@@ -503,7 +503,7 @@ export default function SuppliersPage({
                 <label className="flex items-center gap-1">
                   <input type="radio" name="primary-phone" checked={p.isPrimary} onChange={() => setPrimary(i)} /> Số chính
                 </label>
-                <button type="button" onClick={() => removePhone(i)} className="btn btn-sm btn-secondary">Xóa số</button>
+                <button type="button" onClick={() => removePhone(i)} className="btn btn-secondary">Xóa số</button>
               </div>
             ))}
             <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm số điện thoại</button>
@@ -520,7 +520,7 @@ export default function SuppliersPage({
                 </select>
                 <input className="input" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: zalo.me/… hoặc https://…" />
                 <input className="input" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
-                <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-sm btn-secondary">Xóa link</button>
+                <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-secondary">Xóa link</button>
               </div>
             ))}
             <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "zalo", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
