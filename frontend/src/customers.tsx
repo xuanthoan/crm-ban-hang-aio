@@ -482,7 +482,6 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
                 <option value="inactive">Ngừng hoạt động</option>
               </select>
             </label>
-            <button onClick={() => loadCustomers(1)} className="btn btn-primary">Tìm</button>
             {canCreate && (
               <button onClick={openCreate} className="btn btn-secondary">+ Tạo khách hàng</button>
             )}

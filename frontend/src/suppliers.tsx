@@ -350,7 +350,6 @@ export default function SuppliersPage({
                 <option value="name_asc">Tên A→Z</option>
               </select>
             </label>
-            <button onClick={() => loadSuppliers(1)} className="btn btn-primary">Tìm</button>
             {canCreate && (
               <button onClick={openCreate} className="btn btn-secondary">+ Tạo nhà cung cấp</button>
             )}
