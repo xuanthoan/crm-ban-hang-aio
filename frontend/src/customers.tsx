@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CustomerCareTab } from "./care";
-import { badgeFor, isoToVnDate, labelFor, ORDER_STATUS_BADGES, ORDER_STATUS_LABELS, PAYMENT_STATUS_BADGES, PAYMENT_STATUS_LABELS } from "./labels";
+import { badgeFor, isoToVnDate, labelFor, ORDER_STATUS_BADGES, ORDER_STATUS_LABELS, PAYMENT_STATUS_BADGES, PAYMENT_STATUS_LABELS, SOCIAL_PLATFORM_LABELS, socialLinkHref } from "./labels";
 
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   cash: "Tiền mặt",
@@ -46,6 +46,15 @@ interface ChildRow {
   note: string;
 }
 
+interface SocialLinkRow {
+  id?: string;
+  platform: string;
+  url: string;
+  label: string;
+}
+
+const SOCIAL_PLATFORMS = ["zalo", "facebook", "telegram", "whatsapp"];
+
 interface CustomerListItem {
   id: string;
   fullName: string;
@@ -65,6 +74,7 @@ interface CustomerDetail extends CustomerListItem {
   email: string | null;
   note: string | null;
   phones: PhoneRow[];
+  socialLinks: SocialLinkRow[];
   children: (ChildRow & { ageYears: number | null })[];
   orders: unknown[];
   payments: unknown[];
@@ -102,6 +112,7 @@ function emptyForm(): {
   source: string;
   status: string;
   phones: PhoneRow[];
+  socialLinks: SocialLinkRow[];
   tagIds: string[];
   children: ChildRow[];
 } {
@@ -115,6 +126,7 @@ function emptyForm(): {
     source: "",
     status: "active",
     phones: [{ phone: "", label: "", isPrimary: true }],
+    socialLinks: [],
     tagIds: [],
     children: [],
   };
@@ -264,6 +276,7 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
       source: c.source ?? "",
       status: c.status,
       phones: c.phones.map((p) => ({ id: p.id, phone: p.phone, label: p.label ?? "", isPrimary: p.isPrimary })),
+      socialLinks: (c.socialLinks ?? []).map((l) => ({ id: l.id, platform: l.platform, url: l.url, label: l.label ?? "" })),
       tagIds: c.tags.map((t) => t.id),
       children: c.children.map((ch) => ({
         id: ch.id,
@@ -325,6 +338,9 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
       phones: form.phones
         .filter((p) => p.phone.trim())
         .map((p) => ({ phone: p.phone.trim(), label: p.label.trim() || null, isPrimary: p.isPrimary })),
+      socialLinks: form.socialLinks
+        .filter((l) => l.url.trim())
+        .map((l) => ({ platform: l.platform, url: l.url.trim(), label: l.label.trim() || null })),
       tagIds,
       children: form.children.map((ch) => ({
         ...(ch.id ? { id: ch.id } : {}),
@@ -365,7 +381,7 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
   }
 
   async function handleHardDelete(id: string) {
-    if (!window.confirm("Xóa CỨNG khách hàng này? Chỉ thành công khi khách chưa có bất kỳ dữ liệu liên quan nào (số, tag, con, đơn, thanh toán...).")) return;
+    if (!window.confirm("Xóa CỨNG khách hàng này? Chỉ thành công khi khách chưa có bất kỳ dữ liệu liên quan nào (số, link mạng xã hội, tag, con, đơn, thanh toán...).")) return;
     setError("");
     try {
       await api(`/api/customers/${id}?hard=true`, token, "DELETE");
@@ -390,6 +406,19 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
       await openDetail(detail.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xóa số thất bại.");
+    }
+  }
+
+  async function handleDeleteSocialLink(link: SocialLinkRow) {
+    if (!detail) return;
+    if (!window.confirm(`Xóa link ${labelFor(SOCIAL_PLATFORM_LABELS, link.platform)} này?`)) return;
+    setError("");
+    try {
+      await api(`/api/customers/${detail.id}/social-links/${link.id}`, token, "DELETE");
+      setInfo("Đã xóa link mạng xã hội.");
+      await openDetail(detail.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xóa link thất bại.");
     }
   }
 
@@ -538,6 +567,25 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
           </div>
 
           <div className="card">
+            <h4 className="font-semibold">Mạng xã hội ({(detail.socialLinks ?? []).length})</h4>
+            <ul className="mt-2 space-y-2">
+              {(detail.socialLinks ?? []).map((l) => (
+                <li key={l.id} className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{labelFor(SOCIAL_PLATFORM_LABELS, l.platform)}</span>
+                  <a href={socialLinkHref(l.url)} target="_blank" rel="noreferrer" className="text-blue-700 underline break-all">
+                    {l.label || l.url}
+                  </a>
+                  {l.label && <span className="text-gray-500">({l.url})</span>}
+                  {canUpdate && (
+                    <button onClick={() => handleDeleteSocialLink(l)} className="btn btn-sm btn-secondary text-sm">Xóa link</button>
+                  )}
+                </li>
+              ))}
+              {(detail.socialLinks ?? []).length === 0 && <li className="text-gray-500">Chưa có link mạng xã hội.</li>}
+            </ul>
+          </div>
+
+          <div className="card">
             <h4 className="font-semibold">Con cái ({detail.children.length})</h4>
             <ul className="mt-2 space-y-2">
               {detail.children.map((ch) => (
@@ -656,6 +704,23 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
               </div>
             ))}
             <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm số điện thoại</button>
+          </div>
+
+          <div>
+            <h4 className="font-semibold">Mạng xã hội (không giới hạn số lượng link mỗi mạng)</h4>
+            {form.socialLinks.map((l, i) => (
+              <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
+                <select className="field" value={l.platform} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)) }))}>
+                  {SOCIAL_PLATFORMS.map((p) => (
+                    <option key={p} value={p}>{labelFor(SOCIAL_PLATFORM_LABELS, p)}</option>
+                  ))}
+                </select>
+                <input className="field" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: zalo.me/… hoặc https://…" />
+                <input className="field" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
+                <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-sm btn-secondary">Xóa link</button>
+              </div>
+            ))}
+            <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "zalo", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
           </div>
 
           <div>

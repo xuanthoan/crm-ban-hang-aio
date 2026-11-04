@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { EntityAuditTimeline } from "./audit";
+import { labelFor, SOCIAL_PLATFORM_LABELS, socialLinkHref } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -10,6 +11,15 @@ interface PhoneRow {
   label: string;
   isPrimary: boolean;
 }
+
+interface SocialLinkRow {
+  id?: string;
+  platform: string;
+  url: string;
+  label: string;
+}
+
+const SOCIAL_PLATFORMS = ["zalo", "facebook", "telegram", "whatsapp"];
 
 interface SupplierListItem {
   id: string;
@@ -43,6 +53,7 @@ function formatMoney(value: number | null | undefined): string {
 
 interface SupplierDetail extends SupplierListItem {
   phones: PhoneRow[];
+  socialLinks: SocialLinkRow[];
   products: SupplierProduct[];
 }
 
@@ -74,6 +85,7 @@ function emptyForm(): {
   note: string;
   status: string;
   phones: PhoneRow[];
+  socialLinks: SocialLinkRow[];
 } {
   return {
     name: "",
@@ -83,6 +95,7 @@ function emptyForm(): {
     note: "",
     status: "active",
     phones: [{ phone: "", label: "", isPrimary: true }],
+    socialLinks: [],
   };
 }
 
@@ -169,6 +182,7 @@ export default function SuppliersPage({
       note: s.note ?? "",
       status: s.status,
       phones: s.phones.map((p) => ({ id: p.id, phone: p.phone, label: p.label ?? "", isPrimary: p.isPrimary })),
+      socialLinks: (s.socialLinks ?? []).map((l) => ({ id: l.id, platform: l.platform, url: l.url, label: l.label ?? "" })),
     });
     setView("form");
   }
@@ -202,6 +216,9 @@ export default function SuppliersPage({
       phones: form.phones
         .filter((p) => p.phone.trim())
         .map((p) => ({ phone: p.phone.trim(), label: p.label.trim() || null, isPrimary: p.isPrimary })),
+      socialLinks: form.socialLinks
+        .filter((l) => l.url.trim())
+        .map((l) => ({ platform: l.platform, url: l.url.trim(), label: l.label.trim() || null })),
     };
     try {
       if (formId) {
@@ -259,6 +276,19 @@ export default function SuppliersPage({
       await openDetail(detail.id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Xóa số thất bại.");
+    }
+  }
+
+  async function handleDeleteSocialLink(link: SocialLinkRow) {
+    if (!detail) return;
+    if (!window.confirm(`Xóa link ${labelFor(SOCIAL_PLATFORM_LABELS, link.platform)} này?`)) return;
+    setError("");
+    try {
+      await api(`/api/suppliers/${detail.id}/social-links/${link.id}`, token, "DELETE");
+      setInfo("Đã xóa link mạng xã hội.");
+      await openDetail(detail.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xóa link thất bại.");
     }
   }
 
@@ -381,6 +411,25 @@ export default function SuppliersPage({
           </div>
 
           <div className="card">
+            <h4 className="font-semibold">Mạng xã hội ({(detail.socialLinks ?? []).length})</h4>
+            <ul className="mt-2 space-y-2">
+              {(detail.socialLinks ?? []).map((l) => (
+                <li key={l.id} className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{labelFor(SOCIAL_PLATFORM_LABELS, l.platform)}</span>
+                  <a href={socialLinkHref(l.url)} target="_blank" rel="noreferrer" className="text-blue-700 underline break-all">
+                    {l.label || l.url}
+                  </a>
+                  {l.label && <span className="text-gray-500">({l.url})</span>}
+                  {canUpdate && (
+                    <button onClick={() => handleDeleteSocialLink(l)} className="btn btn-sm btn-secondary text-sm">Xóa link</button>
+                  )}
+                </li>
+              ))}
+              {(detail.socialLinks ?? []).length === 0 && <li className="text-gray-500">Chưa có link mạng xã hội.</li>}
+            </ul>
+          </div>
+
+          <div className="card">
             <h4 className="font-semibold">Sản phẩm đã nhập từ nhà cung cấp này ({detail.products?.length ?? 0})</h4>
             <p className="mt-1 text-sm text-gray-500">Chỉ tính các đơn nhập đã nhận hàng (Đã nhận hàng / Hoàn thành); đơn nháp và đơn đã hủy không tính. Cả sản phẩm đang bán và đã ngừng bán đều hiện ở đây. Giá bán hiện với người có quyền xem sản phẩm, giá nhập chỉ hiện với người có quyền xem giá nhập.</p>
             {(detail.products?.length ?? 0) > 0 ? (
@@ -458,6 +507,23 @@ export default function SuppliersPage({
               </div>
             ))}
             <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm số điện thoại</button>
+          </div>
+
+          <div>
+            <h4 className="font-semibold">Mạng xã hội (không giới hạn số lượng link mỗi mạng)</h4>
+            {form.socialLinks.map((l, i) => (
+              <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
+                <select className="input" value={l.platform} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)) }))}>
+                  {SOCIAL_PLATFORMS.map((p) => (
+                    <option key={p} value={p}>{labelFor(SOCIAL_PLATFORM_LABELS, p)}</option>
+                  ))}
+                </select>
+                <input className="input" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: zalo.me/… hoặc https://…" />
+                <input className="input" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
+                <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-sm btn-secondary">Xóa link</button>
+              </div>
+            ))}
+            <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "zalo", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
           </div>
 
           <div className="flex gap-2">

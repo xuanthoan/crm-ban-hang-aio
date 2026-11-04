@@ -31,6 +31,7 @@ import { authenticate, authorize } from "../middleware/auth";
 import { writeAudit } from "../lib/audit";
 import { isValidPhoneNormalized, normalizePhone } from "../lib/customers";
 import { getPrisma } from "../lib/prisma";
+import { normalizeSocialLinks, serializeSocialLink } from "../lib/socialLinks";
 import {
   duplicateErrorMessage,
   findDuplicatePhone,
@@ -121,6 +122,7 @@ function serializeDetailSupplier(s: any) {
       status: p.status,
       createdAt: p.createdAt,
     })),
+    socialLinks: (s.socialLinks ?? []).map((l: any) => serializeSocialLink(l)),
   };
 }
 
@@ -129,6 +131,7 @@ async function loadSupplierForScope(prisma: ReturnType<typeof getPrisma>, id: st
     where: { id },
     include: {
       phones: { where: { status: "active", deletedAt: null }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
+      socialLinks: { orderBy: { createdAt: "asc" } },
       createdBy: { select: { id: true, fullName: true, username: true } },
     },
   });
@@ -304,10 +307,10 @@ router.get("/suppliers/:id", async (req, res) => {
 /* Suppliers — create / update                                         */
 /* ------------------------------------------------------------------ */
 
-/** POST /api/suppliers — create supplier + phones in one transaction. */
+/** POST /api/suppliers — create supplier + phones + social links in one transaction. */
 router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
   try {
-    const { name, taxCode, email, address, note, status, phones } = req.body ?? {};
+    const { name, taxCode, email, address, note, status, phones, socialLinks } = req.body ?? {};
     const supplierName = typeof name === "string" ? name.trim() : "";
     if (!supplierName) {
       res.status(400).json({ status: "error", message: "Tên nhà cung cấp không được để trống." });
@@ -322,6 +325,11 @@ router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
     const normalized = normalizePhoneList(phoneList);
     if (normalized.error) {
       res.status(400).json({ status: "error", message: normalized.error });
+      return;
+    }
+    const normalizedLinks = normalizeSocialLinks(socialLinks);
+    if (normalizedLinks.error) {
+      res.status(400).json({ status: "error", message: normalizedLinks.error });
       return;
     }
     const prisma = getPrisma();
@@ -361,9 +369,17 @@ router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
               status: "active",
             })),
           },
+          socialLinks: {
+            create: normalizedLinks.links.map((l) => ({
+              platform: l.platform,
+              url: l.url,
+              label: l.label || null,
+            })),
+          },
         },
         include: {
           phones: { where: { status: "active", deletedAt: null } },
+          socialLinks: { orderBy: { createdAt: "asc" } },
           createdBy: { select: { fullName: true } },
         },
       });
@@ -399,7 +415,7 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
       res.status(403).json({ status: "error", message: "Bạn không có quyền sửa nhà cung cấp này." });
       return;
     }
-    const { name, taxCode, email, address, note, status, phones } = req.body ?? {};
+    const { name, taxCode, email, address, note, status, phones, socialLinks } = req.body ?? {};
 
     const supplierName = name === undefined ? supplier.name : typeof name === "string" ? name.trim() : "";
     if (name !== undefined && !supplierName) {
@@ -415,6 +431,14 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
     const normalized = phonesProvided ? normalizePhoneList(phones) : { phones: [] as ReturnType<typeof normalizePhoneList>["phones"] };
     if (normalized.error) {
       res.status(400).json({ status: "error", message: normalized.error });
+      return;
+    }
+    const socialLinksProvided = socialLinks !== undefined;
+    const normalizedLinks = socialLinksProvided
+      ? normalizeSocialLinks(socialLinks)
+      : { links: [] as ReturnType<typeof normalizeSocialLinks>["links"] };
+    if (normalizedLinks.error) {
+      res.status(400).json({ status: "error", message: normalizedLinks.error });
       return;
     }
     const taxConflict = await findTaxCodeConflict(prisma, normalizedTaxCode, supplier.id);
@@ -501,6 +525,16 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
           }
         }
       }
+      if (socialLinksProvided) {
+        // Links carry no transactions, so replace is a plain
+        // delete-all + recreate (unlike phones, which soft-delete).
+        await tx.supplierSocialLink.deleteMany({ where: { supplierId: supplier.id } });
+        for (const l of normalizedLinks.links) {
+          await tx.supplierSocialLink.create({
+            data: { supplierId: supplier.id, platform: l.platform, url: l.url, label: l.label || null },
+          });
+        }
+      }
     });
     await writeAudit(prisma, {
       actorId: req.user!.id,
@@ -559,6 +593,7 @@ router.delete("/suppliers/:id", async (req, res) => {
       }
       await prisma.$transaction(async (tx: any) => {
         await tx.supplierPhone.deleteMany({ where: { supplierId: supplier.id } });
+        await tx.supplierSocialLink.deleteMany({ where: { supplierId: supplier.id } });
         await tx.supplier.delete({ where: { id: supplier.id } });
       });
       await writeAudit(prisma, {
@@ -586,6 +621,64 @@ router.delete("/suppliers/:id", async (req, res) => {
       ipAddress: req.ip ?? null,
     });
     res.json({ status: "ok", message: "Đã ngừng hợp tác nhà cung cấp (dữ liệu vẫn được giữ lại)." });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/* ------------------------------------------------------------------ */
+/* Social links — single-link endpoints                                */
+/* ------------------------------------------------------------------ */
+
+/** POST /api/suppliers/:id/social-links — add one social link. */
+router.post("/suppliers/:id/social-links", authorize("supplier.update"), async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const supplier = await loadSupplierInScopeForWrite(prisma, req, res);
+    if (!supplier) return;
+    const normalized = normalizeSocialLinks([{ platform: req.body?.platform, url: req.body?.url, label: req.body?.label }]);
+    if (normalized.error) {
+      res.status(400).json({ status: "error", message: normalized.error });
+      return;
+    }
+    const created = await prisma.supplierSocialLink.create({ data: { supplierId: supplier.id, ...normalized.links[0], label: normalized.links[0].label || null } });
+    await writeAudit(prisma, {
+      actorId: req.user!.id,
+      action: "supplier_social_link_added",
+      entityType: "supplier",
+      entityId: supplier.id,
+      newValue: { platform: created.platform, url: created.url },
+      ipAddress: req.ip ?? null,
+    });
+    res.status(201).json({ status: "ok", socialLink: serializeSocialLink(created) });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/** DELETE /api/suppliers/:id/social-links/:linkId — hard-delete one social link. */
+router.delete("/suppliers/:id/social-links/:linkId", authorize("supplier.update"), async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const supplier = await loadSupplierInScopeForWrite(prisma, req, res);
+    if (!supplier) return;
+    const link = await prisma.supplierSocialLink.findFirst({
+      where: { id: req.params.linkId, supplierId: supplier.id },
+    });
+    if (!link) {
+      res.status(404).json({ status: "error", message: "Link mạng xã hội không tồn tại." });
+      return;
+    }
+    await prisma.supplierSocialLink.delete({ where: { id: link.id } });
+    await writeAudit(prisma, {
+      actorId: req.user!.id,
+      action: "supplier_social_link_removed",
+      entityType: "supplier",
+      entityId: supplier.id,
+      oldValue: { platform: link.platform, url: link.url },
+      ipAddress: req.ip ?? null,
+    });
+    res.json({ status: "ok", message: "Đã xóa link mạng xã hội." });
   } catch (err) {
     dbUnavailable(res, err);
   }

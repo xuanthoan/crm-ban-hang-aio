@@ -45,6 +45,18 @@ enum CustomerPhoneStatus {
   inactive
 }
 
+// Social links (Zalo / Facebook / Telegram / WhatsApp) for customers and
+// suppliers. Fixed set of 4 platforms, unlimited links per platform —
+// a customer or supplier can have several links on the same platform
+// (e.g. a Facebook page and a personal profile), so there is no unique
+// constraint on (owner, platform) or on url.
+enum SocialPlatform {
+  zalo
+  facebook
+  telegram
+  whatsapp
+}
+
 enum ProductStatus {
   active
   inactive
@@ -282,6 +294,7 @@ model Customer {
   assignedTo User? @relation("CustomerAssignee", fields: [assignedToId], references: [id])
 
   phones     CustomerPhone[]
+  socialLinks CustomerSocialLink[]
   children   CustomerChild[]
   tagLinks   CustomerTagAssignment[]
   activities CustomerActivity[]
@@ -436,6 +449,7 @@ model Supplier {
 
   createdBy User?          @relation("SupplierCreator", fields: [createdById], references: [id])
   phones    SupplierPhone[]
+  socialLinks SupplierSocialLink[]
   purchaseOrders PurchaseOrder[]
 }
 
@@ -464,6 +478,36 @@ model SupplierPhone {
   // number may belong to both a customer and a supplier (design 13 §7.3).
   @@unique([supplierId, phoneNormalized])
   @@index([phoneNormalized])
+}
+
+// Social links for customers and suppliers. No soft delete: links carry
+// no transactions, so deleting one is a real delete (audited via the
+// *_social_link_removed audit actions). No duplicate check: the same
+// url may legitimately appear on several links or owners.
+model CustomerSocialLink {
+  id         String         @id @default(cuid())
+  customerId String
+  platform   SocialPlatform
+  url        String
+  label      String?
+  createdAt  DateTime       @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+}
+
+model SupplierSocialLink {
+  id         String         @id @default(cuid())
+  supplierId String
+  platform   SocialPlatform
+  url        String
+  label      String?
+  createdAt  DateTime       @default(now())
+
+  supplier Supplier @relation(fields: [supplierId], references: [id])
+
+  @@index([supplierId])
 }
 
 // ---------- Products / SKU ----------

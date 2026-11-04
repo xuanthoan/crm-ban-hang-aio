@@ -19,6 +19,24 @@ export function isoToVnDate(iso: string | null | undefined): string {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
+// Nhãn 4 nền tảng mạng xã hội (Zalo / Facebook / Telegram / WhatsApp).
+export const SOCIAL_PLATFORM_LABELS: Record<string, string> = {
+  zalo: "Zalo",
+  facebook: "Facebook",
+  telegram: "Telegram",
+  whatsapp: "WhatsApp",
+};
+
+// Link người dùng nhập thường thiếu scheme ("zalo.me/..." thay vì
+// "https://zalo.me/..."). Hiển thị thêm "https://" khi thiếu để thẻ <a>
+// mở được, còn giá trị lưu trong database giữ nguyên như người dùng gõ.
+export function socialLinkHref(url: string | null | undefined): string {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
 // "2026-10-30T06:41:00.000Z" -> "30/10/2026 13:41" (giờ địa phương,
 // giống hành vi toLocaleString() trước đây, chỉ cố định dạng dd/mm/yyyy).
 export function isoToVnDateTime(iso: string | null | undefined): string {
@@ -187,6 +205,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   customer_phone_added: "Thêm số điện thoại",
   customer_phone_removed: "Xóa số điện thoại",
   customer_primary_changed: "Đổi số chính",
+  customer_social_link_added: "Thêm link mạng xã hội",
+  customer_social_link_removed: "Xóa link mạng xã hội",
   supplier_created: "Tạo nhà cung cấp",
   supplier_updated: "Cập nhật nhà cung cấp",
   supplier_deactivated: "Ngừng hợp tác nhà cung cấp",
@@ -194,6 +214,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   supplier_phone_added: "Thêm số điện thoại NCC",
   supplier_phone_removed: "Xóa số điện thoại NCC",
   supplier_primary_changed: "Đổi số chính NCC",
+  supplier_social_link_added: "Thêm link mạng xã hội NCC",
+  supplier_social_link_removed: "Xóa link mạng xã hội NCC",
   customer_tag_added: "Gắn tag cho khách",
   customer_tag_removed: "Gỡ tag khỏi khách",
   child_created: "Thêm con",

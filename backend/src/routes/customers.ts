@@ -33,6 +33,7 @@ import {
   normalizePhoneList,
 } from "../lib/customers";
 import { getPrisma } from "../lib/prisma";
+import { normalizeSocialLinks, serializeSocialLink } from "../lib/socialLinks";
 
 const router = Router();
 router.use(authenticate);
@@ -164,6 +165,7 @@ function serializeDetailCustomer(c: any) {
       status: p.status,
       createdAt: p.createdAt,
     })),
+    socialLinks: (c.socialLinks ?? []).map((l: any) => serializeSocialLink(l)),
     children: (c.children ?? []).map((ch: any) => ({
       id: ch.id,
       fullName: ch.fullName,
@@ -188,6 +190,7 @@ async function loadCustomerForScope(prisma: ReturnType<typeof getPrisma>, id: st
     where: { id, deletedAt: null },
     include: {
       phones: { where: { status: "active", deletedAt: null }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
+      socialLinks: { orderBy: { createdAt: "asc" } },
       tagLinks: { include: { tag: true } },
       children: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
       createdBy: { select: { id: true, fullName: true, username: true } },
@@ -486,12 +489,17 @@ async function validateTags(prisma: ReturnType<typeof getPrisma>, tagIds: unknow
 /** POST /api/customers — create customer + phones + tags + children in one transaction. */
 router.post("/customers", authorize("customer.create"), async (req, res) => {
   try {
-    const { fullName, gender, dateOfBirth, address, email, note, source, status, assignedToId, phones, tagIds, children } = req.body ?? {};
+    const { fullName, gender, dateOfBirth, address, email, note, source, status, assignedToId, phones, tagIds, children, socialLinks } = req.body ?? {};
     const name = typeof fullName === "string" ? fullName.trim() : "";
     const phoneList = phones === undefined ? [] : phones;
     const normalized = normalizePhoneList(phoneList);
     if (normalized.error) {
       res.status(400).json({ status: "error", message: normalized.error });
+      return;
+    }
+    const normalizedLinks = normalizeSocialLinks(socialLinks);
+    if (normalizedLinks.error) {
+      res.status(400).json({ status: "error", message: normalizedLinks.error });
       return;
     }
     // Docs 01 §6/§13: name OR at least one phone is required.
@@ -566,6 +574,13 @@ router.post("/customers", authorize("customer.create"), async (req, res) => {
             })),
           },
           tagLinks: { create: tags.ids.map((tagId) => ({ tagId })) },
+          socialLinks: {
+            create: normalizedLinks.links.map((l) => ({
+              platform: l.platform,
+              url: l.url,
+              label: l.label || null,
+            })),
+          },
           children: {
             create: childList.children.map((ch, i) => ({
               fullName: ch.fullName,
@@ -578,6 +593,7 @@ router.post("/customers", authorize("customer.create"), async (req, res) => {
         },
         include: {
           phones: { where: { status: "active", deletedAt: null } },
+          socialLinks: { orderBy: { createdAt: "asc" } },
           tagLinks: { include: { tag: true } },
           children: { where: { deletedAt: null }, orderBy: { sortOrder: "asc" } },
           createdBy: { select: { fullName: true } },
@@ -616,13 +632,21 @@ router.patch("/customers/:id", authorize("customer.update"), async (req, res) =>
       res.status(403).json({ status: "error", message: "Bạn không có quyền sửa khách hàng này." });
       return;
     }
-    const { fullName, gender, dateOfBirth, address, email, note, source, status, assignedToId, phones, tagIds, children } = req.body ?? {};
+    const { fullName, gender, dateOfBirth, address, email, note, source, status, assignedToId, phones, tagIds, children, socialLinks } = req.body ?? {};
 
     const name = fullName === undefined ? customer.fullName : typeof fullName === "string" ? fullName.trim() : "";
     const phonesProvided = phones !== undefined;
     const normalized = phonesProvided ? normalizePhoneList(phones) : { phones: [] as ReturnType<typeof normalizePhoneList>["phones"] };
     if (normalized.error) {
       res.status(400).json({ status: "error", message: normalized.error });
+      return;
+    }
+    const socialLinksProvided = socialLinks !== undefined;
+    const normalizedLinks = socialLinksProvided
+      ? normalizeSocialLinks(socialLinks)
+      : { links: [] as ReturnType<typeof normalizeSocialLinks>["links"] };
+    if (normalizedLinks.error) {
+      res.status(400).json({ status: "error", message: normalizedLinks.error });
       return;
     }
     // Name-or-phone rule on the FINAL state, not just the patch payload.
@@ -765,6 +789,16 @@ router.patch("/customers/:id", authorize("customer.update"), async (req, res) =>
           }
         }
       }
+      if (socialLinksProvided) {
+        // Links carry no transactions, so replace is a plain
+        // delete-all + recreate (unlike phones, which soft-delete).
+        await tx.customerSocialLink.deleteMany({ where: { customerId: customer.id } });
+        for (const l of normalizedLinks.links) {
+          await tx.customerSocialLink.create({
+            data: { customerId: customer.id, platform: l.platform, url: l.url, label: l.label || null },
+          });
+        }
+      }
       if (childrenProvided) {
         const keepIds = new Set(childList.children.filter((c) => c.id).map((c) => c.id as string));
         for (const old of customer.children) {
@@ -862,6 +896,7 @@ router.delete("/customers/:id", async (req, res) => {
         activities: customer._count.activities,
         reminders: customer._count.reminders,
         phones: await prisma.customerPhone.count({ where: { customerId: customer.id } }),
+        socialLinks: await prisma.customerSocialLink.count({ where: { customerId: customer.id } }),
         children: await prisma.customerChild.count({ where: { customerId: customer.id } }),
         tagLinks: await prisma.customerTagAssignment.count({ where: { customerId: customer.id } }),
       };
@@ -1009,6 +1044,60 @@ router.post("/customers/:id/phones/:phoneId/make-primary", authorize("customer.u
       ipAddress: req.ip ?? null,
     });
     res.json({ status: "ok", message: "Đã đổi số chính." });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/** POST /api/customers/:id/social-links — add one social link. */
+router.post("/customers/:id/social-links", authorize("customer.update"), async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const customer = await loadCustomerInScopeForWrite(prisma, req, res);
+    if (!customer) return;
+    const normalized = normalizeSocialLinks([{ platform: req.body?.platform, url: req.body?.url, label: req.body?.label }]);
+    if (normalized.error) {
+      res.status(400).json({ status: "error", message: normalized.error });
+      return;
+    }
+    const created = await prisma.customerSocialLink.create({ data: { customerId: customer.id, ...normalized.links[0], label: normalized.links[0].label || null } });
+    await writeAudit(prisma, {
+      actorId: req.user!.id,
+      action: "customer_social_link_added",
+      entityType: "customer",
+      entityId: customer.id,
+      newValue: { platform: created.platform, url: created.url },
+      ipAddress: req.ip ?? null,
+    });
+    res.status(201).json({ status: "ok", socialLink: serializeSocialLink(created) });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/** DELETE /api/customers/:id/social-links/:linkId — hard-delete one social link. */
+router.delete("/customers/:id/social-links/:linkId", authorize("customer.update"), async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const customer = await loadCustomerInScopeForWrite(prisma, req, res);
+    if (!customer) return;
+    const link = await prisma.customerSocialLink.findFirst({
+      where: { id: req.params.linkId, customerId: customer.id },
+    });
+    if (!link) {
+      res.status(404).json({ status: "error", message: "Link mạng xã hội không tồn tại." });
+      return;
+    }
+    await prisma.customerSocialLink.delete({ where: { id: link.id } });
+    await writeAudit(prisma, {
+      actorId: req.user!.id,
+      action: "customer_social_link_removed",
+      entityType: "customer",
+      entityId: customer.id,
+      oldValue: { platform: link.platform, url: link.url },
+      ipAddress: req.ip ?? null,
+    });
+    res.json({ status: "ok", message: "Đã xóa link mạng xã hội." });
   } catch (err) {
     dbUnavailable(res, err);
   }
