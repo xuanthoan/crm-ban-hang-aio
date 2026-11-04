@@ -317,7 +317,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
       const data = await api(`/api/segments?${params.toString()}`, token);
       setSegments(data.segments as typeof segments);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được phân đoạn.");
+      setError(e instanceof Error ? e.message : "Không tải được Remarketing.");
     }
   }, [days, tagId, threshold, token]);
 
@@ -337,7 +337,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
       const data = await api(`/api/segments/${selected}/customers?${params.toString()}`, token);
       setItems(data.items as Record<string, unknown>[]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được danh sách phân đoạn.");
+      setError(e instanceof Error ? e.message : "Không tải được danh sách Remarketing.");
     }
   }, [selected, days, threshold, tagId, token]);
 
@@ -349,17 +349,17 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
     if (canView) loadItems();
   }, [canView, loadItems]);
 
-  if (!canView) return <p className="text-sm text-gray-500">Bạn không có quyền xem phân đoạn remarketing.</p>;
+  if (!canView) return <p className="text-sm text-gray-500">Bạn không có quyền xem Remarketing.</p>;
 
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-semibold">Remarketing</h2>
-      <p className="text-sm text-gray-500">Phân đoạn chỉ là danh sách để nhân viên tự chăm sóc và ghi hoạt động thủ công. Sprint này KHÔNG tự gửi Zalo/SMS/Email/Messenger và KHÔNG tự tạo hoạt động.</p>
+      <p className="text-sm text-gray-500">Remarketing chỉ là danh sách để nhân viên tự chăm sóc và ghi hoạt động thủ công. Sprint này KHÔNG tự gửi Zalo/SMS/Email/Messenger và KHÔNG tự tạo hoạt động.</p>
       {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap gap-2">
         <label className="text-sm">Số ngày tới (sinh nhật): <input className="rounded border p-1" value={days} onChange={(e) => setDays(e.target.value)} size={4} /></label>
         <label className="text-sm">Ngưỡng giá trị cao: <input className="rounded border p-1" value={threshold} onChange={(e) => setThreshold(formatMoneyInput(e.target.value))} inputMode="numeric" size={10} /></label>
-        <label className="text-sm">Tag (cho phân đoạn theo tag): <select className="rounded border p-1" value={tagId} onChange={(e) => setTagId(e.target.value)}>
+        <label className="text-sm">Tag (cho nhóm theo tag): <select className="rounded border p-1" value={tagId} onChange={(e) => setTagId(e.target.value)}>
           <option value="">— Chọn tag —</option>
           {tags.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
         </select></label>
@@ -375,12 +375,12 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
       </div>
       {/* Kết quả tách biệt rõ khỏi các thẻ tiêu đề filter phía trên: khối
           riêng có viền đậm + nền xanh nhạt + tiêu đề ghi rõ đang xem kết
-          quả của phân đoạn nào, nên không còn lẫn với các thẻ filter.
+          quả của nhóm nào, nên không còn lẫn với các thẻ filter.
           Thẻ filter đang chọn cũng được tô nền xanh nhạt để nhìn là biết
           kết quả thuộc về filter nào. */}
       <div className="mt-2 rounded-lg border-2 border-blue-600/30 bg-blue-50/50 p-3">
         <h3 className="font-semibold">
-          Kết quả: {segments.find((s) => s.key === selected)?.name ?? "Phân đoạn đã chọn"}
+          Kết quả: {segments.find((s) => s.key === selected)?.name ?? "Nhóm đã chọn"}
           {items.length > 0 && <span> ({items.length})</span>}
         </h3>
         <ul className="mt-2 space-y-2">
@@ -388,7 +388,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
             // Dòng sinh nhật con: API đã trả sẵn customerId của cha mẹ nên
             // không cần sửa backend. Bấm vào dòng thì mở hồ sơ khách (cha
             // mẹ) trong tab mới qua deep link ?customer=, trang hiện tại
-            // giữ nguyên. Các dòng phân đoạn khác không phải dòng con nên
+            // giữ nguyên. Các dòng nhóm khác không phải dòng con nên
             // giữ nguyên dạng text, không bấm được.
             const customerId = typeof it.customerId === "string" && it.customerId ? it.customerId : null;
             const childRow = Boolean(it.childName) && customerId;
@@ -422,7 +422,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
               </li>
             );
           })}
-          {items.length === 0 && <li className="text-gray-500">Phân đoạn này hiện không có khách nào.</li>}
+          {items.length === 0 && <li className="text-gray-500">Nhóm này hiện không có khách nào.</li>}
         </ul>
       </div>
     </div>

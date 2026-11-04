@@ -72,7 +72,7 @@ export const PERMISSIONS = [
   { code: "reminder.update", module: "care", description: "Sửa nhắc việc đang chờ" },
   { code: "reminder.complete", module: "care", description: "Hoàn thành nhắc việc" },
   { code: "reminder.cancel", module: "care", description: "Hủy nhắc việc" },
-  { code: "segment.view", module: "care", description: "Xem phân đoạn remarketing (danh sách, không gửi tin)" },
+  { code: "segment.view", module: "care", description: "Xem Remarketing (danh sách, không gửi tin)" },
   { code: "report.view_all", module: "report", description: "Xem báo cáo toàn hệ thống" },
   { code: "report.view_team", module: "report", description: "Xem báo cáo đội" },
   { code: "report.view_own", module: "report", description: "Xem báo cáo cá nhân" },

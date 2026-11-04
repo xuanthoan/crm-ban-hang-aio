@@ -715,7 +715,7 @@ router.get("/segments", authorize("segment.view"), async (req, res) => {
         name: d.name,
         description: d.description,
         count: counts[d.key] ?? null,
-        note: d.key === "by_tag" && !tagId ? "Cần tham số tagId để đếm phân đoạn này." : "Số lượng tính trực tiếp, không lưu sẵn. Phân đoạn không tự gửi tin.",
+        note: d.key === "by_tag" && !tagId ? "Cần tham số tagId để đếm nhóm này." : "Số lượng tính trực tiếp, không lưu sẵn. Remarketing không tự gửi tin.",
       })),
     });
   } catch (err) {
@@ -728,7 +728,7 @@ router.get("/segments/:key/customers", authorize("segment.view"), async (req, re
   try {
     const key = req.params.key;
     if (!isSegmentKey(key)) {
-      res.status(400).json({ status: "error", message: `Phân đoạn không hợp lệ. Cho phép: ${SEGMENT_DEFINITIONS.map((d) => d.key).join(", ")}.` });
+      res.status(400).json({ status: "error", message: `Remarketing không hợp lệ. Cho phép: ${SEGMENT_DEFINITIONS.map((d) => d.key).join(", ")}.` });
       return;
     }
     const prisma: any = getPrisma();
@@ -738,7 +738,7 @@ router.get("/segments/:key/customers", authorize("segment.view"), async (req, re
     const threshold = Math.max(0, parseInt(String(req.query.threshold ?? "5000000"), 10) || 5000000);
     const tagId = String(req.query.tagId ?? "");
     if (key === "by_tag" && !tagId) {
-      res.status(400).json({ status: "error", message: "Phân đoạn by_tag cần tham số tagId." });
+      res.status(400).json({ status: "error", message: "Nhóm by_tag cần tham số tagId." });
       return;
     }
     const customers = await loadSegmentBase(prisma, req);
