@@ -690,6 +690,10 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
           </div>
           <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
           <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
+          <label className="block">Trạng thái<select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            <option value="active">Đang hoạt động</option>
+            <option value="inactive">Ngừng hoạt động</option>
+          </select></label>
 
           <div>
             <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>

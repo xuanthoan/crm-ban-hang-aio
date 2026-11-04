@@ -10,8 +10,10 @@
  *  §4.1 unlimited phones via CustomerPhone, exactly one primary,
  *       duplicate check across ALL phones (other customers + within
  *       the same request), whole operation blocked on a match.
- *  §5   no hard delete of data with transactions: DELETE soft-deletes
- *       (status inactive + deletedAt); hard delete only when the
+ *  §5   no hard delete of data with transactions: DELETE deactivates
+ *       (status inactive ONLY — the customer stays listed under the
+ *       "Ngừng hoạt động" filter and can be reactivated from the edit
+ *       form, mirroring products/suppliers); hard delete only when the
  *       customer has NO related data at all, only Admin, audited.
  *  §6   backend permission + data-scope checks on every route.
  *
@@ -866,7 +868,7 @@ router.patch("/customers/:id", authorize("customer.update"), async (req, res) =>
   }
 });
 
-/** DELETE /api/customers/:id — soft-delete by default; ?hard=true only for Admin with no related data. */
+/** DELETE /api/customers/:id — deactivate by default (status only, stays listed); ?hard=true only for Admin with no related data. */
 router.delete("/customers/:id", async (req, res) => {
   try {
     const hard = req.query.hard === "true";
@@ -921,9 +923,14 @@ router.delete("/customers/:id", async (req, res) => {
       res.json({ status: "ok", message: "Đã xóa cứng khách hàng (không có dữ liệu liên quan)." });
       return;
     }
+    // Deactivation is status-only on purpose: setting deletedAt here used
+    // to hide the customer from the list, the detail page and search
+    // entirely (every read filters deletedAt: null), with no way back
+    // from the UI. Inactive customers stay listed (filter "Ngừng hoạt
+    // động") and can be reactivated from the edit-form status select.
     await prisma.customer.update({
       where: { id: customer.id },
-      data: { status: "inactive", deletedAt: new Date() },
+      data: { status: "inactive" },
     });
     await writeAudit(prisma, {
       actorId: req.user!.id,
@@ -934,7 +941,7 @@ router.delete("/customers/:id", async (req, res) => {
       newValue: { status: "inactive" },
       ipAddress: req.ip ?? null,
     });
-    res.json({ status: "ok", message: "Đã ngừng hoạt động khách hàng (xóa mềm, dữ liệu vẫn được giữ lại)." });
+    res.json({ status: "ok", message: "Đã ngừng hoạt động khách hàng (vẫn xem được trong danh sách, mở Sửa để hoạt động lại)." });
   } catch (err) {
     dbUnavailable(res, err);
   }
