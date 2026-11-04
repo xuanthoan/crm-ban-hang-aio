@@ -353,7 +353,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-semibold">Phân đoạn remarketing (cơ bản)</h2>
+      <h2 className="text-lg font-semibold">Remarketing</h2>
       <p className="text-sm text-gray-500">Phân đoạn chỉ là danh sách để nhân viên tự chăm sóc và ghi hoạt động thủ công. Sprint này KHÔNG tự gửi Zalo/SMS/Email/Messenger và KHÔNG tự tạo hoạt động.</p>
       {error && <p className="text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap gap-2">
@@ -366,29 +366,40 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
       </div>
       <div className="grid gap-2">
         {segments.map((s) => (
-          <button key={s.key} onClick={() => setSelected(s.key)} className={`card-sm text-left ${selected === s.key ? "border-blue-600" : ""}`}>
+          <button key={s.key} onClick={() => setSelected(s.key)} className={`card-sm text-left ${selected === s.key ? "border-blue-600 bg-blue-50" : ""}`}>
             <strong>{s.name}</strong> {s.count !== null && <span>({s.count})</span>}
             <p className="text-sm text-gray-600">{s.description}</p>
             <p className="text-sm text-gray-500">{s.note}</p>
           </button>
         ))}
       </div>
-      <ul className="space-y-2">
-        {items.map((it, i) => (
-          <li key={i} className="card-sm text-sm">
-            <strong>{String(it.childName ?? it.fullName ?? "")}</strong>
-            {Boolean(it.customerName) && Boolean(it.childName) && <span> · Khách: {String(it.customerName)}</span>}
-            {Boolean(it.nextBirthday) && <span> · Sinh nhật sắp tới: {isoToVnDate(String(it.nextBirthday))} ({String(it.upcomingAge)} tuổi)</span>}
-            {/* Child-birthday rows already render nextBirthday/upcomingAge
-                above; their reason repeats the same info verbatim, so
-                showing it too prints the birthday twice. Other segments
-                keep their reason, which carries distinct info. */}
-            {Boolean(it.reason) && !(Boolean(it.childName) && Boolean(it.nextBirthday)) && <span> · {String(it.reason)}</span>}
-            {Boolean(it.phone) && <span> · {String(it.phone)}</span>}
-          </li>
-        ))}
-        {items.length === 0 && <li className="text-gray-500">Phân đoạn này hiện không có khách nào.</li>}
-      </ul>
+      {/* Kết quả tách biệt rõ khỏi các thẻ tiêu đề filter phía trên: khối
+          riêng có viền đậm + nền xanh nhạt + tiêu đề ghi rõ đang xem kết
+          quả của phân đoạn nào, nên không còn lẫn với các thẻ filter.
+          Thẻ filter đang chọn cũng được tô nền xanh nhạt để nhìn là biết
+          kết quả thuộc về filter nào. */}
+      <div className="mt-2 rounded-lg border-2 border-blue-600/30 bg-blue-50/50 p-3">
+        <h3 className="font-semibold">
+          Kết quả: {segments.find((s) => s.key === selected)?.name ?? "Phân đoạn đã chọn"}
+          {items.length > 0 && <span> ({items.length})</span>}
+        </h3>
+        <ul className="mt-2 space-y-2">
+          {items.map((it, i) => (
+            <li key={i} className="card-sm text-sm">
+              <strong>{String(it.childName ?? it.fullName ?? "")}</strong>
+              {Boolean(it.customerName) && Boolean(it.childName) && <span> · Khách: {String(it.customerName)}</span>}
+              {Boolean(it.nextBirthday) && <span> · Sinh nhật sắp tới: {isoToVnDate(String(it.nextBirthday))} ({String(it.upcomingAge)} tuổi)</span>}
+              {/* Child-birthday rows already render nextBirthday/upcomingAge
+                  above; their reason repeats the same info verbatim, so
+                  showing it too prints the birthday twice. Other segments
+                  keep their reason, which carries distinct info. */}
+              {Boolean(it.reason) && !(Boolean(it.childName) && Boolean(it.nextBirthday)) && <span> · {String(it.reason)}</span>}
+              {Boolean(it.phone) && <span> · {String(it.phone)}</span>}
+            </li>
+          ))}
+          {items.length === 0 && <li className="text-gray-500">Phân đoạn này hiện không có khách nào.</li>}
+        </ul>
+      </div>
     </div>
   );
 }

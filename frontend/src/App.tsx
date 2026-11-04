@@ -352,7 +352,7 @@ export default function App() {
                 <button onClick={() => setSection("reminders")} className={navCls("reminders")}>Nhắc việc</button>
               )}
               {canViewSegments && (
-                <button onClick={() => setSection("segments")} className={navCls("segments")}>Phân đoạn</button>
+                <button onClick={() => setSection("segments")} className={navCls("segments")}>Remarketing</button>
               )}
               {canViewReports && (
                 <button onClick={() => setSection("dashboard")} className={navCls("dashboard")}>Dashboard</button>
