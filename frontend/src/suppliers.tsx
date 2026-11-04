@@ -507,6 +507,13 @@ export default function SuppliersPage({
         <form onSubmit={handleSubmit} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa nhà cung cấp" : "Tạo nhà cung cấp mới"}</h3>
           <p className="text-sm text-gray-500">Tên nhà cung cấp là bắt buộc. Số điện thoại không bắt buộc nhưng nếu nhập thì phải hợp lệ và không trùng với nhà cung cấp khác.</p>
+          <label className="block">Trạng thái
+            <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option value="active">Đang hợp tác</option>
+              <option value="inactive">Ngừng hợp tác</option>
+            </select>
+          </label>
+
           <label className="block">Tên nhà cung cấp<input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-4">
@@ -548,13 +555,6 @@ export default function SuppliersPage({
             <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
           <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
           <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
-          <label className="block">Trạng thái
-            <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="active">Đang hợp tác</option>
-              <option value="inactive">Ngừng hợp tác</option>
-            </select>
-          </label>
-
           <div>
             <h4 className="font-semibold">Đánh giá (thang 10)</h4>
             <div className="mt-2 flex flex-wrap items-center gap-2">
