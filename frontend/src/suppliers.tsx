@@ -498,8 +498,8 @@ export default function SuppliersPage({
             <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
             {form.phones.map((p, i) => (
               <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
-                <input className="input" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
-                <input className="input" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: kế toán, kho…" />
+                <input className="field" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
+                <input className="field" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: kế toán, kho…" />
                 <label className="flex items-center gap-1">
                   <input type="radio" name="primary-phone" checked={p.isPrimary} onChange={() => setPrimary(i)} /> Số chính
                 </label>
@@ -513,13 +513,13 @@ export default function SuppliersPage({
             <h4 className="font-semibold">Mạng xã hội (không giới hạn số lượng link mỗi mạng)</h4>
             {form.socialLinks.map((l, i) => (
               <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
-                <select className="input" value={l.platform} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)) }))}>
+                <select className="field" value={l.platform} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)) }))}>
                   {SOCIAL_PLATFORMS.map((p) => (
                     <option key={p} value={p}>{labelFor(SOCIAL_PLATFORM_LABELS, p)}</option>
                   ))}
                 </select>
-                <input className="input" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: zalo.me/… hoặc https://…" />
-                <input className="input" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
+                <input className="field" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: zalo.me/… hoặc https://…" />
+                <input className="field" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
                 <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-secondary">Xóa link</button>
               </div>
             ))}
