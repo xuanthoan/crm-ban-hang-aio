@@ -218,7 +218,6 @@ export function ReportsPage({ token }: { token: string }) {
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Báo cáo</h2>
       <PeriodPicker preset={preset} setPreset={setPreset} from={from} setFrom={setFrom} to={to} setTo={setTo} />
-      <button onClick={load} className="btn btn-primary">Xem</button>
       {error && <p className="alert-error">{error}</p>}
 
       <div className="card">
