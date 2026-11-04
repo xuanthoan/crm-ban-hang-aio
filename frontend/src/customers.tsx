@@ -679,21 +679,8 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
           <h3 className="font-semibold">{formId ? "Sửa khách hàng" : "Tạo khách hàng mới"}</h3>
           <p className="text-sm text-gray-500">Họ tên hoặc ít nhất một số điện thoại là bắt buộc (theo docs 01).</p>
           <label className="block">Họ tên<input className="input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block">Giới tính<select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
-              {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-            </select></label>
-            <label className="block">Ngày sinh<input type="date" className="input" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
-            <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-            <label className="block">Nguồn<input className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
-          </div>
-          <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
-          <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
-          <label className="block">Trạng thái<select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="active">Đang hoạt động</option>
-            <option value="inactive">Ngừng hoạt động</option>
-          </select></label>
-
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
           <div>
             <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
             {form.phones.map((p, i) => (
@@ -725,6 +712,22 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
             ))}
             <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "zalo", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
           </div>
+
+            </div>
+            <div className="space-y-4">
+
+            <label className="block">Giới tính<select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+              {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+            </select></label>
+            <label className="block">Ngày sinh<input type="date" className="input" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
+            <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+            <label className="block">Nguồn<input className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
+          <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
+          <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
+          <label className="block">Trạng thái<select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+            <option value="active">Đang hoạt động</option>
+            <option value="inactive">Ngừng hoạt động</option>
+          </select></label>
 
           <div>
             <h4 className="font-semibold">Tag</h4>
@@ -765,6 +768,9 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
               </div>
             ))}
             <button type="button" onClick={() => setForm((f) => ({ ...f, children: [...f.children, { fullName: "", dateOfBirth: "", gender: "", note: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm con</button>
+          </div>
+
+                      </div>
           </div>
 
           <div className="flex gap-2">
