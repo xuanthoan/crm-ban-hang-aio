@@ -508,34 +508,8 @@ export default function SuppliersPage({
           <h3 className="font-semibold">{formId ? "Sửa nhà cung cấp" : "Tạo nhà cung cấp mới"}</h3>
           <p className="text-sm text-gray-500">Tên nhà cung cấp là bắt buộc. Số điện thoại không bắt buộc nhưng nếu nhập thì phải hợp lệ và không trùng với nhà cung cấp khác.</p>
           <label className="block">Tên nhà cung cấp<input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="block">Mã số thuế<input className="input" value={form.taxCode} onChange={(e) => setForm({ ...form, taxCode: e.target.value })} placeholder="Để trống nếu không có" /></label>
-            <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-          </div>
-          <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
-          <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
-          <label className="block">Trạng thái
-            <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="active">Đang hợp tác</option>
-              <option value="inactive">Ngừng hợp tác</option>
-            </select>
-          </label>
-
-          <div>
-            <h4 className="font-semibold">Đánh giá (thang 10)</h4>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2">Điểm
-                <select className="field" value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })}>
-                  <option value="">Chưa đánh giá</option>
-                  {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((n) => (
-                    <option key={n} value={String(n)}>{n}/10</option>
-                  ))}
-                </select>
-              </label>
-              <input className="field" value={form.ratingNote} onChange={(e) => setForm({ ...form, ratingNote: e.target.value })} placeholder="Ghi chú đánh giá: giao đúng hẹn, giá tốt…" />
-            </div>
-          </div>
-
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
           <div>
             <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
             {form.phones.map((p, i) => (
@@ -566,6 +540,37 @@ export default function SuppliersPage({
               </div>
             ))}
             <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "zalo", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
+          </div>
+
+            </div>
+            <div className="space-y-4">
+            <label className="block">Mã số thuế<input className="input" value={form.taxCode} onChange={(e) => setForm({ ...form, taxCode: e.target.value })} placeholder="Để trống nếu không có" /></label>
+            <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+          <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
+          <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
+          <label className="block">Trạng thái
+            <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option value="active">Đang hợp tác</option>
+              <option value="inactive">Ngừng hợp tác</option>
+            </select>
+          </label>
+
+          <div>
+            <h4 className="font-semibold">Đánh giá (thang 10)</h4>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2">Điểm
+                <select className="field" value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })}>
+                  <option value="">Chưa đánh giá</option>
+                  {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((n) => (
+                    <option key={n} value={String(n)}>{n}/10</option>
+                  ))}
+                </select>
+              </label>
+              <input className="field" value={form.ratingNote} onChange={(e) => setForm({ ...form, ratingNote: e.target.value })} placeholder="Ghi chú đánh giá: giao đúng hẹn, giá tốt…" />
+            </div>
+          </div>
+
+            </div>
           </div>
 
           <div className="flex gap-2">
