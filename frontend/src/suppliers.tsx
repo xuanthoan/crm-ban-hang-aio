@@ -24,8 +24,26 @@ interface SupplierListItem {
   createdAt: string;
 }
 
+interface SupplierProduct {
+  variantId: string;
+  sku: string;
+  variantName: string;
+  variantStatus: string;
+  productId: string;
+  productName: string;
+  productStatus: string;
+  sellingPrice?: number;
+  importPrice?: number | null;
+}
+
+function formatMoney(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return `${Math.trunc(value).toLocaleString("vi-VN")}đ`;
+}
+
 interface SupplierDetail extends SupplierListItem {
   phones: PhoneRow[];
+  products: SupplierProduct[];
 }
 
 async function api(path: string, token: string, method = "GET", body?: unknown) {
@@ -360,6 +378,47 @@ export default function SuppliersPage({
               ))}
               {detail.phones.length === 0 && <li className="text-gray-500">Chưa có số điện thoại.</li>}
             </ul>
+          </div>
+
+          <div className="card">
+            <h4 className="font-semibold">Sản phẩm đã nhập từ nhà cung cấp này ({detail.products?.length ?? 0})</h4>
+            <p className="mt-1 text-sm text-gray-500">Chỉ tính các đơn nhập đã nhận hàng (Đã nhận hàng / Hoàn thành); đơn nháp và đơn đã hủy không tính. Cả sản phẩm đang bán và đã ngừng bán đều hiện ở đây. Giá bán hiện với người có quyền xem sản phẩm, giá nhập chỉ hiện với người có quyền xem giá nhập.</p>
+            {(detail.products?.length ?? 0) > 0 ? (
+              <table className="table mt-2">
+                <thead>
+                  <tr>
+                    <th>Sản phẩm</th>
+                    <th>SKU / Biến thể</th>
+                    <th>Trạng thái sản phẩm</th>
+                    <th>Trạng thái SKU</th>
+                    {detail.products.some((p) => p.sellingPrice !== undefined) && <th>Giá bán</th>}
+                    {detail.products.some((p) => p.importPrice !== undefined) && <th>Giá nhập</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.products.map((p) => (
+                    <tr key={p.variantId}>
+                      <td>{p.productName}</td>
+                      <td>{p.sku}{p.variantName ? ` — ${p.variantName}` : ""}</td>
+                      <td>
+                        <span className={p.productStatus === "active" ? "badge badge-green" : "badge badge-gray"}>
+                          {p.productStatus === "active" ? "Đang bán" : "Ngừng bán"}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={p.variantStatus === "active" ? "badge badge-green" : "badge badge-gray"}>
+                          {p.variantStatus === "active" ? "Đang bán" : "Ngừng bán"}
+                        </span>
+                      </td>
+                      {p.sellingPrice !== undefined && <td>{formatMoney(p.sellingPrice)}</td>}
+                      {p.importPrice !== undefined && <td>{formatMoney(p.importPrice)}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="mt-2 text-gray-500">Chưa có sản phẩm nào được nhập từ nhà cung cấp này.</p>
+            )}
           </div>
 
           {(permissions.includes("audit.view_all") || permissions.includes("audit.view_own")) && (

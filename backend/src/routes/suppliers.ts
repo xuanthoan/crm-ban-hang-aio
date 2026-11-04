@@ -134,6 +134,74 @@ async function loadSupplierForScope(prisma: ReturnType<typeof getPrisma>, id: st
   });
 }
 
+function parseDecimal(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = typeof value === "number" ? value : Number(String(value));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Products "belonging to" a supplier: there is no direct Product→Supplier
+ * link in the schema, so the link is the purchase history — distinct SKUs
+ * that appear on this supplier's purchase orders that actually reached
+ * receipt (confirmed/completed). Draft and cancelled POs do not count.
+ * Inactive products/SKUs ARE included (that is the point of this list);
+ * soft-deleted rows (deletedAt) are excluded.
+ * Prices mirror the Products page exactly: sellingPrice is the SKU's
+ * current selling price, shown only to product.view holders; importPrice
+ * is the SKU's current import price (NOT the per-receipt unitCost
+ * snapshot — one SKU can be received many times at different costs, and
+ * the per-receipt cost stays on the purchase-order detail), shown only
+ * to product.view_cost holders. Both keys are omitted entirely (not
+ * null) for viewers without the right, matching serializeVariant.
+ */
+async function loadSupplierProducts(
+  prisma: ReturnType<typeof getPrisma>,
+  supplierId: string,
+  canViewProduct: boolean,
+  canCost: boolean,
+) {
+  const items = await prisma.purchaseOrderItem.findMany({
+    where: {
+      purchaseOrder: { supplierId, status: { in: ["confirmed", "completed"] } },
+      variant: { deletedAt: null, product: { deletedAt: null } },
+    },
+    select: {
+      variant: {
+        select: {
+          id: true,
+          sku: true,
+          variantName: true,
+          status: true,
+          sellingPrice: true,
+          importPrice: true,
+          product: { select: { id: true, name: true, status: true } },
+        },
+      },
+    },
+  });
+  const byVariant = new Map<string, Record<string, unknown>>();
+  for (const it of items) {
+    const v: any = it.variant;
+    if (!v || byVariant.has(v.id)) continue;
+    const row: Record<string, unknown> = {
+      variantId: v.id,
+      sku: v.sku,
+      variantName: v.variantName,
+      variantStatus: v.status,
+      productId: v.product.id,
+      productName: v.product.name,
+      productStatus: v.product.status,
+    };
+    if (canViewProduct) row.sellingPrice = parseDecimal(v.sellingPrice) ?? 0;
+    if (canCost) row.importPrice = parseDecimal(v.importPrice);
+    byVariant.set(v.id, row);
+  }
+  return [...byVariant.values()].sort(
+    (a, b) => String(a.productName).localeCompare(String(b.productName)) || String(a.sku).localeCompare(String(b.sku)),
+  );
+}
+
 async function findTaxCodeConflict(
   prisma: ReturnType<typeof getPrisma>,
   taxCode: string | null,
@@ -220,7 +288,13 @@ router.get("/suppliers/:id", async (req, res) => {
       res.status(403).json({ status: "error", message: "Bạn không có quyền xem nhà cung cấp này." });
       return;
     }
-    res.json({ status: "ok", supplier: serializeDetailSupplier(supplier) });
+    const products = await loadSupplierProducts(
+      prisma,
+      supplier.id,
+      req.user!.permissions.includes("product.view"),
+      req.user!.permissions.includes("product.view_cost"),
+    );
+    res.json({ status: "ok", supplier: { ...serializeDetailSupplier(supplier), products } });
   } catch (err) {
     dbUnavailable(res, err);
   }

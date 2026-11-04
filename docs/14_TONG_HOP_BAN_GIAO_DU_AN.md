@@ -432,6 +432,7 @@ Tất cả bảng nằm trong `backend/prisma/schema.prisma`. Kiểu tiền: đ�
 - **Trạng thái:** đang hợp tác / ngừng hợp tác; NCC ngừng hợp tác vẫn hiện khi lọc và mở Sửa để hợp tác lại được (giống sản phẩm ngừng bán).
 - **Xóa cứng:** chỉ Admin, chỉ NCC chưa có đơn nhập nào; NCC đã có đơn nhập → 409. Xóa số điện thoại khỏi trang chi tiết mà không cần vào chế độ Sửa là hành vi **đã chốt giữ nguyên**, không phải lỗi.
 - **Quyền mặc định:** Admin đủ; Manager xem + tạo + sửa; Kế toán chỉ xem; Sales chỉ xem; Kho không có quyền NCC nào.
+- **Sản phẩm của nhà cung cấp (trang chi tiết):** vì schema không có liên kết trực tiếp sản phẩm → NCC, danh sách này suy ra từ lịch sử nhập hàng — các SKU phân biệt từng xuất hiện trên đơn nhập **đã nhận hàng** (`confirmed`/`completed`) của NCC đó; đơn nháp và đơn đã hủy không tính. Hiện cả sản phẩm/SKU đang bán và đã ngừng bán (hàng đã xóa mềm thì loại). Bảng gồm tên sản phẩm, SKU, tên biến thể, trạng thái, **giá bán** và **giá nhập** — giá bán là giá bán hiện tại của SKU, chỉ hiện với người có `product.view`; giá nhập là giá nhập hiện tại của SKU (không phải đơn giá từng lần nhập — đơn giá từng lần nhập nằm ở chi tiết đơn nhập), chỉ hiện với người có `product.view_cost`; cả hai cột đều **bỏ hẳn** (không hiện 0 hay dấu gạch) với người không có quyền, đúng mẫu của trang Sản phẩm và cột đơn giá nhập ở chi tiết đơn nhập. Không cần mã quyền mới.
 
 ### 6.13. Đơn nhập hàng (mua hàng từ NCC)
 
