@@ -441,6 +441,11 @@ model Supplier {
   address   String?
   note      String?
   status    SupplierStatus @default(active)
+  // Self rating, integer 0-10, null = not rated yet. Set by the user in
+  // the create/edit form; display and sorting only — it never changes
+  // prices, blocks purchase orders or triggers notifications.
+  rating     Int?
+  ratingNote String?
   // Data scope mirrors customers: supplier.view_all sees all,
   // supplier.view_own sees only suppliers this user created.
   createdById String?

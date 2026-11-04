@@ -86,6 +86,20 @@ function normalizeTaxCode(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+// Supplier self rating: integer 0-10, null = not rated yet. Accepts a
+// number or a numeric string (the form sends a select value); anything
+// else is a 400. `provided` distinguishes "field absent" (PATCH leaves
+// the stored rating alone) from "explicitly null" (PATCH clears it).
+function normalizeRating(value: unknown): { provided: boolean; rating: number | null; error?: string } {
+  if (value === undefined) return { provided: false, rating: null };
+  if (value === null) return { provided: true, rating: null };
+  const n = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value.trim()) : NaN;
+  if (!Number.isInteger(n) || n < 0 || n > 10) {
+    return { provided: true, rating: null, error: "Điểm đánh giá phải là số nguyên từ 0 đến 10." };
+  }
+  return { provided: true, rating: n };
+}
+
 function serializeListSupplier(s: any) {
   const phones = (s.phones ?? []).filter((p: any) => p.status === "active" && !p.deletedAt);
   const primary = phones.find((p: any) => p.isPrimary) ?? phones[0] ?? null;
@@ -97,6 +111,7 @@ function serializeListSupplier(s: any) {
     address: s.address,
     note: s.note,
     status: s.status,
+    rating: s.rating ?? null,
     primaryPhone: primary ? primary.phone : null,
     primaryPhoneNormalized: primary ? primary.phoneNormalized : null,
     phoneCount: phones.length,
@@ -123,6 +138,8 @@ function serializeDetailSupplier(s: any) {
       createdAt: p.createdAt,
     })),
     socialLinks: (s.socialLinks ?? []).map((l: any) => serializeSocialLink(l)),
+    rating: s.rating ?? null,
+    ratingNote: s.ratingNote ?? null,
   };
 }
 
@@ -232,6 +249,19 @@ router.get("/suppliers", async (req, res) => {
     const { page, pageSize } = parsePagination(req);
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const status = typeof req.query.status === "string" ? req.query.status : "";
+    const sort = typeof req.query.sort === "string" ? req.query.sort : "";
+
+    // Rating sorts put unrated suppliers LAST in both directions (Prisma
+    // nulls:"last"); equal ratings fall back to newest first. Unknown
+    // sort values fall back to the historical newest-first order.
+    const orderBy: Record<string, unknown> | Record<string, unknown>[] =
+      sort === "rating_desc"
+        ? [{ rating: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }]
+        : sort === "rating_asc"
+          ? [{ rating: { sort: "asc", nulls: "last" } }, { createdAt: "desc" }]
+          : sort === "name_asc"
+            ? { name: "asc" }
+            : { createdAt: "desc" };
 
     const and: Record<string, unknown>[] = [scopeWhere(req)];
     if (q) {
@@ -255,7 +285,7 @@ router.get("/suppliers", async (req, res) => {
       prisma.supplier.count({ where }),
       prisma.supplier.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
@@ -307,10 +337,10 @@ router.get("/suppliers/:id", async (req, res) => {
 /* Suppliers — create / update                                         */
 /* ------------------------------------------------------------------ */
 
-/** POST /api/suppliers — create supplier + phones + social links in one transaction. */
+/** POST /api/suppliers — create supplier + phones + social links + rating in one transaction. */
 router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
   try {
-    const { name, taxCode, email, address, note, status, phones, socialLinks } = req.body ?? {};
+    const { name, taxCode, email, address, note, status, phones, socialLinks, rating, ratingNote } = req.body ?? {};
     const supplierName = typeof name === "string" ? name.trim() : "";
     if (!supplierName) {
       res.status(400).json({ status: "error", message: "Tên nhà cung cấp không được để trống." });
@@ -330,6 +360,16 @@ router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
     const normalizedLinks = normalizeSocialLinks(socialLinks);
     if (normalizedLinks.error) {
       res.status(400).json({ status: "error", message: normalizedLinks.error });
+      return;
+    }
+    const normalizedRating = normalizeRating(rating);
+    if (normalizedRating.error) {
+      res.status(400).json({ status: "error", message: normalizedRating.error });
+      return;
+    }
+    const cleanRatingNote = typeof ratingNote === "string" && ratingNote.trim() ? ratingNote.trim() : null;
+    if (cleanRatingNote !== null && cleanRatingNote.length > 500) {
+      res.status(400).json({ status: "error", message: "Ghi chú đánh giá quá dài (tối đa 500 ký tự)." });
       return;
     }
     const prisma = getPrisma();
@@ -359,6 +399,8 @@ router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
           address: typeof address === "string" && address.trim() ? address.trim() : null,
           note: typeof note === "string" && note.trim() ? note.trim() : null,
           status: status === "inactive" ? "inactive" : "active",
+          rating: normalizedRating.rating,
+          ratingNote: cleanRatingNote,
           createdById: req.user!.id,
           phones: {
             create: normalized.phones.map((p) => ({
@@ -389,7 +431,12 @@ router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
       action: "supplier_created",
       entityType: "supplier",
       entityId: created.id,
-      newValue: { name: created.name, taxCode: created.taxCode, phoneCount: normalized.phones.length },
+      newValue: {
+        name: created.name,
+        taxCode: created.taxCode,
+        phoneCount: normalized.phones.length,
+        ...(normalizedRating.provided ? { rating: normalizedRating.rating } : {}),
+      },
       ipAddress: req.ip ?? null,
     });
     res.status(201).json({ status: "ok", supplier: serializeDetailSupplier(created) });
@@ -415,7 +462,7 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
       res.status(403).json({ status: "error", message: "Bạn không có quyền sửa nhà cung cấp này." });
       return;
     }
-    const { name, taxCode, email, address, note, status, phones, socialLinks } = req.body ?? {};
+    const { name, taxCode, email, address, note, status, phones, socialLinks, rating, ratingNote } = req.body ?? {};
 
     const supplierName = name === undefined ? supplier.name : typeof name === "string" ? name.trim() : "";
     if (name !== undefined && !supplierName) {
@@ -439,6 +486,16 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
       : { links: [] as ReturnType<typeof normalizeSocialLinks>["links"] };
     if (normalizedLinks.error) {
       res.status(400).json({ status: "error", message: normalizedLinks.error });
+      return;
+    }
+    const normalizedRating = normalizeRating(rating);
+    if (normalizedRating.error) {
+      res.status(400).json({ status: "error", message: normalizedRating.error });
+      return;
+    }
+    const cleanRatingNote = ratingNote === undefined ? undefined : typeof ratingNote === "string" && ratingNote.trim() ? ratingNote.trim() : null;
+    if (cleanRatingNote !== undefined && cleanRatingNote !== null && cleanRatingNote.length > 500) {
+      res.status(400).json({ status: "error", message: "Ghi chú đánh giá quá dài (tối đa 500 ký tự)." });
       return;
     }
     const taxConflict = await findTaxCodeConflict(prisma, normalizedTaxCode, supplier.id);
@@ -471,6 +528,8 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
           ...(address !== undefined ? { address: typeof address === "string" && address.trim() ? address.trim() : null } : {}),
           ...(note !== undefined ? { note: typeof note === "string" && note.trim() ? note.trim() : null } : {}),
           ...(status === "active" || status === "inactive" ? { status } : {}),
+          ...(normalizedRating.provided ? { rating: normalizedRating.rating } : {}),
+          ...(cleanRatingNote !== undefined ? { ratingNote: cleanRatingNote } : {}),
         },
       });
       if (phonesProvided) {
@@ -544,6 +603,7 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
       newValue: {
         name: supplierName,
         ...(phonesProvided ? { phoneCount: normalized.phones.length } : {}),
+        ...(normalizedRating.provided ? { rating: normalizedRating.rating } : {}),
       },
       ipAddress: req.ip ?? null,
     });

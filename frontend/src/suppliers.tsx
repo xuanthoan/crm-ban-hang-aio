@@ -29,6 +29,7 @@ interface SupplierListItem {
   address: string | null;
   note: string | null;
   status: string;
+  rating: number | null;
   primaryPhone: string | null;
   phoneCount: number;
   createdAt: string;
@@ -54,6 +55,7 @@ function formatMoney(value: number | null | undefined): string {
 interface SupplierDetail extends SupplierListItem {
   phones: PhoneRow[];
   socialLinks: SocialLinkRow[];
+  ratingNote: string | null;
   products: SupplierProduct[];
 }
 
@@ -84,6 +86,8 @@ function emptyForm(): {
   address: string;
   note: string;
   status: string;
+  rating: string;
+  ratingNote: string;
   phones: PhoneRow[];
   socialLinks: SocialLinkRow[];
 } {
@@ -94,6 +98,8 @@ function emptyForm(): {
     address: "",
     note: "",
     status: "active",
+    rating: "",
+    ratingNote: "",
     phones: [{ phone: "", label: "", isPrimary: true }],
     socialLinks: [],
   };
@@ -115,6 +121,7 @@ export default function SuppliersPage({
   const [form, setForm] = useState(emptyForm);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
+  const [sort, setSort] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -137,6 +144,7 @@ export default function SuppliersPage({
         const params = new URLSearchParams({ page: String(p), pageSize: "20" });
         if (q.trim()) params.set("q", q.trim());
         if (status) params.set("status", status);
+        if (sort) params.set("sort", sort);
         const data = await api(`/api/suppliers?${params.toString()}`, token);
         setSuppliers(data.data as SupplierListItem[]);
         setTotal(((data.pagination as { total: number }).total ?? 0));
@@ -148,7 +156,7 @@ export default function SuppliersPage({
         setLoading(false);
       }
     },
-    [token, q, status],
+    [token, q, status, sort],
   );
 
   useEffect(() => {
@@ -181,6 +189,8 @@ export default function SuppliersPage({
       address: s.address ?? "",
       note: s.note ?? "",
       status: s.status,
+      rating: s.rating !== null && s.rating !== undefined ? String(s.rating) : "",
+      ratingNote: s.ratingNote ?? "",
       phones: s.phones.map((p) => ({ id: p.id, phone: p.phone, label: p.label ?? "", isPrimary: p.isPrimary })),
       socialLinks: (s.socialLinks ?? []).map((l) => ({ id: l.id, platform: l.platform, url: l.url, label: l.label ?? "" })),
     });
@@ -213,6 +223,8 @@ export default function SuppliersPage({
       address: form.address.trim() || null,
       note: form.note.trim() || null,
       status: form.status,
+      rating: form.rating === "" ? null : parseInt(form.rating, 10),
+      ratingNote: form.ratingNote.trim() || null,
       phones: form.phones
         .filter((p) => p.phone.trim())
         .map((p) => ({ phone: p.phone.trim(), label: p.label.trim() || null, isPrimary: p.isPrimary })),
@@ -329,6 +341,15 @@ export default function SuppliersPage({
                 <option value="inactive">Ngừng hợp tác</option>
               </select>
             </label>
+            <label className="block">
+              Sắp xếp
+              <select className="input" value={sort} onChange={(e) => setSort(e.target.value)}>
+                <option value="">Mới nhất</option>
+                <option value="rating_desc">Điểm cao → thấp</option>
+                <option value="rating_asc">Điểm thấp → cao</option>
+                <option value="name_asc">Tên A→Z</option>
+              </select>
+            </label>
             <button onClick={() => loadSuppliers(1)} className="btn btn-primary">Tìm</button>
             {canCreate && (
               <button onClick={openCreate} className="btn btn-secondary">+ Tạo nhà cung cấp</button>
@@ -344,6 +365,7 @@ export default function SuppliersPage({
                     <strong>{s.name || "(chưa có tên)"}</strong>
                     {s.primaryPhone && <span> — {s.primaryPhone}</span>}
                     <span className="text-gray-500"> · {s.phoneCount} số · </span><span className={s.status === "active" ? "badge badge-green" : "badge badge-gray"}>{s.status === "active" ? "Đang hợp tác" : "Ngừng hợp tác"}</span>
+                    {s.rating !== null && s.rating !== undefined ? <span> · Điểm: <strong>{s.rating}/10</strong></span> : <span className="text-gray-500"> · Chưa đánh giá</span>}
                     <div className="text-sm text-gray-500">
                       {s.taxCode ? `Mã số thuế: ${s.taxCode}` : "Chưa có mã số thuế"}
                       {s.email ? ` · ${s.email}` : ""}
@@ -430,6 +452,12 @@ export default function SuppliersPage({
           </div>
 
           <div className="card">
+            <h4 className="font-semibold">Đánh giá</h4>
+            <p className="mt-2">Điểm: {detail.rating !== null && detail.rating !== undefined ? <strong>{detail.rating}/10</strong> : <span className="text-gray-500">Chưa đánh giá</span>}</p>
+            {detail.ratingNote && <p className="mt-1 text-sm">Ghi chú: {detail.ratingNote}</p>}
+          </div>
+
+          <div className="card">
             <h4 className="font-semibold">Sản phẩm đã nhập từ nhà cung cấp này ({detail.products?.length ?? 0})</h4>
             <p className="mt-1 text-sm text-gray-500">Chỉ tính các đơn nhập đã nhận hàng (Đã nhận hàng / Hoàn thành); đơn nháp và đơn đã hủy không tính. Cả sản phẩm đang bán và đã ngừng bán đều hiện ở đây. Giá bán hiện với người có quyền xem sản phẩm, giá nhập chỉ hiện với người có quyền xem giá nhập.</p>
             {(detail.products?.length ?? 0) > 0 ? (
@@ -493,6 +521,21 @@ export default function SuppliersPage({
               <option value="inactive">Ngừng hợp tác</option>
             </select>
           </label>
+
+          <div>
+            <h4 className="font-semibold">Đánh giá (thang 10)</h4>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2">Điểm
+                <select className="field" value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })}>
+                  <option value="">Chưa đánh giá</option>
+                  {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((n) => (
+                    <option key={n} value={String(n)}>{n}/10</option>
+                  ))}
+                </select>
+              </label>
+              <input className="field" value={form.ratingNote} onChange={(e) => setForm({ ...form, ratingNote: e.target.value })} placeholder="Ghi chú đánh giá: giao đúng hẹn, giá tốt…" />
+            </div>
+          </div>
 
           <div>
             <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
