@@ -96,7 +96,6 @@ export function DashboardPage({ token }: { token: string }) {
     <section className="space-y-4">
       <h2 className="text-lg font-semibold">Dashboard tổng quan</h2>
       <PeriodPicker preset={preset} setPreset={setPreset} from={from} setFrom={setFrom} to={to} setTo={setTo} />
-      <button onClick={load} className="btn btn-primary">Xem</button>
       {error && <p className="alert-error">{error}</p>}
       {summary && (
         <>
