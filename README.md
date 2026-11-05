@@ -3,11 +3,13 @@
 Phần mềm CRM bán hàng cho cửa hàng nhỏ và vừa bán hàng vật lý
 (sách, đồ chơi, balo, quần áo, mỹ phẩm, sữa, đồ dùng học tập, …).
 
-> **Trạng thái: toàn bộ MVP đã xong ở mức code — Scaffold, Auth, Customer,
-> Product/SKU, Inventory, Order, Payment/Debt, Care/Reminders, Dashboard/Reports,
-> Import/Export (CSV) và Audit — nhưng CHƯA kiểm chứng với database thật
-> (chưa chạy được prisma generate/migrate/seed và docker compose up trên máy này
-> vì chưa có Docker/PostgreSQL).**
+> **Trạng thái: MVP đã hoàn tất và đã kiểm chứng bằng database thật (chủ dự án
+> tuyên bố hoàn tất ngày 2026-11-02), gồm Scaffold, Auth, Customer, Product/SKU,
+> Inventory, Order, Payment/Debt, Care/Reminders, Dashboard/Reports, Import/Export
+> (CSV), Audit — cộng module Nhà cung cấp trọn vẹn (danh mục, đơn nhập, thanh toán
+> và công nợ NCC, báo cáo công nợ NCC) và các thay đổi sau MVP (ảnh sản phẩm, trang
+> quản trị phân quyền từng người, link mạng xã hội, chấm điểm NCC, biểu đồ doanh thu).
+> Xem tài liệu bàn giao đầy đủ ở `docs/14_TONG_HOP_BAN_GIAO_DU_AN.md`.**
 > Quy tắc chốt cứng trong `docs/12_QUY_TAC_CHOT_CUNG.md` thắng mọi tài liệu cũ
 > khi có mâu thuẫn.
 
@@ -268,7 +270,7 @@ Công thức duy nhất, do backend tính lại sau mỗi thay đổi payment (f
 | `GET /api/debts?q=&customerId=&paymentStatus=&status=&sort=&debtOnly=` | `debt.view_all` hoặc `debt.view_own` (trong phạm vi) | Danh sách công nợ theo đơn, mặc định chỉ đơn confirmed/completed có `debt_total > 0`; kèm `summary.totalDebt`/`count` trên toàn bộ bộ lọc. `?status=` ghi đè để xem cả đơn nháp/đã hủy khi đối soát |
 | `GET /api/customers/:id/debt` | `debt.view_all` hoặc `debt.view_own` (khách do mình tạo/phụ trách) | Công nợ theo khách, tính trực tiếp từ các đơn confirmed/completed của khách (không có trường tổng riêng trên Customer); trả `totalDebt` (ròng), `totalOwing`, `totalCredit` (tiền thừa) và danh sách đơn còn nợ. Đơn nháp và đơn đã hủy không tính là còn nợ |
 
-## Chăm sóc / Nhắc việc / Phân đoạn — API Sprint Chăm sóc
+## Chăm sóc / Nhắc việc / Remarketing — API Sprint Chăm sóc
 
 Hoạt động chăm sóc là lịch sử bất biến: **không có route sửa/xóa activity** —
 ghi sai thì ghi thêm một hoạt động mới để đính chính. Nhắc việc quá hạn/hôm
@@ -394,25 +396,35 @@ Quy tắc yêu cầu OTP cho từng người dùng (`User.requireOtp`):
 
 ```text
 backend/    Express + TypeScript, src/routes/auth.ts, src/routes/admin.ts, src/routes/customers.ts,
-            src/routes/products.ts, src/routes/care.ts (hoạt động, nhắc việc, phân đoạn),
-            src/routes/importExport.ts (import/export CSV),
-            src/lib/customers.ts (chuẩn hóa + trùng số),
-            src/lib/products.ts (chuẩn hóa/sinh mã SKU, sinh tổ hợp),
-            src/lib/care.ts (sinh nhật, nhóm thời gian nhắc việc, công thức phân đoạn),
+            src/routes/products.ts, src/routes/inventory.ts, src/routes/orders.ts,
+            src/routes/payments.ts, src/routes/care.ts (hoạt động, nhắc việc, Remarketing),
+            src/routes/dashboard.ts (dashboard + báo cáo), src/routes/importExport.ts (import/export CSV),
+            src/routes/audit.ts, src/routes/suppliers.ts, src/routes/purchases.ts (đơn nhập),
+            src/routes/supplierPayments.ts (thanh toán/công nợ NCC),
+            src/lib/customers.ts (chuẩn hóa + trùng số), src/lib/products.ts (chuẩn hóa/sinh mã SKU,
+            sinh tổ hợp), src/lib/inventory.ts (điểm thắt tồn kho), src/lib/orders.ts (giữ/trừ/hoàn kho),
+            src/lib/payments.ts, src/lib/supplierPayments.ts, src/lib/care.ts (sinh nhật, nhóm thời gian
+            nhắc việc, công thức phân đoạn), src/lib/socialLinks.ts (link mạng xã hội),
             src/middleware/auth.ts, src/lib/permissions.ts, prisma/schema.prisma
-frontend/   React + Vite + TailwindCSS, đăng nhập 2 bước + panel OTP cho admin + trang Khách hàng
-            (danh sách, hồ sơ 360, form nhiều số / tag / con, tab Chăm sóc) + trang Sản phẩm/SKU
-            (danh sách, chi tiết bảng biến thể, form SKU mặc định / sinh tổ hợp / áp dụng giá hàng loạt)
-            + trang Nhắc việc + trang Phân đoạn + trang Import/Export
-            (tải mẫu, preview từng dòng, xác nhận nhập, tải CSV export)
+frontend/   React + Vite + TailwindCSS (+ Recharts cho biểu đồ doanh thu), đăng nhập 2 bước + panel OTP
+            cho admin + trang Khách hàng (danh sách, hồ sơ 360, form nhiều số / tag / con / link mạng xã
+            hội, tab Chăm sóc, lịch sử mua hàng) + trang Nhà cung cấp (danh mục, link mạng xã hội,
+            chấm điểm, sản phẩm đã nhập) + trang Đơn nhập hàng + Công nợ NCC + trang Sản phẩm/SKU
+            (danh sách, chi tiết bảng biến thể, form SKU mặc định / sinh tổ hợp / áp dụng giá hàng loạt,
+            ảnh gallery + thumbnail SKU) + trang Kho + Đơn hàng + Công nợ + Nhắc việc + Remarketing
+            + Dashboard (biểu đồ doanh thu) + Báo cáo + Import/Export (tải mẫu, preview từng dòng,
+            xác nhận nhập, tải CSV export) + Nhật ký Audit + Quản trị (phân quyền từng người)
 docs/       Tài liệu chốt cứng và đặc tả (bản sao làm việc local, xem mục dưới)
-scripts/    Script hỗ trợ (sẽ bổ sung theo sprint)
+scripts/    Script hỗ trợ
 docker-compose.yml  postgres + backend + frontend, cùng env với npm dev
 ```
 
 ## Tài liệu
 
 - `docs/12_QUY_TAC_CHOT_CUNG.md` — quy tắc đã chốt cứng (thắng tài liệu cũ)
+- `docs/13_THIET_KE_NHA_CUNG_CAP.md` — thiết kế module Nhà cung cấp (đã triển khai xong NCC-1 → NCC-4)
+- `docs/14_TONG_HOP_BAN_GIAO_DU_AN.md` — **tài liệu bàn giao tổng hợp: đọc tài liệu này trước khi code** (kiến trúc, quy tắc chốt cứng, mô hình dữ liệu, phân quyền, từng module, API, triển khai, checklist nghiệm thu)
+- `docs/15_THIET_KE_NHIEU_KHO.md` — thiết kế nhiều kho, trạng thái **CHỜ DUYỆT** (chưa triển khai, không tự làm khi chưa có phê duyệt)
 - `DEVELOPMENT_PLAN.md` — thứ tự sprint và các quyết định đã chốt
 - Đặc tả gốc 00–11: xem repo GitHub của chủ dự án; bản local này không sửa các file đặc tả gốc.
 
