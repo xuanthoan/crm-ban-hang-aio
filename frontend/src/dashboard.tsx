@@ -203,6 +203,8 @@ export function ReportsPage({ token }: { token: string }) {
   const [debt, setDebt] = useState<any>(null);
   const [supplierDebt, setSupplierDebt] = useState<any>(null);
   const [inventory, setInventory] = useState<any>(null);
+  const [oosPage, setOosPage] = useState(1);
+  const [oosData, setOosData] = useState<any>(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -238,6 +240,18 @@ export function ReportsPage({ token }: { token: string }) {
   }, [token, preset, from, to]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Mục "Hết hàng": phân trang riêng qua items của cùng endpoint
+  // (stockStatus=out_of_stock). inventory.outOfStock bị backend cắt ở 50
+  // nên không dùng nó cho mục này nữa; tồn kho không phụ thuộc khoảng thời
+  // gian nên không reset trang khi đổi mốc thời gian.
+  useEffect(() => {
+    let cancelled = false;
+    api(`/api/reports/inventory?lowStockThreshold=5&stockStatus=out_of_stock&page=${oosPage}&pageSize=20`, token)
+      .then((r) => { if (!cancelled) setOosData((r as any).data); })
+      .catch(() => { if (!cancelled) setOosData(null); });
+    return () => { cancelled = true; };
+  }, [token, oosPage]);
 
   return (
     <section className="space-y-4">
@@ -347,15 +361,22 @@ export function ReportsPage({ token }: { token: string }) {
           <h4 className="mt-3 font-semibold">Hết hàng</h4>
           <table className="mt-2 w-full text-sm">
             <tbody>
-              {(inventory.outOfStock ?? []).map((r: any) => (
+              {(oosData?.items ?? inventory.outOfStock ?? []).map((r: any) => (
                 <tr key={r.productVariantId} className="border-t">
                   <td className="py-1 pr-2">{r.sku} — {r.productName} {r.variantName}</td>
                   <td className="py-1 text-right">Tồn {r.quantity} · Khả dụng {r.availableQuantity}</td>
                 </tr>
               ))}
-              {(inventory.outOfStock ?? []).length === 0 && <tr><td className="py-1 text-gray-500">Không có SKU hết hàng.</td></tr>}
+              {(oosData?.items ?? inventory.outOfStock ?? []).length === 0 && <tr><td className="py-1 text-gray-500">Không có SKU hết hàng.</td></tr>}
             </tbody>
           </table>
+          {oosData?.pagination && oosData.pagination.totalPages > 1 && (
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <button disabled={oosPage <= 1} onClick={() => setOosPage(oosPage - 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang trước</button>
+              <span>Trang {oosPage} / {oosData.pagination.totalPages} · Tổng {oosData.pagination.total} SKU</span>
+              <button disabled={oosPage >= oosData.pagination.totalPages} onClick={() => setOosPage(oosPage + 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang sau</button>
+            </div>
+          )}
         </div>
       )}
     </section>
