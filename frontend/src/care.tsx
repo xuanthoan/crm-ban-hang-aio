@@ -364,7 +364,7 @@ export function SegmentsPage({ token, permissions }: { token: string; permission
           {tags.map((t) => (<option key={t.id} value={t.id}>{t.name}</option>))}
         </select></label>
       </div>
-      <div className="grid gap-2">
+      <div className="grid gap-4 md:grid-cols-2">
         {segments.map((s) => (
           <button key={s.key} onClick={() => setSelected(s.key)} className={`card-sm text-left ${selected === s.key ? "border-blue-600 bg-blue-50" : ""}`}>
             <strong>{s.name}</strong> {s.count !== null && <span>({s.count})</span>}
