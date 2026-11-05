@@ -126,7 +126,7 @@ function emptyForm(): {
     source: "",
     status: "active",
     phones: [{ phone: "", label: "", isPrimary: true }],
-    socialLinks: [],
+    socialLinks: [{ platform: "facebook", url: "", label: "" }],
     tagIds: [],
     children: [],
   };
