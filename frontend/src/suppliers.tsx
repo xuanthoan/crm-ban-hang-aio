@@ -507,69 +507,69 @@ export default function SuppliersPage({
         <form onSubmit={handleSubmit} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa nhà cung cấp" : "Tạo nhà cung cấp mới"}</h3>
           <p className="text-sm text-gray-500">Tên nhà cung cấp là bắt buộc. Số điện thoại không bắt buộc nhưng nếu nhập thì phải hợp lệ và không trùng với nhà cung cấp khác.</p>
-          <label className="block">Trạng thái
-            <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-              <option value="active">Đang hợp tác</option>
-              <option value="inactive">Ngừng hợp tác</option>
-            </select>
-          </label>
-
-          <label className="block">Tên nhà cung cấp<input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-4">
-          <div>
-            <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
-            {form.phones.map((p, i) => (
-              <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
-                <input className="field" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
-                <input className="field" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: kế toán, kho…" />
-                <label className="flex items-center gap-1">
-                  <input type="radio" name="primary-phone" checked={p.isPrimary} onChange={() => setPrimary(i)} /> Số chính
-                </label>
-                <button type="button" onClick={() => removePhone(i)} className="btn btn-secondary">Xóa số</button>
-              </div>
-            ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm số điện thoại</button>
-          </div>
+            <label className="block">Tên nhà cung cấp<input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
 
-          <div>
-            <h4 className="font-semibold">Mạng xã hội (không giới hạn số lượng link mỗi mạng)</h4>
-            {form.socialLinks.map((l, i) => (
-              <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
-                <select className="field" value={l.platform} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)) }))}>
-                  {SOCIAL_PLATFORMS.map((p) => (
-                    <option key={p} value={p}>{labelFor(SOCIAL_PLATFORM_LABELS, p)}</option>
-                  ))}
-                </select>
-                <input className="field" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: zalo.me/… hoặc https://…" />
-                <input className="field" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
-                <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-secondary">Xóa link</button>
-              </div>
-            ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "zalo", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
-          </div>
+            <label className="block">Trạng thái
+              <select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                <option value="active">Đang hợp tác</option>
+                <option value="inactive">Ngừng hợp tác</option>
+              </select>
+            </label>
 
+            <div>
+              <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
+              {form.phones.map((p, i) => (
+                <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
+                  <input className="field" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
+                  <input className="field" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: kế toán, kho…" />
+                  <label className="flex items-center gap-1">
+                    <input type="radio" name="primary-phone" checked={p.isPrimary} onChange={() => setPrimary(i)} /> Số chính
+                  </label>
+                  <button type="button" onClick={() => removePhone(i)} className="btn btn-secondary">Xóa số</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm số điện thoại</button>
             </div>
-            <div className="space-y-4">
-            <label className="block">Mã số thuế<input className="input" value={form.taxCode} onChange={(e) => setForm({ ...form, taxCode: e.target.value })} placeholder="Để trống nếu không có" /></label>
+
+            <div>
+              <h4 className="font-semibold">Mạng xã hội (không giới hạn số lượng link mỗi mạng)</h4>
+              {form.socialLinks.map((l, i) => (
+                <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
+                  <select className="field" value={l.platform} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)) }))}>
+                    {SOCIAL_PLATFORMS.map((p) => (
+                      <option key={p} value={p}>{labelFor(SOCIAL_PLATFORM_LABELS, p)}</option>
+                    ))}
+                  </select>
+                  <input className="field" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: zalo.me/… hoặc https://…" />
+                  <input className="field" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-secondary">Xóa link</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "zalo", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
+            </div>
+
             <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-          <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
-          <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
-          <div>
-            <h4 className="font-semibold">Đánh giá (thang 10)</h4>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2">Điểm
-                <select className="field" value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })}>
-                  <option value="">Chưa đánh giá</option>
-                  {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((n) => (
-                    <option key={n} value={String(n)}>{n}/10</option>
-                  ))}
-                </select>
-              </label>
-              <input className="field" value={form.ratingNote} onChange={(e) => setForm({ ...form, ratingNote: e.target.value })} placeholder="Ghi chú đánh giá: giao đúng hẹn, giá tốt…" />
-            </div>
-          </div>
 
+            <label className="block">Mã số thuế<input className="input" value={form.taxCode} onChange={(e) => setForm({ ...form, taxCode: e.target.value })} placeholder="Để trống nếu không có" /></label>
+
+            <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
+
+            <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
+
+            <div>
+              <h4 className="font-semibold">Đánh giá (thang 10)</h4>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-2">Điểm
+                  <select className="field" value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })}>
+                    <option value="">Chưa đánh giá</option>
+                    {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((n) => (
+                      <option key={n} value={String(n)}>{n}/10</option>
+                    ))}
+                  </select>
+                </label>
+                <input className="field" value={form.ratingNote} onChange={(e) => setForm({ ...form, ratingNote: e.target.value })} placeholder="Ghi chú đánh giá: giao đúng hẹn, giá tốt…" />
+              </div>
             </div>
           </div>
 
