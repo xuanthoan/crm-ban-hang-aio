@@ -760,69 +760,74 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
       {view === "form" && (
         <form onSubmit={handleSave} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa sản phẩm" : "Thêm sản phẩm"}</h3>
-          <label className="block">Tên sản phẩm *
-            <input className="input" value={name} onChange={(e) => { clearCustomValidity(e); setName(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tên sản phẩm." }))} required />
-          </label>
-          <label className="block">Mô tả
-            <textarea className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
-          </label>
-          <div className="flex gap-2">
-            <label className="block flex-1">Danh mục có sẵn
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block">Tên sản phẩm *
+              <input className="input" value={name} onChange={(e) => { clearCustomValidity(e); setName(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tên sản phẩm." }))} required />
+            </label>
+
+            <label className="block">Trạng thái
+              <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
+                <option value="active">Đang bán</option>
+                <option value="inactive">Ngừng bán</option>
+              </select>
+            </label>
+
+            <label className="block col-span-2">Mô tả
+              <textarea className="input" value={description} onChange={(e) => setDescription(e.target.value)} />
+            </label>
+
+            <label className="block">Danh mục có sẵn
               <select className="input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
                 <option value="">— Chưa chọn —</option>
                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </label>
-            <label className="block flex-1">Hoặc danh mục mới
+
+            <label className="block">Hoặc danh mục mới
               <input className="input" value={categoryName} onChange={(e) => setCategoryName(e.target.value)} placeholder="VD: Sách thiếu nhi" />
             </label>
-          </div>
-          <label className="block">Trạng thái
-            <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="active">Đang bán</option>
-              <option value="inactive">Ngừng bán</option>
-            </select>
-          </label>
 
-          <div className="space-y-2 card-sm">
-            <h4 className="font-semibold">Ảnh sản phẩm</h4>
-            <p className="text-sm text-gray-500">Ảnh chọn ở đây chỉ được lưu khi bạn bấm "Lưu sản phẩm". Bấm "Hủy" thì ảnh đã chọn sẽ mất, ảnh cũ giữ nguyên.</p>
-            {(formVisibleCommonImages.length === 0 && pendingImages.length === 0) ? (
-              <p className="text-sm text-gray-500">Chưa có ảnh.</p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {formVisibleCommonImages.map((img) => (
-                  <div key={img.id}>
-                    <ProductImg token={token} imageId={img.id} className="h-24 w-24 rounded-lg border object-cover" />
-                    <button type="button" onClick={() => setStagedDeleteImageIds((ids) => [...ids, img.id])} className="btn btn-sm btn-secondary mt-1 block w-full">Xóa ảnh</button>
-                  </div>
-                ))}
-                {pendingImages.map((p, i) => (
-                  <div key={p.url}>
-                    <Zoomable src={p.url} alt="Ảnh mới chọn" className="h-24 w-24 rounded-lg border border-dashed object-cover" />
-                    <button type="button" onClick={() => removePendingImage(i)} className="btn btn-sm btn-secondary mt-1 block w-full">Bỏ ảnh này</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {stagedDeleteImageIds.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-sm text-yellow-700">{stagedDeleteImageIds.length} ảnh cũ sẽ bị xóa khi lưu:</p>
-                {formImages.filter((i) => stagedDeleteImageIds.includes(i.id)).map((img) => (
-                  <span key={img.id} className="flex items-center gap-1 text-sm">
-                    <ProductImg token={token} imageId={img.id} className="h-10 w-10 rounded border object-cover" />
-                    <button type="button" onClick={() => setStagedDeleteImageIds((ids) => ids.filter((id) => id !== img.id))} className="btn btn-sm btn-secondary">Hoàn tác</button>
-                  </span>
-                ))}
-              </div>
-            )}
-            <p className="flex flex-wrap items-center gap-2 text-sm">
-              <label className="btn btn-sm btn-secondary cursor-pointer">
-                Chọn ảnh
-                <input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => { if (e.target.files) addPendingImages(e.target.files); e.target.value = ""; }} />
-              </label>
-              <span className="text-xs text-gray-500">jpg, png, webp — mỗi ảnh tối đa 5MB, tối đa 10 ảnh chung.</span>
-            </p>
+            <div className="space-y-2 card-sm col-span-2">
+              <h4 className="font-semibold">Ảnh sản phẩm</h4>
+              <p className="text-sm text-gray-500">Ảnh chọn ở đây chỉ được lưu khi bạn bấm "Lưu sản phẩm". Bấm "Hủy" thì ảnh đã chọn sẽ mất, ảnh cũ giữ nguyên.</p>
+              {(formVisibleCommonImages.length === 0 && pendingImages.length === 0) ? (
+                <p className="text-sm text-gray-500">Chưa có ảnh.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {formVisibleCommonImages.map((img) => (
+                    <div key={img.id}>
+                      <ProductImg token={token} imageId={img.id} className="h-24 w-24 rounded-lg border object-cover" />
+                      <button type="button" onClick={() => setStagedDeleteImageIds((ids) => [...ids, img.id])} className="btn btn-sm btn-secondary mt-1 block w-full">Xóa ảnh</button>
+                    </div>
+                  ))}
+                  {pendingImages.map((p, i) => (
+                    <div key={p.url}>
+                      <Zoomable src={p.url} alt="Ảnh mới chọn" className="h-24 w-24 rounded-lg border border-dashed object-cover" />
+                      <button type="button" onClick={() => removePendingImage(i)} className="btn btn-sm btn-secondary mt-1 block w-full">Bỏ ảnh này</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {stagedDeleteImageIds.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm text-yellow-700">{stagedDeleteImageIds.length} ảnh cũ sẽ bị xóa khi lưu:</p>
+                  {formImages.filter((i) => stagedDeleteImageIds.includes(i.id)).map((img) => (
+                    <span key={img.id} className="flex items-center gap-1 text-sm">
+                      <ProductImg token={token} imageId={img.id} className="h-10 w-10 rounded border object-cover" />
+                      <button type="button" onClick={() => setStagedDeleteImageIds((ids) => ids.filter((id) => id !== img.id))} className="btn btn-sm btn-secondary">Hoàn tác</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <p className="flex flex-wrap items-center gap-2 text-sm">
+                <label className="btn btn-sm btn-secondary cursor-pointer">
+                  Chọn ảnh
+                  <input type="file" hidden multiple accept="image/jpeg,image/png,image/webp" onChange={(e) => { if (e.target.files) addPendingImages(e.target.files); e.target.value = ""; }} />
+                </label>
+                <span className="text-xs text-gray-500">jpg, png, webp — mỗi ảnh tối đa 5MB, tối đa 10 ảnh chung.</span>
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-2">
@@ -834,32 +839,39 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
             <fieldset className="space-y-2 card-sm">
               <legend className="font-semibold">SKU mặc định</legend>
               <p className="text-sm text-gray-500">Để trống mã SKU để hệ thống tự sinh từ tên sản phẩm. Mã bạn tự nhập mà trùng sẽ bị chặn, không tự đổi.</p>
-              <label className="block">Mã SKU <input className="input" value={defaultVariant.sku} onChange={(e) => setDefaultVariant({ ...defaultVariant, sku: e.target.value })} /></label>
-              <label className="block">Tên biến thể <input className="input" value={defaultVariant.variantName} onChange={(e) => setDefaultVariant({ ...defaultVariant, variantName: e.target.value })} placeholder="Mặc định" /></label>
-              <label className="block">Giá bán <PriceInput value={defaultVariant.sellingPrice} onChange={(v) => setDefaultVariant({ ...defaultVariant, sellingPrice: v ?? 0 })} disabled={!canUpdatePrice && !formId && false} /></label>
-              {canViewCost && (
-                <label className="block">Giá nhập <PriceInput value={defaultVariant.importPrice} onChange={(v) => setDefaultVariant({ ...defaultVariant, importPrice: v })} /></label>
-              )}
-              <label className="block">Mã vạch <input className="input" value={defaultVariant.barcode} onChange={(e) => setDefaultVariant({ ...defaultVariant, barcode: e.target.value })} /></label>
-              <div>
-                <p className="text-sm font-medium">Thumbnail SKU</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  {defaultVariant.pendingThumbnailUrl ? (
-                    <Zoomable src={defaultVariant.pendingThumbnailUrl} alt="Thumbnail mới chọn" className="h-12 w-12 rounded border border-dashed object-cover" />
-                  ) : formOwnImageId(defaultVariant.id) ? (
-                    <ProductImg token={token} imageId={formOwnImageId(defaultVariant.id)!} className="h-12 w-12 rounded border object-cover" />
-                  ) : (
-                    <span className="text-sm text-gray-400">Chưa có thumbnail riêng (khi hiển thị sẽ dùng ảnh chung đầu tiên).</span>
-                  )}
-                  <label className="btn btn-sm btn-secondary cursor-pointer">
-                    {defaultVariant.pendingThumbnailUrl || formOwnImageId(defaultVariant.id) ? "Đổi ảnh" : "Thêm ảnh"}
-                    <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) stageRowThumbnail(f, "simple"); e.target.value = ""; }} />
-                  </label>
-                  {defaultVariant.pendingThumbnailUrl && (
-                    <button type="button" onClick={() => clearRowThumbnail("simple")} className="btn btn-sm btn-secondary">Bỏ ảnh mới chọn</button>
-                  )}
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">Tên biến thể <input className="input" value={defaultVariant.variantName} onChange={(e) => setDefaultVariant({ ...defaultVariant, variantName: e.target.value })} placeholder="Mặc định" /></label>
+
+                <label className="block">Mã SKU <input className="input" value={defaultVariant.sku} onChange={(e) => setDefaultVariant({ ...defaultVariant, sku: e.target.value })} /></label>
+
+                <label className="block">Giá bán <PriceInput value={defaultVariant.sellingPrice} onChange={(v) => setDefaultVariant({ ...defaultVariant, sellingPrice: v ?? 0 })} disabled={!canUpdatePrice && !formId && false} /></label>
+
+                {canViewCost && (
+                  <label className="block">Giá nhập <PriceInput value={defaultVariant.importPrice} onChange={(v) => setDefaultVariant({ ...defaultVariant, importPrice: v })} /></label>
+                )}
+
+                <label className="block">Mã vạch <input className="input" value={defaultVariant.barcode} onChange={(e) => setDefaultVariant({ ...defaultVariant, barcode: e.target.value })} /></label>
+
+                <div>
+                  <p className="text-sm font-medium">Thumbnail SKU</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {defaultVariant.pendingThumbnailUrl ? (
+                      <Zoomable src={defaultVariant.pendingThumbnailUrl} alt="Thumbnail mới chọn" className="h-12 w-12 rounded border border-dashed object-cover" />
+                    ) : formOwnImageId(defaultVariant.id) ? (
+                      <ProductImg token={token} imageId={formOwnImageId(defaultVariant.id)!} className="h-12 w-12 rounded border object-cover" />
+                    ) : (
+                      <span className="text-sm text-gray-400">Chưa có thumbnail riêng (khi hiển thị sẽ dùng ảnh chung đầu tiên).</span>
+                    )}
+                    <label className="btn btn-sm btn-secondary cursor-pointer">
+                      {defaultVariant.pendingThumbnailUrl || formOwnImageId(defaultVariant.id) ? "Đổi ảnh" : "Thêm ảnh"}
+                      <input type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={(e) => { const f = e.target.files?.[0]; if (f) stageRowThumbnail(f, "simple"); e.target.value = ""; }} />
+                    </label>
+                    {defaultVariant.pendingThumbnailUrl && (
+                      <button type="button" onClick={() => clearRowThumbnail("simple")} className="btn btn-sm btn-secondary">Bỏ ảnh mới chọn</button>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500">Ảnh này chỉ được lưu khi bấm "Lưu sản phẩm".</p>
                 </div>
-                <p className="text-xs text-gray-500">Ảnh này chỉ được lưu khi bấm "Lưu sản phẩm".</p>
               </div>
             </fieldset>
           )}
