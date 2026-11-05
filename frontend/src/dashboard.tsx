@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { SCOPE_LABELS, isoToVnDate, labelFor } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
@@ -17,6 +18,25 @@ async function api(path: string, token: string) {
 function fmt(n: number | null | undefined): string {
   if (n === null || n === undefined) return "—";
   return Math.round(n).toLocaleString("vi-VN");
+}
+
+function fmtCompact(n: number): string {
+  if (n >= 1e9) return `${(n / 1e9).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tỷ`;
+  if (n >= 1e6) return `${(n / 1e6).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tr`;
+  if (n >= 1e3) return `${(n / 1e3).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} k`;
+  return String(Math.round(n));
+}
+
+function RevenueTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div className="rounded border bg-white px-3 py-2 text-sm shadow">
+      <p className="font-semibold">{d.full}</p>
+      <p>Doanh thu: {fmt(d.salesTotal)}đ</p>
+      <p>Số đơn: {d.ordersCount} đơn</p>
+    </div>
+  );
 }
 
 function periodQuery(preset: string, from: string, to: string): string {
@@ -89,7 +109,7 @@ export function DashboardPage({ token }: { token: string }) {
 
   useEffect(() => { load(); }, [load]);
 
-  const maxDay = Math.max(0, ...days.map((d) => d.salesTotal));
+  const chartDays = days.map((d) => ({ full: isoToVnDate(d.date), short: isoToVnDate(d.date).slice(0, 5), salesTotal: d.salesTotal, ordersCount: d.ordersCount }));
   const sales = summary?.sales;
 
   return (
@@ -122,14 +142,19 @@ export function DashboardPage({ token }: { token: string }) {
           {days.length > 0 && (
             <div className="card">
               <h3 className="font-semibold">Doanh thu theo ngày (theo ngày tạo đơn, ngày UTC)</h3>
-              <div className="mt-3 space-y-2">
-                {days.map((d) => (
-                  <div key={d.date} className="flex items-center gap-2 text-sm">
-                    <span className="w-24 shrink-0">{isoToVnDate(d.date)}</span>
-                    <div className="h-4 rounded bg-blue-500" style={{ width: `${maxDay > 0 ? Math.max(2, (d.salesTotal / maxDay) * 100) : 0}%` }} />
-                    <span>{fmt(d.salesTotal)} · {d.ordersCount} đơn</span>
-                  </div>
-                ))}
+              <div className="mt-3 h-80 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartDays} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="short" tickLine={false} axisLine={false} tick={{ fontSize: 12 }} interval="preserveStartEnd" minTickGap={24} />
+                    <YAxis yAxisId="money" tickFormatter={fmtCompact} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={56} />
+                    <YAxis yAxisId="orders" orientation="right" allowDecimals={false} tickLine={false} axisLine={false} tick={{ fontSize: 12 }} width={32} />
+                    <Tooltip content={<RevenueTooltip />} />
+                    <Legend />
+                    <Bar yAxisId="money" dataKey="salesTotal" name="Doanh thu" fill="#2563eb" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    <Line yAxisId="orders" type="monotone" dataKey="ordersCount" name="Số đơn" stroke="#d97706" strokeWidth={2} dot={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
               </div>
             </div>
           )}
