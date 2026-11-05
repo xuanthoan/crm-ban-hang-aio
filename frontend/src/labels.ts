@@ -41,6 +41,20 @@ export function socialLinkHref(url: string | null | undefined): string {
 
 // "2026-10-30T06:41:00.000Z" -> "30/10/2026 13:41" (giờ địa phương,
 // giống hành vi toLocaleString() trước đây, chỉ cố định dạng dd/mm/yyyy).
+// So khớp chuỗi tiếng Việt khi tìm trong ô nhập: không phân biệt
+// hoa/thường và không phân biệt dấu — gõ "hat" vẫn khớp "Hạt dinh
+// dưỡng". Dùng cho ô lọc Tag (danh sách) và ô tìm tag trong form.
+export function matchVnText(text: string, query: string): boolean {
+  const norm = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/Đ/g, "D")
+      .toLowerCase();
+  return norm(text).includes(norm(query.trim()));
+}
+
 export function isoToVnDateTime(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);

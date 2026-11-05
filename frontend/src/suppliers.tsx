@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EntityAuditTimeline } from "./audit";
-import { labelFor, SOCIAL_PLATFORM_LABELS, socialLinkHref } from "./labels";
+import { labelFor, matchVnText, SOCIAL_PLATFORM_LABELS, socialLinkHref } from "./labels";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
@@ -132,8 +132,11 @@ export default function SuppliersPage({
   const [formId, setFormId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [newTagName, setNewTagName] = useState("");
+  const [tagFormSearch, setTagFormSearch] = useState("");
   const [q, setQ] = useState("");
   const [tagId, setTagId] = useState("");
+  const [tagFilterText, setTagFilterText] = useState("");
+  const [tagFilterOpen, setTagFilterOpen] = useState(false);
   const [status, setStatus] = useState("");
   const [sort, setSort] = useState("");
   const [page, setPage] = useState(1);
@@ -391,6 +394,20 @@ export default function SuppliersPage({
     }
   }
 
+  async function handleDeleteTag(tag: Tag) {
+    if (!window.confirm(`Xóa tag "${tag.name}"? Tag sẽ biến mất khỏi mọi danh sách và ô chọn.`)) return;
+    setError("");
+    try {
+      await api(`/api/supplier-tags/${tag.id}`, token, "DELETE");
+      await loadTags();
+      setForm((f) => ({ ...f, tagIds: f.tagIds.filter((id) => id !== tag.id) }));
+      if (tagId === tag.id) setTagId("");
+      setInfo(`Đã xóa tag "${tag.name}".`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xóa tag thất bại.");
+    }
+  }
+
   async function handleMakePrimary(phone: PhoneRow) {
     if (!detail) return;
     setError("");
@@ -401,6 +418,10 @@ export default function SuppliersPage({
       setError(err instanceof Error ? err.message : "Đổi số chính thất bại.");
     }
   }
+
+  const visibleFilterTags = tags.filter((t) => matchVnText(t.name, tagFilterText));
+  const visibleFormTags = tags.filter((t) => matchVnText(t.name, tagFormSearch));
+  const selectedTagName = tags.find((t) => t.id === tagId)?.name ?? "";
 
   return (
     <section className="space-y-4">
@@ -420,15 +441,48 @@ export default function SuppliersPage({
               Tìm theo tên hoặc số
               <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên, 0987…, +84…" />
             </label>
-            <label className="block">
-              Tag
-              <select className="input" value={tagId} onChange={(e) => setTagId(e.target.value)}>
-                <option value="">Tất cả tag</option>
-                {tags.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            </label>
+            <div className="block">
+              <span className="block">Tag</span>
+              <div
+                className="relative"
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setTagFilterOpen(false);
+                }}
+              >
+                <input
+                  className="input"
+                  value={tagFilterOpen ? tagFilterText : selectedTagName}
+                  placeholder="Tất cả tag"
+                  onFocus={() => { setTagFilterText(""); setTagFilterOpen(true); }}
+                  onChange={(e) => { setTagFilterText(e.target.value); setTagFilterOpen(true); }}
+                  onKeyDown={(e) => { if (e.key === "Escape") setTagFilterOpen(false); }}
+                />
+                {tagFilterOpen && (
+                  <div className="absolute left-0 right-0 z-20 mt-1 max-h-60 overflow-y-auto rounded border border-gray-200 bg-white shadow-lg">
+                    <button
+                      type="button"
+                      onClick={() => { setTagId(""); setTagFilterText(""); setTagFilterOpen(false); }}
+                      className="block w-full px-3 py-2 text-left hover:bg-gray-100"
+                    >
+                      Tất cả tag
+                    </button>
+                    {visibleFilterTags.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => { setTagId(t.id); setTagFilterText(""); setTagFilterOpen(false); }}
+                        className="block w-full px-3 py-2 text-left hover:bg-gray-100"
+                      >
+                        {t.name}
+                      </button>
+                    ))}
+                    {visibleFilterTags.length === 0 && (
+                      <p className="px-3 py-2 text-gray-500">Không có tag nào khớp.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
             <label className="block">
               Trạng thái
               <select className="input" value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -678,20 +732,28 @@ export default function SuppliersPage({
 
             <div>
               <h4 className="font-semibold">Tag</h4>
+              <input className="input mt-2" value={tagFormSearch} onChange={(e) => setTagFormSearch(e.target.value)} placeholder="Tìm tag…" />
               <div className="mt-2 flex flex-wrap gap-3">
-                {tags.map((t) => (
-                  <label key={t.id} className="flex items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={form.tagIds.includes(t.id)}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, tagIds: e.target.checked ? [...f.tagIds, t.id] : f.tagIds.filter((id) => id !== t.id) }))
-                      }
-                    />
-                    {t.name}
-                  </label>
+                {visibleFormTags.map((t) => (
+                  <span key={t.id} className="flex items-center gap-1">
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        checked={form.tagIds.includes(t.id)}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, tagIds: e.target.checked ? [...f.tagIds, t.id] : f.tagIds.filter((id) => id !== t.id) }))
+                        }
+                      />
+                      {t.name}
+                    </label>
+                    {canTagManage && (
+                      <button type="button" title={`Xóa tag "${t.name}"`} onClick={() => void handleDeleteTag(t)} className="text-red-600 hover:underline">×</button>
+                    )}
+                  </span>
                 ))}
-                {tags.length === 0 && <span className="text-gray-500">Chưa có tag nào.</span>}
+                {visibleFormTags.length === 0 && (
+                  <span className="text-gray-500">{tags.length === 0 ? "Chưa có tag nào." : "Không có tag nào khớp."}</span>
+                )}
               </div>
               {canTagManage && (
                 <div className="mt-2 flex gap-2">
