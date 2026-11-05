@@ -55,6 +55,7 @@ enum SocialPlatform {
   facebook
   telegram
   whatsapp
+  viber
 }
 
 enum ProductStatus {

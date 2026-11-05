@@ -53,7 +53,7 @@ interface SocialLinkRow {
   label: string;
 }
 
-const SOCIAL_PLATFORMS = ["zalo", "facebook", "telegram", "whatsapp"];
+const SOCIAL_PLATFORMS = ["facebook", "zalo", "whatsapp", "telegram", "viber"];
 
 interface CustomerListItem {
   id: string;
@@ -705,12 +705,12 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
                     <option key={p} value={p}>{labelFor(SOCIAL_PLATFORM_LABELS, p)}</option>
                   ))}
                 </select>
-                <input className="field" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: zalo.me/… hoặc https://…" />
+                <input className="field" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: facebook.com/… hoặc https://…" />
                 <input className="field" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
                 <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-secondary">Xóa link</button>
               </div>
             ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "zalo", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
+            <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "facebook", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
           </div>
 
             </div>
