@@ -205,6 +205,8 @@ export function ReportsPage({ token }: { token: string }) {
   const [inventory, setInventory] = useState<any>(null);
   const [oosPage, setOosPage] = useState(1);
   const [oosData, setOosData] = useState<any>(null);
+  const [lowPage, setLowPage] = useState(1);
+  const [lowData, setLowData] = useState<any>(null);
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
@@ -252,6 +254,16 @@ export function ReportsPage({ token }: { token: string }) {
       .catch(() => { if (!cancelled) setOosData(null); });
     return () => { cancelled = true; };
   }, [token, oosPage]);
+
+  // Mục "Tồn thấp": phân trang riêng, cùng cách làm như mục "Hết hàng"
+  // (stockStatus=low_stock). inventory.lowStock cũng bị backend cắt ở 50.
+  useEffect(() => {
+    let cancelled = false;
+    api(`/api/reports/inventory?lowStockThreshold=5&stockStatus=low_stock&page=${lowPage}&pageSize=20`, token)
+      .then((r) => { if (!cancelled) setLowData((r as any).data); })
+      .catch(() => { if (!cancelled) setLowData(null); });
+    return () => { cancelled = true; };
+  }, [token, lowPage]);
 
   return (
     <section className="space-y-4">
@@ -349,15 +361,22 @@ export function ReportsPage({ token }: { token: string }) {
           <p className="text-sm">Tổng SKU {inventory.summary?.totalSkuCount ?? 0} · Tổng tồn {inventory.summary?.totalQuantity ?? 0} · Tồn thấp {inventory.summary?.lowStockCount ?? 0} · Hết hàng {inventory.summary?.outOfStockCount ?? 0}{inventory.summary?.inventoryValueEstimate !== null && inventory.summary?.inventoryValueEstimate !== undefined ? ` · Giá trị tồn ước tính ${fmt(inventory.summary.inventoryValueEstimate)}` : ""}</p>
           <table className="mt-2 w-full text-sm">
             <tbody>
-              {(inventory.lowStock ?? []).map((r: any) => (
+              {(lowData?.items ?? inventory.lowStock ?? []).map((r: any) => (
                 <tr key={r.productVariantId} className="border-t">
                   <td className="py-1 pr-2">{r.sku} — {r.productName} {r.variantName}</td>
                   <td className="py-1 text-right">Tồn {r.quantity} · Khả dụng {r.availableQuantity}</td>
                 </tr>
               ))}
-              {(inventory.lowStock ?? []).length === 0 && <tr><td className="py-1 text-gray-500">Không có SKU tồn thấp.</td></tr>}
+              {(lowData?.items ?? inventory.lowStock ?? []).length === 0 && <tr><td className="py-1 text-gray-500">Không có SKU tồn thấp.</td></tr>}
             </tbody>
           </table>
+          {lowData?.pagination && lowData.pagination.totalPages > 1 && (
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <button disabled={lowPage <= 1} onClick={() => setLowPage(lowPage - 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang trước</button>
+              <span>Trang {lowPage} / {lowData.pagination.totalPages} · Tổng {lowData.pagination.total} SKU</span>
+              <button disabled={lowPage >= lowData.pagination.totalPages} onClick={() => setLowPage(lowPage + 1)} className="btn btn-sm btn-secondary disabled:opacity-50">Trang sau</button>
+            </div>
+          )}
           <h4 className="mt-3 font-semibold">Hết hàng</h4>
           <table className="mt-2 w-full text-sm">
             <tbody>

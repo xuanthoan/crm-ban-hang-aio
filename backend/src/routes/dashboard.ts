@@ -709,6 +709,9 @@ router.get("/reports/inventory", async (req, res) => {
       };
     });
     const filtered = stockStatus ? rows.filter((r: any) => r.stockStatus === stockStatus) : rows;
+    // Danh sách tồn thấp hiển thị theo tồn tăng dần (thấp nhất trước), giữ
+    // đúng thứ tự của mảng lowStock cũ; các trạng thái khác giữ thứ tự theo SKU.
+    if (stockStatus === "low_stock") filtered.sort((a: any, b: any) => a.quantity - b.quantity);
     const summary = summarizeInventory(
       rows.map((r: any) => ({
         productVariantId: r.productVariantId,
