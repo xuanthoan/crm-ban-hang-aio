@@ -758,7 +758,7 @@ export default function ProductsPage({ token, permissions }: { token: string; pe
       )}
 
       {view === "form" && (
-        <form onSubmit={handleSave} className="space-y-4 card">
+        <form onSubmit={handleSave} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa sản phẩm" : "Thêm sản phẩm"}</h3>
           <label className="block">Tên sản phẩm *
             <input className="input" value={name} onChange={(e) => { clearCustomValidity(e); setName(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tên sản phẩm." }))} required />

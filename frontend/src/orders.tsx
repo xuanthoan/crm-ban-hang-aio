@@ -655,7 +655,7 @@ export default function OrdersPage({ token, permissions }: { token: string; perm
       )}
 
       {showForm && (
-        <form onSubmit={submitForm} className="space-y-3 card">
+        <form onSubmit={submitForm} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-3 card">
           <h3 className="text-base font-semibold">{editingId ? "Sửa đơn nháp" : "Tạo đơn nháp mới"}</h3>
           <p className="text-sm text-gray-600">
             Đơn nháp giữ tồn: tạo/sửa đơn sẽ kiểm tra tồn khả dụng (tồn vật lý − tồn đang giữ) và chặn toàn bộ nếu thiếu.

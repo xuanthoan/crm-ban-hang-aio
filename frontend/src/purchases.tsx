@@ -539,7 +539,7 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
       </div>
 
       {showForm && (
-        <form onSubmit={submitForm} className="mb-6 card">
+        <form onSubmit={submitForm} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="mb-6 card">
           <h3 className="mb-3 font-semibold">{editingId ? "Sửa đơn nhập nháp" : "Tạo đơn nhập nháp"}</h3>
           {editingId ? (
             <p className="mb-3 text-sm text-gray-600">
@@ -754,7 +754,7 @@ export default function PurchasesPage({ token, permissions }: { token: string; p
           </div>
 
           {(detail.status === "confirmed" || detail.status === "completed") && canReturn && (
-            <form onSubmit={submitReturn} className="mt-4 card-sm">
+            <form onSubmit={submitReturn} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="mt-4 card-sm">
               <h4 className="mb-2 font-semibold">Trả hàng cho nhà cung cấp</h4>
               <p className="mb-2 text-sm text-gray-600">
                 Chỉ nhập số lượng trả cho các dòng cần trả (để trống = không trả dòng đó). Trả hàng giảm tồn kho ngay và tính lại tổng tiền đơn theo số còn giữ.

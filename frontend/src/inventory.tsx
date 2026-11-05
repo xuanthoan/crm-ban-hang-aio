@@ -287,7 +287,7 @@ export default function InventoryPage({ token, permissions }: { token: string; p
       )}
 
       {canOperate && (
-        <form onSubmit={submitOp} className="space-y-3 card">
+        <form onSubmit={submitOp} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-3 card">
           <h3 className="font-semibold">Thao tác kho (một hoặc nhiều SKU — lỗi ở 1 dòng thì hủy toàn bộ)</h3>
           <div className="flex flex-wrap gap-2">
             <label className="flex items-center gap-2">

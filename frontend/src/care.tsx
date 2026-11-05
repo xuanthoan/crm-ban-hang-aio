@@ -128,7 +128,7 @@ export function CustomerCareTab({ token, permissions, customerId }: { token: str
       {error && <p className="text-sm text-red-700">{error}</p>}
       {info && <p className="text-sm text-green-700">{info}</p>}
       {canCreate && (
-        <form onSubmit={handleSubmit} className="space-y-2 card-sm">
+        <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-2 card-sm">
           <div className="grid grid-cols-3 gap-2">
             <label className="block text-sm">Loại
               <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
@@ -247,7 +247,7 @@ export default function RemindersPage({ token, permissions }: { token: string; p
         ))}
       </div>
       {canCreate && (
-        <form onSubmit={handleCreate} className="space-y-2 card-sm">
+        <form onSubmit={handleCreate} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-2 card-sm">
           <div className="grid grid-cols-2 gap-2">
             <label className="block text-sm">Tiêu đề (bắt buộc)<input className="input" value={title} onChange={(e) => { clearCustomValidity(e); setTitle(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng nhập tiêu đề." }))} required /></label>
             <label className="block text-sm">Hạn (bắt buộc)<input type="date" className="input" value={dueAt} onChange={(e) => { clearCustomValidity(e); setDueAt(e.target.value); }} onInvalid={(e) => e.currentTarget.setCustomValidity(invalidMessage(e.currentTarget, { missing: "Vui lòng chọn hạn." }))} required /></label>

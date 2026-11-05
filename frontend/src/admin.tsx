@@ -498,7 +498,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
       </table>
 
       {resetFor && (
-        <form onSubmit={handleResetPassword} className="space-y-3 card">
+        <form onSubmit={handleResetPassword} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-3 card">
           <h3 className="font-semibold">Đặt lại mật khẩu cho {users.find((u) => u.id === resetFor)?.username}</h3>
           <label className="block">
             Mật khẩu mới (ít nhất 8 ký tự)
@@ -527,7 +527,7 @@ export function AdminPage({ token, permissions }: { token: string; permissions: 
       )}
 
       {formTarget && (
-        <form onSubmit={handleSubmitUser} className="space-y-3 card">
+        <form onSubmit={handleSubmitUser} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-3 card">
           <h3 className="font-semibold">{formTarget === "new" ? "Tạo nhân viên" : `Sửa nhân viên ${editingUser?.username}`}</h3>
           <label className="block">
             Họ tên

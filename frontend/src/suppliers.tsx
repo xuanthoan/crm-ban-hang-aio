@@ -504,7 +504,7 @@ export default function SuppliersPage({
       )}
 
       {view === "form" && (
-        <form onSubmit={handleSubmit} className="space-y-4 card">
+        <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa nhà cung cấp" : "Tạo nhà cung cấp mới"}</h3>
           <p className="text-sm text-gray-500">Tên nhà cung cấp là bắt buộc. Số điện thoại không bắt buộc nhưng nếu nhập thì phải hợp lệ và không trùng với nhà cung cấp khác.</p>
           <div className="grid gap-4 md:grid-cols-2">

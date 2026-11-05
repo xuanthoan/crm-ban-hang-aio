@@ -675,7 +675,7 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
       )}
 
       {view === "form" && (
-        <form onSubmit={handleSubmit} className="space-y-4 card">
+        <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa khách hàng" : "Tạo khách hàng mới"}</h3>
           <p className="text-sm text-gray-500">Họ tên hoặc ít nhất một số điện thoại là bắt buộc (theo docs 01).</p>
           <label className="block">Họ tên<input className="input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
