@@ -274,6 +274,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   category: "Danh mục",
   customer: "Khách hàng",
   customer_tag: "Tag khách hàng",
+  supplier_tag: "Tag nhà cung cấp",
   export: "Xuất dữ liệu",
   import: "Nhập dữ liệu",
   inventory: "Kho",

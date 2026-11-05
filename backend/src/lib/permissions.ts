@@ -93,6 +93,7 @@ export const PERMISSIONS = [
   { code: "supplier.hard_delete", module: "supplier", description: "Xóa cứng nhà cung cấp chưa có đơn nhập (chỉ Admin)" },
   { code: "supplier.import", module: "supplier", description: "Import nhà cung cấp từ CSV" },
   { code: "supplier.export", module: "supplier", description: "Export nhà cung cấp ra CSV" },
+  { code: "supplier.tag_manage", module: "supplier", description: "Tạo / sửa / ngừng tag nhà cung cấp" },
   // Purchase orders (Sprint NCC-2). There is deliberately NO
   // purchase.update code: creating and editing a draft belong to the
   // same drafting lifecycle, so draft edits are authorized by
@@ -131,7 +132,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, string[]> = {
   admin: PERMISSIONS.map((p) => p.code),
   manager: [
     "customer.view_all", "customer.create", "customer.update", "customer.assign", "customer.tag_manage", "customer.import",
-    "supplier.view_all", "supplier.create", "supplier.update", "supplier.import",
+    "supplier.view_all", "supplier.create", "supplier.update", "supplier.import", "supplier.tag_manage",
     "purchase.view_all", "purchase.create", "purchase.confirm", "purchase.export",
     "supplier_payment.create",
     "order.export",

@@ -413,7 +413,7 @@ backend/    Express + TypeScript, src/routes/auth.ts, src/routes/admin.ts, src/r
             src/middleware/auth.ts, src/lib/permissions.ts, prisma/schema.prisma
 frontend/   React + Vite + TailwindCSS (+ Recharts cho biểu đồ doanh thu), đăng nhập 2 bước + panel OTP
             cho admin + trang Khách hàng (danh sách, hồ sơ 360, form nhiều số / tag / con / link mạng xã
-            hội, tab Chăm sóc, lịch sử mua hàng) + trang Nhà cung cấp (danh mục, link mạng xã hội,
+            hội, tab Chăm sóc, lịch sử mua hàng) + trang Nhà cung cấp (danh mục, link mạng xã hội, tag,
             chấm điểm, sản phẩm đã nhập) + trang Đơn nhập hàng + Công nợ NCC + trang Sản phẩm/SKU
             (danh sách, chi tiết bảng biến thể, form SKU mặc định / sinh tổ hợp / áp dụng giá hàng loạt,
             ảnh gallery + thumbnail SKU) + trang Kho + Đơn hàng + Công nợ + Nhắc việc + Remarketing

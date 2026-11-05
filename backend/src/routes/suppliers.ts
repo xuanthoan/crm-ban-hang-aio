@@ -115,6 +115,9 @@ function serializeListSupplier(s: any) {
     primaryPhone: primary ? primary.phone : null,
     primaryPhoneNormalized: primary ? primary.phoneNormalized : null,
     phoneCount: phones.length,
+    tags: (s.tagLinks ?? [])
+      .filter((l: any) => l.tag && !l.tag.deletedAt)
+      .map((l: any) => ({ id: l.tag.id, name: l.tag.name, color: l.tag.color ?? null })),
     createdById: s.createdById,
     createdByName: s.createdBy?.fullName ?? null,
     createdAt: s.createdAt,
@@ -149,6 +152,7 @@ async function loadSupplierForScope(prisma: ReturnType<typeof getPrisma>, id: st
     include: {
       phones: { where: { status: "active", deletedAt: null }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
       socialLinks: { orderBy: { createdAt: "asc" } },
+      tagLinks: { include: { tag: true } },
       createdBy: { select: { id: true, fullName: true, username: true } },
     },
   });
@@ -235,6 +239,184 @@ async function findTaxCodeConflict(
 }
 
 /* ------------------------------------------------------------------ */
+/* Supplier tags — mirrors customer tags (customers.ts /api/tags):    */
+/* separate SupplierTag table + SupplierTagAssignment link table,    */
+/* name unique (case-insensitive), soft-delete, Admin/Manager only   */
+/* for manage (supplier.tag_manage). Tag NCC and tag khách là hai    */
+/* tập riêng, không dùng chung bảng CustomerTag.                      */
+/* ------------------------------------------------------------------ */
+
+/** GET /api/supplier-tags — list tags (supplier viewers only). */
+router.get("/supplier-tags", async (req, res) => {
+  try {
+    if (!canView(req)) {
+      res.status(403).json({ status: "error", message: "Bạn không có quyền xem nhà cung cấp." });
+      return;
+    }
+    const prisma = getPrisma();
+    const { page, pageSize } = parsePagination(req);
+    const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+    const where: Record<string, unknown> = {
+      deletedAt: null,
+      ...(search ? { name: { contains: search, mode: "insensitive" } } : {}),
+    };
+    const [total, tags] = await Promise.all([
+      prisma.supplierTag.count({ where }),
+      prisma.supplierTag.findMany({
+        where,
+        orderBy: { name: "asc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        include: { _count: { select: { supplierLinks: true } } },
+      }),
+    ]);
+    res.json({
+      status: "ok",
+      data: tags.map((t: any) => ({
+        id: t.id,
+        name: t.name,
+        color: t.color,
+        description: t.description,
+        supplierCount: t._count.supplierLinks,
+        createdAt: t.createdAt,
+      })),
+      pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+    });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/** POST /api/supplier-tags — Admin/Manager (supplier.tag_manage). */
+router.post("/supplier-tags", authorize("supplier.tag_manage"), async (req, res) => {
+  try {
+    const { name, color, description } = req.body ?? {};
+    if (typeof name !== "string" || !name.trim()) {
+      res.status(400).json({ status: "error", message: "Tên tag không được để trống." });
+      return;
+    }
+    const prisma = getPrisma();
+    const existing = await prisma.supplierTag.findFirst({
+      where: { name: { equals: name.trim(), mode: "insensitive" } },
+    });
+    if (existing && !existing.deletedAt) {
+      res.status(409).json({ status: "error", message: `Tag "${existing.name}" đã tồn tại.` });
+      return;
+    }
+    let tag;
+    if (existing) {
+      tag = await prisma.supplierTag.update({
+        where: { id: existing.id },
+        data: {
+          deletedAt: null,
+          color: typeof color === "string" ? color : existing.color,
+          description: typeof description === "string" ? description : existing.description,
+        },
+      });
+    } else {
+      tag = await prisma.supplierTag.create({
+        data: {
+          name: name.trim(),
+          color: typeof color === "string" ? color : null,
+          description: typeof description === "string" ? description : null,
+        },
+      });
+    }
+    await writeAudit(prisma, {
+      actorId: req.user!.id,
+      action: "tag_created",
+      entityType: "supplier_tag",
+      entityId: tag.id,
+      newValue: { name: tag.name },
+      ipAddress: req.ip ?? null,
+    });
+    res.status(201).json({ status: "ok", tag });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/** PATCH /api/supplier-tags/:id — rename / recolor a tag. */
+router.patch("/supplier-tags/:id", authorize("supplier.tag_manage"), async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const tag = await prisma.supplierTag.findUnique({ where: { id: req.params.id } });
+    if (!tag || tag.deletedAt) {
+      res.status(404).json({ status: "error", message: "Tag không tồn tại." });
+      return;
+    }
+    const { name, color, description } = req.body ?? {};
+    if (typeof name === "string" && name.trim() && name.trim().toLowerCase() !== tag.name.toLowerCase()) {
+      const clash = await prisma.supplierTag.findFirst({
+        where: { name: { equals: name.trim(), mode: "insensitive" }, deletedAt: null, id: { not: tag.id } },
+      });
+      if (clash) {
+        res.status(409).json({ status: "error", message: `Tag "${clash.name}" đã tồn tại.` });
+        return;
+      }
+    }
+    const updated = await prisma.supplierTag.update({
+      where: { id: tag.id },
+      data: {
+        ...(typeof name === "string" && name.trim() ? { name: name.trim() } : {}),
+        ...(typeof color === "string" ? { color } : {}),
+        ...(typeof description === "string" ? { description } : {}),
+      },
+    });
+    await writeAudit(prisma, {
+      actorId: req.user!.id,
+      action: "tag_updated",
+      entityType: "supplier_tag",
+      entityId: tag.id,
+      oldValue: { name: tag.name, color: tag.color, description: tag.description },
+      newValue: { name: updated.name, color: updated.color, description: updated.description },
+      ipAddress: req.ip ?? null,
+    });
+    res.json({ status: "ok", tag: updated });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+/** DELETE /api/supplier-tags/:id — soft-delete (deactivate), never hard-delete in use. */
+router.delete("/supplier-tags/:id", authorize("supplier.tag_manage"), async (req, res) => {
+  try {
+    const prisma = getPrisma();
+    const tag = await prisma.supplierTag.findUnique({ where: { id: req.params.id } });
+    if (!tag || tag.deletedAt) {
+      res.status(404).json({ status: "error", message: "Tag không tồn tại." });
+      return;
+    }
+    await prisma.supplierTag.update({ where: { id: tag.id }, data: { deletedAt: new Date() } });
+    await writeAudit(prisma, {
+      actorId: req.user!.id,
+      action: "tag_deactivated",
+      entityType: "supplier_tag",
+      entityId: tag.id,
+      oldValue: { name: tag.name },
+      ipAddress: req.ip ?? null,
+    });
+    res.json({ status: "ok", message: "Đã ngừng hoạt động tag." });
+  } catch (err) {
+    dbUnavailable(res, err);
+  }
+});
+
+async function validateTags(prisma: ReturnType<typeof getPrisma>, tagIds: unknown): Promise<{ ids: string[]; error?: string }> {
+  if (tagIds === undefined) return { ids: [] };
+  if (!Array.isArray(tagIds) || tagIds.some((t) => typeof t !== "string")) {
+    return { ids: [], error: "tagIds phải là danh sách id của tag." };
+  }
+  const unique = [...new Set(tagIds)];
+  if (unique.length === 0) return { ids: [] };
+  const found = await prisma.supplierTag.findMany({ where: { id: { in: unique }, deletedAt: null } });
+  if (found.length !== unique.length) {
+    return { ids: [], error: "Có tag không tồn tại hoặc đã ngừng hoạt động." };
+  }
+  return { ids: unique };
+}
+
+/* ------------------------------------------------------------------ */
 /* Suppliers — list / detail                                           */
 /* ------------------------------------------------------------------ */
 
@@ -250,6 +432,7 @@ router.get("/suppliers", async (req, res) => {
     const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
     const status = typeof req.query.status === "string" ? req.query.status : "";
     const sort = typeof req.query.sort === "string" ? req.query.sort : "";
+    const tagId = typeof req.query.tagId === "string" ? req.query.tagId.trim() : "";
 
     // Rating sorts put unrated suppliers LAST in both directions (Prisma
     // nulls:"last"); equal ratings fall back to newest first. Unknown
@@ -279,6 +462,7 @@ router.get("/suppliers", async (req, res) => {
       });
     }
     if (status === "active" || status === "inactive") and.push({ status });
+    if (tagId) and.push({ tagLinks: { some: { tagId, tag: { deletedAt: null } } } });
 
     const where = { AND: and };
     const [total, suppliers] = await Promise.all([
@@ -290,6 +474,7 @@ router.get("/suppliers", async (req, res) => {
         take: pageSize,
         include: {
           phones: { where: { status: "active", deletedAt: null }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
+          tagLinks: { include: { tag: true } },
           createdBy: { select: { fullName: true } },
         },
       }),
@@ -340,7 +525,7 @@ router.get("/suppliers/:id", async (req, res) => {
 /** POST /api/suppliers — create supplier + phones + social links + rating in one transaction. */
 router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
   try {
-    const { name, taxCode, email, address, note, status, phones, socialLinks, rating, ratingNote } = req.body ?? {};
+    const { name, taxCode, email, address, note, status, phones, socialLinks, rating, ratingNote, tagIds } = req.body ?? {};
     const supplierName = typeof name === "string" ? name.trim() : "";
     if (!supplierName) {
       res.status(400).json({ status: "error", message: "Tên nhà cung cấp không được để trống." });
@@ -373,6 +558,11 @@ router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
       return;
     }
     const prisma = getPrisma();
+    const tags = await validateTags(prisma, tagIds);
+    if (tags.error) {
+      res.status(400).json({ status: "error", message: tags.error });
+      return;
+    }
     const taxConflict = await findTaxCodeConflict(prisma, normalizedTaxCode, null);
     if (taxConflict) {
       res.status(409).json({
@@ -418,10 +608,14 @@ router.post("/suppliers", authorize("supplier.create"), async (req, res) => {
               label: l.label || null,
             })),
           },
+          tagLinks: {
+            create: tags.ids.map((tagId) => ({ tagId })),
+          },
         },
         include: {
           phones: { where: { status: "active", deletedAt: null } },
           socialLinks: { orderBy: { createdAt: "asc" } },
+          tagLinks: { include: { tag: true } },
           createdBy: { select: { fullName: true } },
         },
       });
@@ -462,7 +656,7 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
       res.status(403).json({ status: "error", message: "Bạn không có quyền sửa nhà cung cấp này." });
       return;
     }
-    const { name, taxCode, email, address, note, status, phones, socialLinks, rating, ratingNote } = req.body ?? {};
+    const { name, taxCode, email, address, note, status, phones, socialLinks, rating, ratingNote, tagIds } = req.body ?? {};
 
     const supplierName = name === undefined ? supplier.name : typeof name === "string" ? name.trim() : "";
     if (name !== undefined && !supplierName) {
@@ -496,6 +690,11 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
     const cleanRatingNote = ratingNote === undefined ? undefined : typeof ratingNote === "string" && ratingNote.trim() ? ratingNote.trim() : null;
     if (cleanRatingNote !== undefined && cleanRatingNote !== null && cleanRatingNote.length > 500) {
       res.status(400).json({ status: "error", message: "Ghi chú đánh giá quá dài (tối đa 500 ký tự)." });
+      return;
+    }
+    const tags = tagIds === undefined ? { ids: [] as string[] } : await validateTags(prisma, tagIds);
+    if (tags.error) {
+      res.status(400).json({ status: "error", message: tags.error });
       return;
     }
     const taxConflict = await findTaxCodeConflict(prisma, normalizedTaxCode, supplier.id);
@@ -592,6 +791,20 @@ router.patch("/suppliers/:id", authorize("supplier.update"), async (req, res) =>
           await tx.supplierSocialLink.create({
             data: { supplierId: supplier.id, platform: l.platform, url: l.url, label: l.label || null },
           });
+        }
+      }
+      if (tagIds !== undefined) {
+        const existingLinks = await tx.supplierTagAssignment.findMany({ where: { supplierId: supplier.id } });
+        const existingTagIds = new Set(existingLinks.map((l: any) => l.tagId));
+        for (const link of existingLinks) {
+          if (!tags.ids.includes(link.tagId)) {
+            await tx.supplierTagAssignment.delete({ where: { id: link.id } });
+          }
+        }
+        for (const tagId of tags.ids) {
+          if (!existingTagIds.has(tagId)) {
+            await tx.supplierTagAssignment.create({ data: { supplierId: supplier.id, tagId } });
+          }
         }
       }
     });

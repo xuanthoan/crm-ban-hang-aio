@@ -21,6 +21,14 @@ interface SocialLinkRow {
 
 const SOCIAL_PLATFORMS = ["facebook", "zalo", "whatsapp", "telegram", "viber", "website"];
 
+interface Tag {
+  id: string;
+  name: string;
+  color: string | null;
+  description: string | null;
+  supplierCount?: number;
+}
+
 interface SupplierListItem {
   id: string;
   name: string;
@@ -32,6 +40,7 @@ interface SupplierListItem {
   rating: number | null;
   primaryPhone: string | null;
   phoneCount: number;
+  tags: Tag[];
   createdAt: string;
 }
 
@@ -88,6 +97,7 @@ function emptyForm(): {
   status: string;
   rating: string;
   ratingNote: string;
+  tagIds: string[];
   phones: PhoneRow[];
   socialLinks: SocialLinkRow[];
 } {
@@ -100,6 +110,7 @@ function emptyForm(): {
     status: "active",
     rating: "",
     ratingNote: "",
+    tagIds: [],
     phones: [{ phone: "", label: "", isPrimary: true }],
     socialLinks: [{ platform: "facebook", url: "", label: "" }],
   };
@@ -116,10 +127,13 @@ export default function SuppliersPage({
 }) {
   const [view, setView] = useState<"list" | "detail" | "form">("list");
   const [suppliers, setSuppliers] = useState<SupplierListItem[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
   const [detail, setDetail] = useState<SupplierDetail | null>(null);
   const [formId, setFormId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [newTagName, setNewTagName] = useState("");
   const [q, setQ] = useState("");
+  const [tagId, setTagId] = useState("");
   const [status, setStatus] = useState("");
   const [sort, setSort] = useState("");
   const [page, setPage] = useState(1);
@@ -161,9 +175,19 @@ export default function SuppliersPage({
   const canCreate = permissions.includes("supplier.create");
   const canUpdate = permissions.includes("supplier.update");
   const canDeactivate = permissions.includes("supplier.deactivate");
+  const canTagManage = permissions.includes("supplier.tag_manage");
   // Hard delete is Admin-only on the backend (permission + role check);
   // the button follows the same rule so non-admins never see it.
   const canHardDelete = isAdmin && permissions.includes("supplier.hard_delete");
+
+  const loadTags = useCallback(async () => {
+    try {
+      const data = await api("/api/supplier-tags?pageSize=100", token);
+      setTags(data.data as Tag[]);
+    } catch {
+      // Tag list is optional for the supplier list; the error surfaces on save.
+    }
+  }, [token]);
 
   const loadSuppliers = useCallback(
     async (p = 1) => {
@@ -172,6 +196,7 @@ export default function SuppliersPage({
       try {
         const params = new URLSearchParams({ page: String(p), pageSize: "20" });
         if (q.trim()) params.set("q", q.trim());
+        if (tagId) params.set("tagId", tagId);
         if (status) params.set("status", status);
         if (sort) params.set("sort", sort);
         const data = await api(`/api/suppliers?${params.toString()}`, token);
@@ -185,12 +210,13 @@ export default function SuppliersPage({
         setLoading(false);
       }
     },
-    [token, q, status, sort],
+    [token, q, tagId, status, sort],
   );
 
   useEffect(() => {
+    loadTags();
     loadSuppliers(1);
-  }, [loadSuppliers]);
+  }, [loadTags, loadSuppliers]);
 
   async function openDetail(id: string) {
     setError("");
@@ -220,6 +246,7 @@ export default function SuppliersPage({
       status: s.status,
       rating: s.rating !== null && s.rating !== undefined ? String(s.rating) : "",
       ratingNote: s.ratingNote ?? "",
+      tagIds: (s.tags ?? []).map((t) => t.id),
       phones: s.phones.map((p) => ({ id: p.id, phone: p.phone, label: p.label ?? "", isPrimary: p.isPrimary })),
       socialLinks: (s.socialLinks ?? []).map((l) => ({ id: l.id, platform: l.platform, url: l.url, label: l.label ?? "" })),
     });
@@ -245,6 +272,21 @@ export default function SuppliersPage({
     e.preventDefault();
     setError("");
     setInfo("");
+    // Tag đã gõ tên nhưng chưa bấm "+ Tạo tag" thì tạo luôn ở đây,
+    // tránh mất lặng: trước đây trường hợp này lưu xong hồ sơ không có tag.
+    let tagIds = [...form.tagIds];
+    if (newTagName.trim()) {
+      try {
+        const data = await api("/api/supplier-tags", token, "POST", { name: newTagName.trim() });
+        const tag = data.tag as Tag;
+        await loadTags();
+        if (!tagIds.includes(tag.id)) tagIds.push(tag.id);
+        setNewTagName("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Tạo tag thất bại.");
+        return;
+      }
+    }
     const body = {
       name: form.name.trim(),
       taxCode: form.taxCode.trim() || null,
@@ -254,6 +296,7 @@ export default function SuppliersPage({
       status: form.status,
       rating: form.rating === "" ? null : parseInt(form.rating, 10),
       ratingNote: form.ratingNote.trim() || null,
+      tagIds,
       phones: form.phones
         .filter((p) => p.phone.trim())
         .map((p) => ({ phone: p.phone.trim(), label: p.label.trim() || null, isPrimary: p.isPrimary })),
@@ -333,6 +376,21 @@ export default function SuppliersPage({
     }
   }
 
+  async function handleCreateTag() {
+    if (!newTagName.trim()) return;
+    setError("");
+    try {
+      const data = await api("/api/supplier-tags", token, "POST", { name: newTagName.trim() });
+      const tag = data.tag as Tag;
+      await loadTags();
+      setForm((f) => ({ ...f, tagIds: [...f.tagIds, tag.id] }));
+      setNewTagName("");
+      setInfo(`Đã tạo tag "${tag.name}".`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Tạo tag thất bại.");
+    }
+  }
+
   async function handleMakePrimary(phone: PhoneRow) {
     if (!detail) return;
     setError("");
@@ -361,6 +419,15 @@ export default function SuppliersPage({
             <label className="block">
               Tìm theo tên hoặc số
               <input className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên, 0987…, +84…" />
+            </label>
+            <label className="block">
+              Tag
+              <select className="input" value={tagId} onChange={(e) => setTagId(e.target.value)}>
+                <option value="">Tất cả tag</option>
+                {tags.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
             </label>
             <label className="block">
               Trạng thái
@@ -402,6 +469,9 @@ export default function SuppliersPage({
                       ) : "Chưa có mã số thuế"}
                       {s.email ? ` · ${s.email}` : ""}
                     </div>
+                    <div className="text-sm text-gray-500">
+                      Tag: {s.tags.map((t) => t.name).join(", ") || "Chưa có tag"}
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => openDetail(s.id)} className="btn btn-sm btn-secondary">Xem</button>
@@ -433,6 +503,7 @@ export default function SuppliersPage({
             </p>
             {detail.address && <p className="mt-2 whitespace-pre-line text-sm">Địa chỉ: {detail.address}</p>}
             {detail.note && <p className="mt-2 whitespace-pre-line text-sm">Ghi chú: {detail.note}</p>}
+            <p className="mt-2 text-sm text-gray-500">Tag: {detail.tags.map((t) => t.name).join(", ") || "Chưa có tag"}</p>
             <div className="mt-3 flex gap-2">
               {canUpdate && <button onClick={() => openEdit(detail)} className="btn btn-primary">Sửa</button>}
               {canDeactivate && detail.status === "active" && (
@@ -603,6 +674,31 @@ export default function SuppliersPage({
                 </label>
                 <input className="field" value={form.ratingNote} onChange={(e) => setForm({ ...form, ratingNote: e.target.value })} placeholder="Ghi chú đánh giá: giao đúng hẹn, giá tốt…" />
               </div>
+            </div>
+
+            <div>
+              <h4 className="font-semibold">Tag</h4>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {tags.map((t) => (
+                  <label key={t.id} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={form.tagIds.includes(t.id)}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, tagIds: e.target.checked ? [...f.tagIds, t.id] : f.tagIds.filter((id) => id !== t.id) }))
+                      }
+                    />
+                    {t.name}
+                  </label>
+                ))}
+                {tags.length === 0 && <span className="text-gray-500">Chưa có tag nào.</span>}
+              </div>
+              {canTagManage && (
+                <div className="mt-2 flex gap-2">
+                  <input className="field" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} placeholder="Tên tag mới" />
+                  <button type="button" onClick={handleCreateTag} className="btn btn-sm btn-secondary">+ Tạo tag</button>
+                </div>
+              )}
             </div>
           </div>
 

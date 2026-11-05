@@ -457,6 +457,7 @@ model Supplier {
   createdBy User?          @relation("SupplierCreator", fields: [createdById], references: [id])
   phones    SupplierPhone[]
   socialLinks SupplierSocialLink[]
+  tagLinks  SupplierTagAssignment[]
   purchaseOrders PurchaseOrder[]
 }
 
@@ -515,6 +516,34 @@ model SupplierSocialLink {
   supplier Supplier @relation(fields: [supplierId], references: [id])
 
   @@index([supplierId])
+}
+
+// Tag cho nhà cung cấp — giống tag khách hàng (CustomerTag):
+// bảng tag + bảng gán, tên tag duy nhất, xóa mềm; một NCC gán được
+// nhiều tag, một tag gán được cho nhiều NCC. Tag NCC và tag khách
+// là hai tập riêng (không dùng chung bảng CustomerTag).
+model SupplierTag {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  color       String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  supplierLinks SupplierTagAssignment[]
+}
+
+model SupplierTagAssignment {
+  id         String   @id @default(cuid())
+  supplierId String
+  tagId      String
+  createdAt  DateTime @default(now())
+
+  supplier Supplier    @relation(fields: [supplierId], references: [id])
+  tag      SupplierTag @relation(fields: [tagId], references: [id])
+
+  @@unique([supplierId, tagId])
 }
 
 // ---------- Products / SKU ----------
