@@ -380,7 +380,7 @@ export default function SuppliersPage({
               </select>
             </label>
             {canCreate && (
-              <button onClick={openCreate} className="btn btn-secondary">+ Tạo nhà cung cấp</button>
+              <button onClick={openCreate} className="btn btn-primary">+ Tạo nhà cung cấp</button>
             )}
           </div>
           {loading && <p>Đang tải…</p>}

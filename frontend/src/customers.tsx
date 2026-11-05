@@ -512,7 +512,7 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
               </select>
             </label>
             {canCreate && (
-              <button onClick={openCreate} className="btn btn-secondary">+ Tạo khách hàng</button>
+              <button onClick={openCreate} className="btn btn-primary">+ Tạo khách hàng</button>
             )}
           </div>
           {loading && <p>Đang tải…</p>}
