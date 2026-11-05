@@ -678,99 +678,100 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
         <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-4 card">
           <h3 className="font-semibold">{formId ? "Sửa khách hàng" : "Tạo khách hàng mới"}</h3>
           <p className="text-sm text-gray-500">Họ tên hoặc ít nhất một số điện thoại là bắt buộc (theo docs 01).</p>
-          <label className="block">Họ tên<input className="input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-4">
-          <div>
-            <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
-            {form.phones.map((p, i) => (
-              <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
-                <input className="field" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
-                <input className="field" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: chính, phụ, Zalo…" />
-                <label className="flex items-center gap-1">
-                  <input type="radio" name="primary-phone" checked={p.isPrimary} onChange={() => setPrimary(i)} /> Số chính
-                </label>
-                <button type="button" onClick={() => removePhone(i)} className="btn btn-secondary">Xóa số</button>
-              </div>
-            ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm số điện thoại</button>
-          </div>
+            <label className="block">Họ tên<input className="input" value={form.fullName} onChange={(e) => setForm({ ...form, fullName: e.target.value })} /></label>
 
-          <div>
-            <h4 className="font-semibold">Mạng xã hội (không giới hạn số lượng link mỗi mạng)</h4>
-            {form.socialLinks.map((l, i) => (
-              <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
-                <select className="field" value={l.platform} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)) }))}>
-                  {SOCIAL_PLATFORMS.map((p) => (
-                    <option key={p} value={p}>{labelFor(SOCIAL_PLATFORM_LABELS, p)}</option>
-                  ))}
-                </select>
-                <input className="field" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: facebook.com/… hoặc https://…" />
-                <input className="field" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
-                <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-secondary">Xóa link</button>
-              </div>
-            ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "facebook", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
-          </div>
+              <label className="block">Giới tính<select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+                {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+              </select></label>
 
-            </div>
-            <div className="space-y-4">
-
-            <label className="block">Giới tính<select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
-              {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-            </select></label>
-            <label className="block">Ngày sinh<input type="date" className="input" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
-            <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
-            <label className="block">Nguồn<input className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
-          <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
-          <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
-          <label className="block">Trạng thái<select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
-            <option value="active">Đang hoạt động</option>
-            <option value="inactive">Ngừng hoạt động</option>
-          </select></label>
-
-          <div>
-            <h4 className="font-semibold">Tag</h4>
-            <div className="mt-2 flex flex-wrap gap-3">
-              {tags.map((t) => (
-                <label key={t.id} className="flex items-center gap-1">
-                  <input
-                    type="checkbox"
-                    checked={form.tagIds.includes(t.id)}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, tagIds: e.target.checked ? [...f.tagIds, t.id] : f.tagIds.filter((id) => id !== t.id) }))
-                    }
-                  />
-                  {t.name}
-                </label>
+            <div>
+              <h4 className="font-semibold">Số điện thoại (không giới hạn số lượng)</h4>
+              {form.phones.map((p, i) => (
+                <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
+                  <input className="field" value={p.phone} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) }))} placeholder="0987…" />
+                  <input className="field" value={p.label} onChange={(e) => setForm((f) => ({ ...f, phones: f.phones.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: chính, phụ, Zalo…" />
+                  <label className="flex items-center gap-1">
+                    <input type="radio" name="primary-phone" checked={p.isPrimary} onChange={() => setPrimary(i)} /> Số chính
+                  </label>
+                  <button type="button" onClick={() => removePhone(i)} className="btn btn-secondary">Xóa số</button>
+                </div>
               ))}
-              {tags.length === 0 && <span className="text-gray-500">Chưa có tag nào.</span>}
+              <button type="button" onClick={() => setForm((f) => ({ ...f, phones: [...f.phones, { phone: "", label: "", isPrimary: f.phones.length === 0 }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm số điện thoại</button>
             </div>
-            {canTagManage && (
-              <div className="mt-2 flex gap-2">
-                <input className="field" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} placeholder="Tên tag mới" />
-                <button type="button" onClick={handleCreateTag} className="btn btn-sm btn-secondary">+ Tạo tag</button>
-              </div>
-            )}
-          </div>
 
-          <div>
-            <h4 className="font-semibold">Con cái (không giới hạn số lượng)</h4>
-            {form.children.map((ch, i) => (
-              <div key={i} className="mt-2 grid grid-cols-2 gap-2 card-sm">
-                <label className="block col-span-2">Họ tên con<input className="input" value={ch.fullName} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, fullName: e.target.value } : x)) }))} /></label>
-                <label className="block">Ngày sinh<input type="date" className="input" value={ch.dateOfBirth} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: e.target.value } : x)) }))} /></label>
-                <label className="block">Giới tính<select className="input" value={ch.gender} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)) }))}>
-                  {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-                </select></label>
-                <label className="block col-span-2">Ghi chú<input className="input" value={ch.note} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)) }))} /></label>
-                <button type="button" onClick={() => setForm((f) => ({ ...f, children: f.children.filter((_, j) => j !== i) }))} className="btn btn-secondary">Xóa thông tin con</button>
-              </div>
-            ))}
-            <button type="button" onClick={() => setForm((f) => ({ ...f, children: [...f.children, { fullName: "", dateOfBirth: "", gender: "", note: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm con</button>
-          </div>
+            <div>
+              <h4 className="font-semibold">Mạng xã hội (không giới hạn số lượng link mỗi mạng)</h4>
+              {form.socialLinks.map((l, i) => (
+                <div key={i} className="mt-2 flex flex-wrap items-center gap-2">
+                  <select className="field" value={l.platform} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)) }))}>
+                    {SOCIAL_PLATFORMS.map((p) => (
+                      <option key={p} value={p}>{labelFor(SOCIAL_PLATFORM_LABELS, p)}</option>
+                    ))}
+                  </select>
+                  <input className="field" value={l.url} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) }))} placeholder="Link: facebook.com/… hoặc https://…" />
+                  <input className="field" value={l.label} onChange={(e) => setForm((f) => ({ ...f, socialLinks: f.socialLinks.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) }))} placeholder="Nhãn: page bán hàng, nick cá nhân…" />
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: f.socialLinks.filter((_, j) => j !== i) }))} className="btn btn-secondary">Xóa link</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setForm((f) => ({ ...f, socialLinks: [...f.socialLinks, { platform: "facebook", url: "", label: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm link mạng xã hội</button>
+            </div>
 
-                      </div>
+            <label className="block">Ngày sinh<input type="date" className="input" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} /></label>
+
+            <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
+
+            <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
+
+            <label className="block">Nguồn<input className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
+
+            <div>
+              <h4 className="font-semibold">Con cái (không giới hạn số lượng)</h4>
+              {form.children.map((ch, i) => (
+                <div key={i} className="mt-2 grid grid-cols-2 gap-2 card-sm">
+                  <label className="block col-span-2">Họ tên con<input className="input" value={ch.fullName} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, fullName: e.target.value } : x)) }))} /></label>
+                  <label className="block">Ngày sinh<input type="date" className="input" value={ch.dateOfBirth} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, dateOfBirth: e.target.value } : x)) }))} /></label>
+                  <label className="block">Giới tính<select className="input" value={ch.gender} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, gender: e.target.value } : x)) }))}>
+                    {GENDER_OPTIONS.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
+                  </select></label>
+                  <label className="block col-span-2">Ghi chú<input className="input" value={ch.note} onChange={(e) => setForm((f) => ({ ...f, children: f.children.map((x, j) => (j === i ? { ...x, note: e.target.value } : x)) }))} /></label>
+                  <button type="button" onClick={() => setForm((f) => ({ ...f, children: f.children.filter((_, j) => j !== i) }))} className="btn btn-secondary">Xóa thông tin con</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => setForm((f) => ({ ...f, children: [...f.children, { fullName: "", dateOfBirth: "", gender: "", note: "" }] }))} className="mt-2 btn btn-sm btn-secondary">+ Thêm con</button>
+            </div>
+
+            <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
+
+            <div>
+              <h4 className="font-semibold">Tag</h4>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {tags.map((t) => (
+                  <label key={t.id} className="flex items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={form.tagIds.includes(t.id)}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, tagIds: e.target.checked ? [...f.tagIds, t.id] : f.tagIds.filter((id) => id !== t.id) }))
+                      }
+                    />
+                    {t.name}
+                  </label>
+                ))}
+                {tags.length === 0 && <span className="text-gray-500">Chưa có tag nào.</span>}
+              </div>
+              {canTagManage && (
+                <div className="mt-2 flex gap-2">
+                  <input className="field" value={newTagName} onChange={(e) => setNewTagName(e.target.value)} placeholder="Tên tag mới" />
+                  <button type="button" onClick={handleCreateTag} className="btn btn-sm btn-secondary">+ Tạo tag</button>
+                </div>
+              )}
+            </div>
+
+            <label className="block">Trạng thái<select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <option value="active">Đang hoạt động</option>
+              <option value="inactive">Ngừng hoạt động</option>
+            </select></label>
           </div>
 
           <div className="flex gap-2">
