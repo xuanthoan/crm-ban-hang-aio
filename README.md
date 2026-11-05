@@ -8,7 +8,10 @@ Phần mềm CRM bán hàng cho cửa hàng nhỏ và vừa bán hàng vật lý
 > Inventory, Order, Payment/Debt, Care/Reminders, Dashboard/Reports, Import/Export
 > (CSV), Audit — cộng module Nhà cung cấp trọn vẹn (danh mục, đơn nhập, thanh toán
 > và công nợ NCC, báo cáo công nợ NCC) và các thay đổi sau MVP (ảnh sản phẩm, trang
-> quản trị phân quyền từng người, link mạng xã hội, chấm điểm NCC, biểu đồ doanh thu).
+> quản trị phân quyền từng người, link mạng xã hội, chấm điểm NCC, biểu đồ doanh thu,
+> cùng các tinh chỉnh sau đó: chuẩn hóa số điện thoại, bấm tên mở chi tiết, bấm số
+> điện thoại/mã số thuế để sao chép, nút tạo màu xanh, bấm mục sidebar của trang đang
+> mở để về đầu trang).
 > Xem tài liệu bàn giao đầy đủ ở `docs/14_TONG_HOP_BAN_GIAO_DU_AN.md`.**
 > Quy tắc chốt cứng trong `docs/12_QUY_TAC_CHOT_CUNG.md` thắng mọi tài liệu cũ
 > khi có mâu thuẫn.
@@ -151,17 +154,19 @@ Audit log ghi lại: đăng nhập sai, đổi mật khẩu, khóa/mở khóa us
 ## Khách hàng — API Sprint Customer
 
 Quy tắc chốt cứng: một khách có bao nhiêu số cũng được (bảng `CustomerPhone`, không dùng `phone_1`/`phone_2`),
-đúng 1 số chính, chuẩn hóa số trước khi lưu/so sánh (bỏ khoảng trắng, dấu chấm, dấu gạch ngang, `+84` → `0`),
+đúng 1 số chính, chuẩn hóa số trước khi lưu/so sánh (bỏ khoảng trắng, dấu chấm, dấu gạch ngang,
+dấu ngoặc; mã quốc gia `84` → `0` có hay không có dấu `+`, bỏ số 0 thừa gõ sau mã quốc gia —
+ví dụ `+840868679779` hay `84868679779` đều về `0868679779`, xem `docs/12` §4.1),
 kiểm tra trùng trên **tất cả** các số — trùng với khách khác hoặc trùng trong cùng một khách đều chặn toàn bộ
 thao tác (rollback) và báo rõ số nào trùng với khách nào.
 
 | Endpoint | Quyền | Ghi chú |
 |---|---|---|
 | `GET /api/customers?page=&pageSize=&q=&tagId=&status=&source=&createdFrom=&createdTo=` | `customer.view_all` hoặc `customer.view_own` | Phân trang, mặc định 20/trang, tối đa 100. `q` tìm theo tên hoặc **bất kỳ số nào** (chuẩn hóa từ khóa giống số đã lưu) |
-| `GET /api/customers/:id` | `customer.view_all` hoặc `customer.view_own` (trong phạm vi) | Hồ sơ 360: thông tin, tất cả số, tag, con (kèm tuổi tính từ ngày sinh), người tạo/phụ trách. Đơn hàng/thanh toán để trống với ghi chú "sẽ có ở Sprint Đơn hàng/Thanh toán", không fake số liệu |
+| `GET /api/customers/:id` | `customer.view_all` hoặc `customer.view_own` (trong phạm vi) | Hồ sơ 360: thông tin, tất cả số, tag, con (kèm tuổi tính từ ngày sinh), người tạo/phụ trách, kèm lịch sử mua hàng đầy đủ (mọi đơn không bị xóa, mới nhất trước, có dòng hàng và thanh toán của từng đơn) |
 | `POST /api/customers` | `customer.create` | Tạo khách + số + tag + con trong một transaction. Họ tên hoặc ít nhất một số là bắt buộc |
 | `PATCH /api/customers/:id` | `customer.update` | Chỉ đổi những gì được gửi lên (`phones`/`tagIds`/`children` vắng mặt thì giữ nguyên) |
-| `DELETE /api/customers/:id` | `customer.deactivate` | Mặc định là xóa mềm: trạng thái `inactive` + `deletedAt` |
+| `DELETE /api/customers/:id` | `customer.deactivate` | Mặc định là ngừng hoạt động: chỉ đổi trạng thái `inactive`, KHÔNG đặt `deletedAt` (khách ngừng hoạt động vẫn hiện trong danh sách và mở Sửa để hoạt động lại được) |
 | `DELETE /api/customers/:id?hard=true` | `customer.hard_delete` (chỉ Admin) | Chỉ thành công khi khách **chưa có bất kỳ dữ liệu liên quan nào** (số, tag, con, đơn, thanh toán, chăm sóc, nhắc việc); có liên quan thì trả lỗi và giữ nguyên |
 | `POST /api/customers/:id/phones`, `POST /api/customers/:id/phones/:phoneId/make-primary`, `DELETE /api/customers/:id/phones/:phoneId` | `customer.update` | Thêm một số, đổi số chính, xóa mềm một số. Xóa số chính thì số còn lại cũ nhất tự thành số chính; xóa số chính duy nhất cần xác nhận `confirm_delete_last_phone: true` |
 | `POST /api/customers/:id/tags`, `DELETE /api/customers/:id/tags/:tagId` | `customer.update` | Gán / bỏ gán tag cho khách |
