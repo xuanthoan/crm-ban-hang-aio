@@ -149,7 +149,7 @@ Biến môi trường chính (file `.env` ở repo root cho Compose, `backend/.e
 **Số điện thoại khách hàng — không giới hạn số lượng:**
 
 - Một khách hàng có **không giới hạn** số điện thoại, lưu ở bảng riêng `customer_phones` (không phải 2 cột cố định). Mỗi dòng gồm: `customer_id`, `phone`, `phone_normalized`, `is_primary`, `label` (chính, phụ, Zalo, người thân…), `status`, `created_at`. Mỗi khách có đúng 1 số chính (`is_primary = true`) dùng để hiển thị mặc định, tìm kiếm và điền nhanh khi tạo đơn.
-- Chuẩn hóa trước khi so sánh: bỏ khoảng trắng, dấu chấm, dấu gạch ngang; chuyển đầu `+84` về `0`; lưu vào `phone_normalized`. Lưu ý: chuỗi `84...` không có dấu `+` thì **bị từ chối** (dấu `+` là một phần của đầu số).
+- Chuẩn hóa trước khi so sánh: bỏ khoảng trắng, dấu chấm, dấu gạch ngang (và dấu ngoặc đơn); chuyển mã quốc gia `84` về `0` — có hoặc không có dấu `+`; số 0 thừa gõ sau mã quốc gia (`+84 0xxx`, `84 0xxx`) cũng bỏ; lưu vào `phone_normalized`. Ví dụ 5 cách viết `0868.679.779`, `0868 679 779`, `0 8 6 8 6 7 9 7 7 9`, `84868679779`, `+840868679779` đều về `0868679779` (sửa 2026-11-05 — trước đây chuỗi `84...` không dấu `+` bị từ chối và `+84 0xxx` bị chuẩn hóa sai thành `00868679779`).
 - Kiểm tra trùng trên **tất cả** các số: bất kỳ số nào trong danh sách mới cũng phải so với tất cả số đang hoạt động của tất cả khách khác **và** với chính các số còn lại trong cùng danh sách đó. Áp dụng khi tạo mới, khi sửa, khi thêm/bớt số và khi import. Khi sửa, loại trừ chính khách đang sửa khỏi kết quả trùng với khách khác, nhưng vẫn chặn trùng trong chính danh sách của khách đó.
 - Số trùng chính xác với khách khác thì chặn, thông báo phải chỉ rõ số nào trùng và khách nào đã có số đó để người dùng mở hồ sơ cũ thay vì tạo mới.
 - Xóa số: số phụ xóa mềm/ngừng sử dụng được; số chính chỉ được xóa khi khách còn ít nhất 1 số khác (số đó thành số chính) hoặc khi khách không còn số nào thì phải xác nhận rõ. Số đã từng dùng trong đơn/lịch sử chăm sóc thì không được xóa mất dấu vết.
@@ -628,7 +628,7 @@ Trước khi bàn giao một bản build, chạy hết checklist này trên data
 **Theo module:**
 
 - [ ] Auth: đăng nhập sai bị chặn; user bị khóa không đăng nhập được; OTP email hết hạn 5 phút, sai 5 lần thì khóa, gửi lại cách 60 giây; đổi `otp_mode` chỉ admin làm được.
-- [ ] Khách: tạo khách trùng bất kỳ số nào (kể cả số phụ) bị chặn và báo rõ khách cũ; 1 khách có nhiều số, đúng 1 số chính; tìm khách bằng số phụ, bằng số dạng `+84` và dạng có khoảng trắng đều ra.
+- [ ] Khách: tạo khách trùng bất kỳ số nào (kể cả số phụ) bị chặn và báo rõ khách cũ; 1 khách có nhiều số, đúng 1 số chính; tìm khách bằng số phụ, bằng số dạng `+84`, dạng `84` không dấu `+` và dạng có khoảng trắng đều ra.
 - [ ] Sản phẩm: tạo sản phẩm 3 nhóm thuộc tính sinh đúng số tổ hợp (nhân số giá trị các nhóm), tối đa 200 SKU; SKU nhập trùng báo lỗi, SKU tự sinh trùng thêm hậu tố; sản phẩm ngừng bán vẫn lọc được và mở Sửa để bán lại được; SKU đã có đơn thì không đổi được mã.
 - [ ] Kho: nhập tồn ban đầu 10 thì hiển thị đúng 10; mọi thay đổi đều có transaction đủ before/changed/after; nhập hàng loạt có 1 dòng gây âm thì không lưu dòng nào và báo rõ SKU; SKU ngừng bán vẫn hoàn kho được nếu đã bán trước đó.
 - [ ] Đơn bán: đơn nháp giữ kho (tồn khả dụng giảm, tồn vật lý không đổi); xác nhận trừ kho 1 lần; xác nhận lần 2 không trừ thêm; hủy đơn nháp giải phóng giữ; hủy đơn đã xác nhận hoàn đúng phần chưa trả; trả hàng một phần hoàn đúng phần trả, tổng đơn tính lại đúng.

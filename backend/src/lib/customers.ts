@@ -14,12 +14,17 @@ import type { PrismaClient } from "@prisma/client";
 
 /**
  * Normalize a phone number exactly as locked rules 4.1 require:
- * strip spaces, dots, dashes and parentheses, then convert a +84
- * prefix to 0. The result is stored in phoneNormalized.
+ * strip spaces, dots, dashes and parentheses, then convert the
+ * country code 84 to 0 — with or without the "+" (+84 or bare 84).
+ * A redundant trunk 0 typed after the country code (+84 0xxx,
+ * 84 0xxx) is dropped too, so "+840868679779" and "84868679779"
+ * both become "0868679779" instead of "00868679779".
+ * The result is stored in phoneNormalized.
  */
 export function normalizePhone(raw: string): string {
   const stripped = raw.replace(/[\s.\-()]/g, "");
-  if (stripped.startsWith("+84")) return `0${stripped.slice(3)}`;
+  if (stripped.startsWith("+84")) return `0${stripped.slice(3).replace(/^0/, "")}`;
+  if (stripped.startsWith("84")) return `0${stripped.slice(2).replace(/^0/, "")}`;
   return stripped;
 }
 

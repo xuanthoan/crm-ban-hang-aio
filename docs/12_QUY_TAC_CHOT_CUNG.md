@@ -2,6 +2,7 @@
 
 Ngày chốt: 2026-10-28
 Bổ sung ngày 2026-10-28: mục 4.1 được thay bằng quy tắc nhiều số điện thoại, không giới hạn cứng 2 số.
+Sửa ngày 2026-11-05: mục 4.1 — đầu `84` không dấu `+` cũng chuyển về `0` (trước đây chỉ `+84` được chuyển, số dạng `84868679779` bị từ chối); đồng thời bỏ số 0 thừa gõ sau mã quốc gia (`+84 0xxx`, `84 0xxx` về `0xxx` — trước đây `+840868679779` bị chuẩn hóa sai thành `00868679779`). Lý do: người dùng nhập/dán số từ Zalo/Facebook/Excel hay bị mất dấu `+` hoặc giữ lại số 0 sau mã quốc gia; mọi cách viết đó là cùng một số và phải về cùng một `phone_normalized` để kiểm tra trùng và tìm kiếm được.
 Trạng thái: **ĐÃ CHỐT CỨNG**
 Phạm vi áp dụng: toàn bộ MVP và mọi sprint sau này, cho cả AI Agent và người code tay.
 
@@ -90,7 +91,7 @@ Kiểm chứng bắt buộc: đơn 1.000.000, cọc 300.000 → còn nợ 700.00
 - **Không chốt cứng mỗi khách hàng chỉ có tối đa 2 số điện thoại.** Một khách hàng có thể có nhiều số điện thoại, không giới hạn số lượng ở database và ở giao diện (giao diện dùng nút “+ Thêm số điện thoại”, mỗi lần thêm một số).
 - Mô hình dữ liệu phải dùng bảng riêng cho số điện thoại, ví dụ `customer_phones`, thay vì chỉ có 2 cột cố định trên bảng khách hàng. Mỗi dòng gồm ít nhất: `customer_id`, `phone`, `phone_normalized`, `is_primary`, `label` (ví dụ: chính, phụ, Zalo, người thân), `status`, `created_at`. Một khách có đúng 1 số chính (`is_primary = true`) dùng để hiển thị mặc định, tìm kiếm và điền nhanh khi tạo đơn; các số còn lại là số phụ.
 - Dữ liệu cũ `phone_1` / `phone_2` (nếu có) phải được chuyển sang bảng `customer_phones` khi migrate, giữ đúng thứ tự, trong đó `phone_1` thành số chính, `phone_2` thành số phụ. Sau khi chuyển, không được dùng 2 cột cũ làm giới hạn cho tính năng mới.
-- Trước khi so sánh, chuẩn hóa mọi số điện thoại giống nhau: bỏ khoảng trắng, dấu chấm, dấu gạch ngang; chuyển đầu `+84` về `0`; lưu vào `phone_normalized` để kiểm tra.
+- Trước khi so sánh, chuẩn hóa mọi số điện thoại giống nhau: bỏ khoảng trắng, dấu chấm, dấu gạch ngang (và dấu ngoặc đơn); chuyển mã quốc gia `84` về `0` — có hoặc không có dấu `+` (`+84` hay `84` trần đều đổi); số 0 thừa gõ sau mã quốc gia (`+84 0xxx`, `84 0xxx`) cũng bỏ, chỉ giữ một số 0 đầu; lưu vào `phone_normalized` để kiểm tra. Ví dụ: `0868.679.779`, `0868 679 779`, `0 8 6 8 6 7 9 7 7 9`, `84868679779`, `+840868679779` đều về `0868679779`.
 - **Kiểm tra trùng trên tất cả các số, không chỉ 2 số đầu:** bất kỳ số nào trong danh sách mới cũng phải được so với tất cả các số đang hoạt động của tất cả khách hàng khác, và so với chính các số còn lại trong cùng danh sách đó. Không còn khái niệm chỉ kiểm tra 4 chiều `phone_1`/`phone_2` nữa, vì với N số thì số chiều kiểm tra là N × tổng số điện thoại của các khách khác.
 - Áp dụng cả khi tạo mới, khi sửa, khi thêm/bớt số, và khi import khách hàng. Khi sửa, loại trừ chính khách đang sửa khỏi kết quả kiểm tra trùng với khách khác, nhưng vẫn phải chặn trùng ngay trong chính danh sách số của khách đó.
 - Số điện thoại trùng chính xác với khách khác thì chặn tạo/sửa/thêm số đó, không tạo hồ sơ trùng. Thông báo phải chỉ rõ số nào trùng và khách nào đã có số đó để người dùng mở hồ sơ cũ thay vì tạo mới.
