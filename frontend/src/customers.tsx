@@ -53,7 +53,7 @@ interface SocialLinkRow {
   label: string;
 }
 
-const SOCIAL_PLATFORMS = ["facebook", "zalo", "whatsapp", "telegram", "viber"];
+const SOCIAL_PLATFORMS = ["facebook", "zalo", "whatsapp", "telegram", "viber", "website"];
 
 interface CustomerListItem {
   id: string;

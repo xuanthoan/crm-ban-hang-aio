@@ -19,13 +19,14 @@ export function isoToVnDate(iso: string | null | undefined): string {
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-// Nhãn 5 nền tảng mạng xã hội (Facebook / Zalo / WhatsApp / Telegram / Viber).
+// Nhãn 6 nền tảng mạng xã hội (Facebook / Zalo / WhatsApp / Telegram / Viber / Website).
 export const SOCIAL_PLATFORM_LABELS: Record<string, string> = {
   facebook: "Facebook",
   zalo: "Zalo",
   whatsapp: "WhatsApp",
   telegram: "Telegram",
   viber: "Viber",
+  website: "Website",
 };
 
 // Link người dùng nhập thường thiếu scheme ("zalo.me/..." thay vì

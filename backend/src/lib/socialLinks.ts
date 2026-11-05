@@ -1,5 +1,5 @@
-/** Social links (Facebook / Zalo / WhatsApp / Telegram / Viber) shared
- * by the customer and supplier routes. Fixed set of 5 platforms,
+/** Social links (Facebook / Zalo / WhatsApp / Telegram / Viber / Website) shared
+ * by the customer and supplier routes. Fixed set of 6 platforms,
  * unlimited links per platform and no duplicate check: the same url may
  * legitimately appear on several links or owners.
  *
@@ -10,7 +10,7 @@
  * frontend/src/labels.ts); storage keeps exactly what the user typed.
  */
 
-export const SOCIAL_PLATFORMS = ["facebook", "zalo", "whatsapp", "telegram", "viber"] as const;
+export const SOCIAL_PLATFORMS = ["facebook", "zalo", "whatsapp", "telegram", "viber", "website"] as const;
 
 export type SocialPlatform = (typeof SOCIAL_PLATFORMS)[number];
 
@@ -31,7 +31,7 @@ export function normalizeSocialLinks(input: unknown): {
     const item: any = raw ?? {};
     const platform = typeof item.platform === "string" ? item.platform.trim() : "";
     if (!(SOCIAL_PLATFORMS as readonly string[]).includes(platform)) {
-      return { links: [], error: "Nền tảng mạng xã hội không hợp lệ. Chỉ nhận Facebook, Zalo, WhatsApp, Telegram, Viber." };
+      return { links: [], error: "Nền tảng mạng xã hội không hợp lệ. Chỉ nhận Facebook, Zalo, WhatsApp, Telegram, Viber, Website." };
     }
     const url = typeof item.url === "string" ? item.url.trim() : "";
     if (!url) return { links: [], error: "Link mạng xã hội không được để trống." };
