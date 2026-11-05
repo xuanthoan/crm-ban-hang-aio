@@ -66,6 +66,28 @@ export default function App() {
   // sơ khách đó; tab thường (không có tham số) vẫn vào Tổng quan.
   const initialCustomerId = new URLSearchParams(window.location.search).get("customer") ?? undefined;
   const [section, setSection] = useState<"home" | "customers" | "suppliers" | "purchases" | "supplierDebts" | "products" | "inventory" | "orders" | "debts" | "reminders" | "segments" | "dashboard" | "reports" | "importExport" | "audit" | "admin">(() => (initialCustomerId ? "customers" : "home"));
+  const [navReset, setNavReset] = useState(0);
+  // Bấm vào mục sidebar của đúng trang đang mở thì quay về đầu trang đó
+  // (danh sách): setSection cùng giá trị thì React không render lại gì,
+  // nên trang con giữ nguyên trạng thái chi tiết/form đang mở — người dùng
+  // bấm mà không thấy gì đổi. Tăng navReset để gắn lại trang con qua key.
+  const goToSection = (s: typeof section) => {
+    if (s === section) {
+      if (s === "customers") {
+        // Xóa tham số deep link ?customer= để trang Khách hàng gắn lại
+        // không tự mở lại đúng khách đó (xem mục Deep link ở tài liệu 14 §8).
+        const params = new URLSearchParams(window.location.search);
+        if (params.has("customer")) {
+          params.delete("customer");
+          const qs = params.toString();
+          window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+        }
+      }
+      setNavReset((n) => n + 1);
+    } else {
+      setSection(s);
+    }
+  };
   const [otpModeDraft, setOtpModeDraft] = useState("off");
   const [smtpConfigured, setSmtpConfigured] = useState(false);
   const [otpDevLog, setOtpDevLog] = useState(false);
@@ -327,51 +349,51 @@ export default function App() {
               </p>
             </div>
             <nav className="flex gap-1 overflow-x-auto px-2 pb-2 md:flex-col md:gap-0 md:overflow-visible md:px-2 md:pb-2">
-              <button onClick={() => setSection("home")} className={navCls("home")}>Tổng quan</button>
+              <button onClick={() => goToSection("home")} className={navCls("home")}>Tổng quan</button>
               {canViewCustomers && (
-                <button onClick={() => setSection("customers")} className={navCls("customers")}>Khách hàng</button>
+                <button onClick={() => goToSection("customers")} className={navCls("customers")}>Khách hàng</button>
               )}
               {canViewSuppliers && (
-                <button onClick={() => setSection("suppliers")} className={navCls("suppliers")}>Nhà cung cấp</button>
+                <button onClick={() => goToSection("suppliers")} className={navCls("suppliers")}>Nhà cung cấp</button>
               )}
               {canViewPurchases && (
-                <button onClick={() => setSection("purchases")} className={navCls("purchases")}>Đơn nhập hàng</button>
+                <button onClick={() => goToSection("purchases")} className={navCls("purchases")}>Đơn nhập hàng</button>
               )}
               {canViewProducts && (
-                <button onClick={() => setSection("products")} className={navCls("products")}>Sản phẩm / SKU</button>
+                <button onClick={() => goToSection("products")} className={navCls("products")}>Sản phẩm / SKU</button>
               )}
               {canViewInventory && (
-                <button onClick={() => setSection("inventory")} className={navCls("inventory")}>Kho</button>
+                <button onClick={() => goToSection("inventory")} className={navCls("inventory")}>Kho</button>
               )}
               {canViewOrders && (
-                <button onClick={() => setSection("orders")} className={navCls("orders")}>Đơn hàng</button>
+                <button onClick={() => goToSection("orders")} className={navCls("orders")}>Đơn hàng</button>
               )}
               {canViewDebts && (
-                <button onClick={() => setSection("debts")} className={navCls("debts")}>Công nợ</button>
+                <button onClick={() => goToSection("debts")} className={navCls("debts")}>Công nợ</button>
               )}
               {canViewSupplierDebts && (
-                <button onClick={() => setSection("supplierDebts")} className={navCls("supplierDebts")}>Công nợ NCC</button>
+                <button onClick={() => goToSection("supplierDebts")} className={navCls("supplierDebts")}>Công nợ NCC</button>
               )}
               {canViewReminders && (
-                <button onClick={() => setSection("reminders")} className={navCls("reminders")}>Nhắc việc</button>
+                <button onClick={() => goToSection("reminders")} className={navCls("reminders")}>Nhắc việc</button>
               )}
               {canViewSegments && (
-                <button onClick={() => setSection("segments")} className={navCls("segments")}>Remarketing</button>
+                <button onClick={() => goToSection("segments")} className={navCls("segments")}>Remarketing</button>
               )}
               {canViewReports && (
-                <button onClick={() => setSection("dashboard")} className={navCls("dashboard")}>Dashboard</button>
+                <button onClick={() => goToSection("dashboard")} className={navCls("dashboard")}>Dashboard</button>
               )}
               {canViewReports && (
-                <button onClick={() => setSection("reports")} className={navCls("reports")}>Báo cáo</button>
+                <button onClick={() => goToSection("reports")} className={navCls("reports")}>Báo cáo</button>
               )}
               {canViewImportExport && (
-                <button onClick={() => setSection("importExport")} className={navCls("importExport")}>Import / Export</button>
+                <button onClick={() => goToSection("importExport")} className={navCls("importExport")}>Import / Export</button>
               )}
               {canViewAudit && (
-                <button onClick={() => setSection("audit")} className={navCls("audit")}>Nhật ký Audit</button>
+                <button onClick={() => goToSection("audit")} className={navCls("audit")}>Nhật ký Audit</button>
               )}
               {canViewAdmin && (
-                <button onClick={() => setSection("admin")} className={navCls("admin")}>Quản trị</button>
+                <button onClick={() => goToSection("admin")} className={navCls("admin")}>Quản trị</button>
               )}
             </nav>
             <div className="mt-auto hidden p-4 md:block">
@@ -395,6 +417,7 @@ export default function App() {
               </p>
               <button onClick={handleLogout} className="btn btn-sm btn-secondary">Đăng xuất</button>
             </div>
+          <div key={`${section}-${navReset}`}>
           {section === "dashboard" && canViewReports ? (
             <DashboardPage token={token ?? ""} />
           ) : section === "reports" && canViewReports ? (
@@ -462,7 +485,7 @@ export default function App() {
           </form>
 
             </>
-          )}
+          )}</div>
         </main>
       </div>
       )}
