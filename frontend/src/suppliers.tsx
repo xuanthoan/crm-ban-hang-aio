@@ -129,10 +129,12 @@ export default function SuppliersPage({
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [toast, setToast] = useState("");
+  const [toastPos, setToastPos] = useState<{ left: number; top: number } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   // Bấm vào chính số điện thoại / mã số thuế thì sao chép luôn, khỏi cần
-  // nút Copy riêng; hiện thông báo ngắn để người dùng biết đã sao chép.
-  async function copyValue(kind: "phone" | "tax", text: string) {
+  // nút Copy riêng; hiện thông báo ngắn ngay cạnh giá trị vừa bấm (mắt
+  // người dùng đang nhìn vào chỗ đó), kẹp trong màn hình.
+  async function copyValue(kind: "phone" | "tax", text: string, el: HTMLElement) {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -144,6 +146,13 @@ export default function SuppliersPage({
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
+    const r = el.getBoundingClientRect();
+    const toastWidth = 240;
+    const toastHeight = 36;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - toastWidth - 8));
+    const below = r.bottom + 6;
+    const top = below + toastHeight <= window.innerHeight - 8 ? below : Math.max(8, r.top - toastHeight - 6);
+    setToastPos({ left, top });
     setToast(kind === "phone" ? "Đã sao chép số điện thoại" : "Đã sao chép mã số thuế");
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(""), 2000);
@@ -383,13 +392,13 @@ export default function SuppliersPage({
                   <div>
                     <button onClick={() => openDetail(s.id)} className="font-semibold text-blue-700 hover:underline text-left">{s.name || "(chưa có tên)"}</button>
                     {s.primaryPhone && (
-                      <span> — <button type="button" title="Bấm để sao chép số điện thoại" onClick={() => void copyValue("phone", s.primaryPhone ?? "")} className="cursor-pointer text-blue-700 hover:underline">{s.primaryPhone}</button></span>
+                      <span> — <button type="button" title="Bấm để sao chép số điện thoại" onClick={(e) => void copyValue("phone", s.primaryPhone ?? "", e.currentTarget)} className="cursor-pointer text-blue-700 hover:underline">{s.primaryPhone}</button></span>
                     )}
                     <span className="text-gray-500"> · {s.phoneCount} số · </span><span className={s.status === "active" ? "badge badge-green" : "badge badge-gray"}>{s.status === "active" ? "Đang hợp tác" : "Ngừng hợp tác"}</span>
                     {s.rating !== null && s.rating !== undefined ? <span> · Điểm: <strong>{s.rating}/10</strong></span> : <span className="text-gray-500"> · Chưa đánh giá</span>}
                     <div className="text-sm text-gray-500">
                       {s.taxCode ? (
-                        <span>Mã số thuế: <button type="button" title="Bấm để sao chép mã số thuế" onClick={() => void copyValue("tax", s.taxCode ?? "")} className="cursor-pointer text-blue-700 hover:underline">{s.taxCode}</button></span>
+                        <span>Mã số thuế: <button type="button" title="Bấm để sao chép mã số thuế" onClick={(e) => void copyValue("tax", s.taxCode ?? "", e.currentTarget)} className="cursor-pointer text-blue-700 hover:underline">{s.taxCode}</button></span>
                       ) : "Chưa có mã số thuế"}
                       {s.email ? ` · ${s.email}` : ""}
                     </div>
@@ -418,7 +427,7 @@ export default function SuppliersPage({
           <div className="card">
             <h3 className="text-lg font-semibold">{detail.name || "(chưa có tên)"}</h3>
             <p className="text-sm text-gray-600">
-              {detail.taxCode ? <>Mã số thuế: <button type="button" title="Bấm để sao chép mã số thuế" onClick={() => void copyValue("tax", detail.taxCode ?? "")} className="cursor-pointer text-blue-700 hover:underline">{detail.taxCode}</button> · </> : ""}
+              {detail.taxCode ? <>Mã số thuế: <button type="button" title="Bấm để sao chép mã số thuế" onClick={(e) => void copyValue("tax", detail.taxCode ?? "", e.currentTarget)} className="cursor-pointer text-blue-700 hover:underline">{detail.taxCode}</button> · </> : ""}
               {detail.email ? `Email: ${detail.email} · ` : ""}
               Trạng thái: <span className={detail.status === "active" ? "badge badge-green" : "badge badge-gray"}>{detail.status === "active" ? "Đang hợp tác" : "Ngừng hợp tác"}</span>
             </p>
@@ -440,7 +449,7 @@ export default function SuppliersPage({
             <ul className="mt-2 space-y-2">
               {detail.phones.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2">
-                  <button type="button" title="Bấm để sao chép số điện thoại" onClick={() => void copyValue("phone", p.phone)} className="cursor-pointer text-blue-700 hover:underline">{p.phone}</button>
+                  <button type="button" title="Bấm để sao chép số điện thoại" onClick={(e) => void copyValue("phone", p.phone, e.currentTarget)} className="cursor-pointer text-blue-700 hover:underline">{p.phone}</button>
                   {p.label && <span className="text-gray-500">({p.label})</span>}
                   {p.isPrimary && <strong className="text-blue-700">[Số chính]</strong>}
                   {canUpdate && !p.isPrimary && (
@@ -603,7 +612,7 @@ export default function SuppliersPage({
           </div>
         </form>
       )}
-      {toast && <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">{toast}</div>}
+      {toast && <div className="fixed z-50 whitespace-nowrap rounded bg-gray-900 px-4 py-2 text-sm text-white shadow-lg" style={toastPos ? { left: toastPos.left, top: toastPos.top } : { bottom: 16, left: "50%", transform: "translateX(-50%)" }}>{toast}</div>}
     </section>
   );
 }

@@ -149,10 +149,12 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [toast, setToast] = useState("");
+  const [toastPos, setToastPos] = useState<{ left: number; top: number } | null>(null);
   const toastTimer = useRef<number | undefined>(undefined);
   // Bấm vào chính số điện thoại thì sao chép luôn, khỏi cần nút Copy
-  // riêng; hiện thông báo ngắn để người dùng biết đã sao chép.
-  async function copyValue(kind: "phone" | "tax", text: string) {
+  // riêng; hiện thông báo ngắn ngay cạnh giá trị vừa bấm (mắt người
+  // dùng đang nhìn vào chỗ đó), kẹp trong màn hình.
+  async function copyValue(kind: "phone" | "tax", text: string, el: HTMLElement) {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -164,6 +166,13 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
       document.execCommand("copy");
       document.body.removeChild(ta);
     }
+    const r = el.getBoundingClientRect();
+    const toastWidth = 240;
+    const toastHeight = 36;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - toastWidth - 8));
+    const below = r.bottom + 6;
+    const top = below + toastHeight <= window.innerHeight - 8 ? below : Math.max(8, r.top - toastHeight - 6);
+    setToastPos({ left, top });
     setToast(kind === "phone" ? "Đã sao chép số điện thoại" : "Đã sao chép mã số thuế");
     window.clearTimeout(toastTimer.current);
     toastTimer.current = window.setTimeout(() => setToast(""), 2000);
@@ -515,7 +524,7 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
                   <div>
                     <button onClick={() => openDetail(c.id)} className="font-semibold text-blue-700 hover:underline text-left">{c.fullName || "(chưa có tên)"}</button>
                     {c.primaryPhone && (
-                      <span> — <button type="button" title="Bấm để sao chép số điện thoại" onClick={() => void copyValue("phone", c.primaryPhone ?? "")} className="cursor-pointer text-blue-700 hover:underline">{c.primaryPhone}</button></span>
+                      <span> — <button type="button" title="Bấm để sao chép số điện thoại" onClick={(e) => void copyValue("phone", c.primaryPhone ?? "", e.currentTarget)} className="cursor-pointer text-blue-700 hover:underline">{c.primaryPhone}</button></span>
                     )}
                     <span className="text-gray-500"> · {c.phoneCount} số · {c.childrenCount} con · {c.status === "active" ? "Đang hoạt động" : "Ngừng hoạt động"}</span>
                     <div className="text-sm text-gray-500">
@@ -572,7 +581,7 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
             <ul className="mt-2 space-y-2">
               {detail.phones.map((p) => (
                 <li key={p.id} className="flex flex-wrap items-center gap-2">
-                  <button type="button" title="Bấm để sao chép số điện thoại" onClick={() => void copyValue("phone", p.phone)} className="cursor-pointer text-blue-700 hover:underline">{p.phone}</button>
+                  <button type="button" title="Bấm để sao chép số điện thoại" onClick={(e) => void copyValue("phone", p.phone, e.currentTarget)} className="cursor-pointer text-blue-700 hover:underline">{p.phone}</button>
                   {p.label && <span className="text-gray-500">({p.label})</span>}
                   {p.isPrimary && <strong className="text-blue-700">[Số chính]</strong>}
                   {canUpdate && !p.isPrimary && (
@@ -802,7 +811,7 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
           </div>
         </form>
       )}
-      {toast && <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded bg-gray-900 px-4 py-2 text-sm text-white shadow-lg">{toast}</div>}
+      {toast && <div className="fixed z-50 whitespace-nowrap rounded bg-gray-900 px-4 py-2 text-sm text-white shadow-lg" style={toastPos ? { left: toastPos.left, top: toastPos.top } : { bottom: 16, left: "50%", transform: "translateX(-50%)" }}>{toast}</div>}
     </section>
   );
 }
