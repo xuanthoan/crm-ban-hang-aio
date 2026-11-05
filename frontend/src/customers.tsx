@@ -528,11 +528,11 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
               {detail.gender ? `Giới tính: ${detail.gender} · ` : ""}
               {detail.dateOfBirth ? `Ngày sinh: ${isoToVnDate(detail.dateOfBirth)} · ` : ""}
               {detail.email ? `Email: ${detail.email} · ` : ""}
-              {detail.address ? `Địa chỉ: ${detail.address} · ` : ""}
               {detail.source ? `Nguồn: ${detail.source} · ` : ""}
               Trạng thái: {detail.status === "active" ? "Đang hoạt động" : "Ngừng hoạt động"}
             </p>
-            {detail.note && <p className="mt-2 text-sm">Ghi chú: {detail.note}</p>}
+            {detail.address && <p className="mt-2 whitespace-pre-line text-sm">Địa chỉ: {detail.address}</p>}
+            {detail.note && <p className="mt-2 whitespace-pre-line text-sm">Ghi chú: {detail.note}</p>}
             <p className="mt-2 text-sm text-gray-500">Tag: {detail.tags.map((t) => t.name).join(", ") || "Chưa có tag"}</p>
             <div className="mt-3 flex gap-2">
               {canUpdate && <button onClick={() => openEdit(detail)} className="btn btn-primary">Sửa</button>}
@@ -721,7 +721,7 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
 
             <label className="block">Email<input className="input" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
 
-            <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
+            <label className="block">Địa chỉ<textarea className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
 
             <label className="block">Nguồn<input className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} placeholder="Facebook, Zalo, Offline…" /></label>
 

@@ -396,10 +396,10 @@ export default function SuppliersPage({
             <p className="text-sm text-gray-600">
               {detail.taxCode ? `Mã số thuế: ${detail.taxCode} · ` : ""}
               {detail.email ? `Email: ${detail.email} · ` : ""}
-              {detail.address ? `Địa chỉ: ${detail.address} · ` : ""}
               Trạng thái: <span className={detail.status === "active" ? "badge badge-green" : "badge badge-gray"}>{detail.status === "active" ? "Đang hợp tác" : "Ngừng hợp tác"}</span>
             </p>
-            {detail.note && <p className="mt-2 text-sm">Ghi chú: {detail.note}</p>}
+            {detail.address && <p className="mt-2 whitespace-pre-line text-sm">Địa chỉ: {detail.address}</p>}
+            {detail.note && <p className="mt-2 whitespace-pre-line text-sm">Ghi chú: {detail.note}</p>}
             <div className="mt-3 flex gap-2">
               {canUpdate && <button onClick={() => openEdit(detail)} className="btn btn-primary">Sửa</button>}
               {canDeactivate && detail.status === "active" && (
@@ -553,7 +553,7 @@ export default function SuppliersPage({
 
             <label className="block">Mã số thuế<input className="input" value={form.taxCode} onChange={(e) => setForm({ ...form, taxCode: e.target.value })} placeholder="Để trống nếu không có" /></label>
 
-            <label className="block">Địa chỉ<input className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
+            <label className="block">Địa chỉ<textarea className="input" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></label>
 
             <label className="block">Ghi chú<textarea className="input" value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} /></label>
 
