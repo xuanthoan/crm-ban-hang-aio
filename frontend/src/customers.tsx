@@ -148,6 +148,24 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [copied, setCopied] = useState("");
+  // Sao chép đúng chuỗi đang hiển thị (số điện thoại chính) để người dùng
+  // dán sang chỗ khác mà không phải gõ lại rồi gõ sai.
+  async function copyText(key: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Fallback cho trình duyệt không cho dùng clipboard API.
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(key);
+    window.setTimeout(() => setCopied((cur) => (cur === key ? "" : cur)), 1500);
+  }
   const [newTagName, setNewTagName] = useState("");
 
   const canCreate = permissions.includes("customer.create");
@@ -493,8 +511,12 @@ export default function CustomersPage({ token, permissions, initialCustomerId }:
               <li key={c.id} className="card-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <strong>{c.fullName || "(chưa có tên)"}</strong>
-                    {c.primaryPhone && <span> — {c.primaryPhone}</span>}
+                    <button onClick={() => openDetail(c.id)} className="font-semibold text-blue-700 hover:underline text-left">{c.fullName || "(chưa có tên)"}</button>
+                    {c.primaryPhone && (
+                      <span> — {c.primaryPhone}{" "}
+                        <button type="button" title="Sao chép số điện thoại" onClick={() => void copyText(`phone-${c.id}`, c.primaryPhone ?? "")} className="btn btn-sm btn-secondary">{copied === `phone-${c.id}` ? "Đã copy" : "Copy"}</button>
+                      </span>
+                    )}
                     <span className="text-gray-500"> · {c.phoneCount} số · {c.childrenCount} con · {c.status === "active" ? "Đang hoạt động" : "Ngừng hoạt động"}</span>
                     <div className="text-sm text-gray-500">
                       {c.tags.map((t) => t.name).join(", ") || "Chưa có tag"}

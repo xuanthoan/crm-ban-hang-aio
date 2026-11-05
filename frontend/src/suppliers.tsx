@@ -128,6 +128,24 @@ export default function SuppliersPage({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [copied, setCopied] = useState("");
+  // Sao chép đúng chuỗi đang hiển thị (số điện thoại, mã số thuế) để
+  // người dùng dán sang chỗ khác mà không phải gõ lại rồi gõ sai.
+  async function copyText(key: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Fallback cho trình duyệt không cho dùng clipboard API.
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+    }
+    setCopied(key);
+    window.setTimeout(() => setCopied((cur) => (cur === key ? "" : cur)), 1500);
+  }
 
   const canCreate = permissions.includes("supplier.create");
   const canUpdate = permissions.includes("supplier.update");
@@ -361,12 +379,20 @@ export default function SuppliersPage({
               <li key={s.id} className="card-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <strong>{s.name || "(chưa có tên)"}</strong>
-                    {s.primaryPhone && <span> — {s.primaryPhone}</span>}
+                    <button onClick={() => openDetail(s.id)} className="font-semibold text-blue-700 hover:underline text-left">{s.name || "(chưa có tên)"}</button>
+                    {s.primaryPhone && (
+                      <span> — {s.primaryPhone}{" "}
+                        <button type="button" title="Sao chép số điện thoại" onClick={() => void copyText(`phone-${s.id}`, s.primaryPhone ?? "")} className="btn btn-sm btn-secondary">{copied === `phone-${s.id}` ? "Đã copy" : "Copy"}</button>
+                      </span>
+                    )}
                     <span className="text-gray-500"> · {s.phoneCount} số · </span><span className={s.status === "active" ? "badge badge-green" : "badge badge-gray"}>{s.status === "active" ? "Đang hợp tác" : "Ngừng hợp tác"}</span>
                     {s.rating !== null && s.rating !== undefined ? <span> · Điểm: <strong>{s.rating}/10</strong></span> : <span className="text-gray-500"> · Chưa đánh giá</span>}
                     <div className="text-sm text-gray-500">
-                      {s.taxCode ? `Mã số thuế: ${s.taxCode}` : "Chưa có mã số thuế"}
+                      {s.taxCode ? (
+                        <span>Mã số thuế: {s.taxCode}{" "}
+                          <button type="button" title="Sao chép mã số thuế" onClick={() => void copyText(`tax-${s.id}`, s.taxCode ?? "")} className="btn btn-sm btn-secondary">{copied === `tax-${s.id}` ? "Đã copy" : "Copy"}</button>
+                        </span>
+                      ) : "Chưa có mã số thuế"}
                       {s.email ? ` · ${s.email}` : ""}
                     </div>
                   </div>
