@@ -406,7 +406,7 @@ router.get("/customers", async (req, res) => {
           // Search by ANY phone, normalized the same way as stored phones,
           // so "0987 884 244", "098-788-4244" and "+84987884244" all match.
           ...(looksLikePhone
-            ? [{ phones: { some: { phoneNormalized: { contains: normalizePhone(q).replace(/^\+84/, "0") }, status: "active", deletedAt: null } } }]
+            ? [{ phones: { some: { phoneNormalized: { contains: normalizedQ }, status: "active", deletedAt: null } } }]
             : []),
         ],
       });
