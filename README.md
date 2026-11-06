@@ -9,7 +9,7 @@ Phần mềm CRM bán hàng cho cửa hàng nhỏ và vừa bán hàng vật lý
 > (CSV), Audit — cộng module Nhà cung cấp trọn vẹn (danh mục, đơn nhập, thanh toán
 > và công nợ NCC, báo cáo công nợ NCC) và các thay đổi sau MVP (ảnh sản phẩm, trang
 > quản trị phân quyền từng người, link mạng xã hội, chấm điểm NCC, biểu đồ doanh thu,
-> cùng các tinh chỉnh sau đó: chuẩn hóa số điện thoại, bấm tên mở chi tiết, bấm số
+> tag nhà cung cấp, ô lọc Tag tìm được bằng chữ, cùng các tinh chỉnh sau đó: chuẩn hóa số điện thoại, bấm tên mở chi tiết, bấm số
 > điện thoại/mã số thuế để sao chép, nút tạo màu xanh, bấm mục sidebar của trang đang
 > mở để về đầu trang).
 > Xem tài liệu bàn giao đầy đủ ở `docs/14_TONG_HOP_BAN_GIAO_DU_AN.md`.**
